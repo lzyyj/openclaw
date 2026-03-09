@@ -2,7 +2,13 @@
   "name": "openclaw",
   "version": "2026.2.23-cn",
   "description": "更懂中文环境的 Local Agent 实战社区版 (OpenClaw CN)",
-  "keywords": ["ai", "agent", "deepseek", "openclaw", "chinese"],
+  "keywords": [
+    "agent",
+    "ai",
+    "chinese",
+    "deepseek",
+    "openclaw"
+  ],
   "homepage": "https://open-claw.org.cn",
   "bugs": {
     "url": "https://gitee.com/OpenClaw-CN/openclaw-cn/issues"
@@ -101,7 +107,7 @@
     "openclaw:rpc": "node scripts/run-node.mjs agent --mode rpc --json",
     "plugins:sync": "node --import tsx scripts/sync-plugin-versions.ts",
     "prepack": "pnpm build && pnpm ui:build",
-    "prepare": "command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1 && (git config core.hooksPath git-hooks 2>/dev/null || true) || exit 0",
+    "prepare": "node --eval \"try{require('child_process').execSync('git rev-parse --is-inside-work-tree',{stdio:'ignore'});require('child_process').execSync('git config core.hooksPath git-hooks',{stdio:'ignore'})}catch(e){}\"",
     "protocol:check": "pnpm protocol:gen && pnpm protocol:gen:swift && git diff --exit-code -- dist/protocol.schema.json apps/macos/Sources/OpenClawProtocol/GatewayModels.swift",
     "protocol:gen": "node --import tsx scripts/protocol-gen.ts",
     "protocol:gen:swift": "node --import tsx scripts/protocol-gen-swift.ts",
@@ -228,7 +234,7 @@
     "minimumReleaseAge": 2880,
     "overrides": {
       "hono": "4.11.10",
-	  "libsignal": "git+https://gitee.com/OpenClaw-CN/libsignal-node.git",
+      "libsignal": "git+https://gitee.com/OpenClaw-CN/libsignal-node.git",
       "fast-xml-parser": "5.3.6",
       "request": "npm:@cypress/request@3.0.10",
       "request-promise": "npm:@cypress/request-promise@5.0.0",

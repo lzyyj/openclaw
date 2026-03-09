@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+
+/**
+ * 由于不兼容于 Windows (PowerShell/CMD), 目前已被新的脚本 bundle-a2ui.mjs 替代，仅备用
+ * Author: lzyyj
+ */
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -5,11 +5,12 @@
  * Supports: Windows (PowerShell/CMD), macOS, Linux, WSL
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import process from "node:process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,7 +35,7 @@ async function findNodeExecutable() {
             const content = await fs.readFile(pathFile, "utf-8");
             nodeDir = content.trim();
         }
-    } catch (e) {
+    } catch (_e) {
         // Ignore
     }
 
@@ -334,7 +335,7 @@ async function main() {
         const currentHash = await computeHash(nodeCmd, inputPaths);
 
         // 检查是否需要重新构建
-        let needRebuild = true;
+        let _needRebuild = true;
         try {
             const previousHash = await fs.readFile(hashFile, "utf-8");
             if (previousHash === currentHash) {
@@ -354,7 +355,7 @@ async function main() {
         console.log("Building A2UI bundle...");
 
         // TypeScript 编译
-        compileTypeScript(nodeCmd);
+        await compileTypeScript(nodeCmd);
 
         // Rolldown 打包
         await runRolldown(nodeCmd);
@@ -369,4 +370,4 @@ async function main() {
 }
 
 // 运行主函数
-main();
+main().catch(onError);

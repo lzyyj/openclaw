@@ -90,9 +90,16 @@ function createSpawnOptions(cmd, args, envOverride) {
 }
 
 function run(cmd, args) {
+  const useShell = shouldUseShellForCommand(cmd);
+  // On Windows with shell: true, if the command path contains spaces and isn't already quoted,
+  // we need to quote it to prevent the shell from splitting it incorrectly.
+  let finalCmd = cmd;
+  if (useShell && process.platform === "win32" && cmd.includes(" ") && !/^["'].*["']$/.test(cmd)) {
+    finalCmd = `"${cmd}"`;
+  }
   let child;
   try {
-    child = spawn(cmd, args, createSpawnOptions(cmd, args));
+    child = spawn(finalCmd, args, createSpawnOptions(cmd, args));
   } catch (err) {
     console.error(`Failed to launch ${cmd}:`, err);
     process.exit(1);
@@ -111,9 +118,16 @@ function run(cmd, args) {
 }
 
 function runSync(cmd, args, envOverride) {
+  const useShell = shouldUseShellForCommand(cmd);
+  // On Windows with shell: true, if the command path contains spaces and isn't already quoted,
+  // we need to quote it to prevent the shell from splitting it incorrectly.
+  let finalCmd = cmd;
+  if (useShell && process.platform === "win32" && cmd.includes(" ") && !/^["'].*["']$/.test(cmd)) {
+    finalCmd = `"${cmd}"`;
+  }
   let result;
   try {
-    result = spawnSync(cmd, args, createSpawnOptions(cmd, args, envOverride));
+    result = spawnSync(finalCmd, args, createSpawnOptions(cmd, args, envOverride));
   } catch (err) {
     console.error(`Failed to launch ${cmd}:`, err);
     process.exit(1);

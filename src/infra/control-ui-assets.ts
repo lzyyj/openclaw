@@ -258,17 +258,32 @@ export async function ensureControlUiAssetsBuilt(
     };
   }
 
-  runtime.log("Control UI assets missing; building (ui:build, auto-installs UI deps)…");
+  // First, ensure the main project is built (some UI assets may depend on built files)
+  // This follows the same order as the prepack script: build then ui:build
+  runtime.log("Control UI assets missing; building main project first (build)…");
+  // Try to run pnpm build, if pnpm is available
+  const pnpmPath = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  const mainBuild = await runCommandWithTimeout([pnpmPath, "build"], {
+    cwd: repoRoot,
+    timeoutMs: opts?.timeoutMs ? Math.floor(opts.timeoutMs / 2) : 5 * 60_000,
+  });
+  if (mainBuild.code !== 0) {
+    runtime.log(
+      `Main build failed: ${mainBuild.stderr || mainBuild.stdout || "unknown error"}. Continuing with UI build...`,
+    );
+  }
 
-  const build = await runCommandWithTimeout([process.execPath, uiScript, "build"], {
+  runtime.log("Building UI (ui:build, auto-installs UI deps)…");
+
+  const uiBuild = await runCommandWithTimeout([process.execPath, uiScript, "build"], {
     cwd: repoRoot,
     timeoutMs: opts?.timeoutMs ?? 10 * 60_000,
   });
-  if (build.code !== 0) {
+  if (uiBuild.code !== 0) {
     return {
       ok: false,
       built: false,
-      message: `Control UI build failed: ${summarizeCommandOutput(build.stderr) ?? `exit ${build.code}`}`,
+      message: `Control UI build failed: ${summarizeCommandOutput(uiBuild.stderr) ?? `exit ${uiBuild.code}`}`,
     };
   }
 

@@ -86,7 +86,32 @@ pnpm openclaw dashboard
 ## 🗑️ 卸载说明 (Uninstall)
 
 如果你需要移除 OpenClaw 服务，请根据操作系统执行以下命令。
-*(注：如果 CLI 命令 `openclaw uninstall` 无法使用，请手动执行以下步骤)*
+
+### 删除命令（CLI已安装）
+源码安装的执行以下命令
+```bash
+pnpm openclaw uninstall
+```
+
+一键脚本安装的执行以下命令
+```bash
+openclaw uninstall
+```
+
+*如果 CLI 已删除但服务仍在运行，使用手动服务移除。*，执行以下命令：
+
+```bash
+npm rm -g openclaw
+pnpm remove -g openclaw
+bun remove -g openclaw
+```
+
+如果你安装了 macOS 应用：
+```bash
+rm -rf /Applications/OpenClaw.app
+```
+
+*如果 CLI 未安装，使用手动服务移除。*执行以下命令：
 
 ### 🍎 macOS (launchd)
 默认标签是 `bot.molt.gateway`（或 `bot.molt.<profile>`；旧版 `com.openclaw.*` 可能仍然存在）：
@@ -198,6 +223,9 @@ OpenClaw CN 是一场由开发者驱动的本地化“闪电战”。目前，�
 如果你想第一时间体验 DeepSeek 适配版，或者想与我们一起从 0 到 1 建设生态，
 欢迎加入 OpenClaw CN 早期共建群。
 
+> **📢 关于微信交流群限流的说明**
+> 随着 OpenClaw CN 社区的快速发展，每日入群人数激增。为了提供更优质的开源互助环境，避免群消息泛滥，**每天晚上 8 点将定时释放新的交流群二维码，各系统每日限额 1 个群**。
+
 <div align="center">
   <table>
     <tr>
@@ -221,6 +249,23 @@ OpenClaw CN 是一场由开发者驱动的本地化“闪电战”。目前，�
 </div>
 
 ---
+
+## ☕ 请开发者喝杯咖啡 (Buy Us a Coffee)
+
+OpenClaw CN 致力于为中国开发者提供最顺滑的 Local Agent 基础设施。如果这个开源项目为你节省了宝贵的开发时间，或者让你觉得“这代码写得有点意思”，欢迎用微信扫码，请团队喝杯冰美式！
+
+你的微量赞助将直接用于填补服务器开销，以及购买更多的防脱发洗发水。
+
+> **💡 特别说明**：本区块仅限个人开发者的“用爱发电”。如果您是企业用户，并希望获得首页 Logo 墙、导航栏底座等千万级流量曝光，请向上查看 **【🤝 商业赞助】** 板块。
+
+<div align="center">
+  <img src="./wechat-reward.jpg" alt="微信赞助" width="220">
+  <br>
+  <b>💚 微信赞助</b>
+  <br><br>
+  <p><i>❤️ 感谢每一位支持开源生态的开发者！</i></p>
+</div>
+
 
 ## ⚠️ 免责声明
 

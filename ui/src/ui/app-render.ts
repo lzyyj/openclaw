@@ -146,7 +146,7 @@ export function renderApp(state: AppViewState) {
     state.updateAvailable?.currentVersion ||
     t("common.na");
   // Disabled for fork: upstream update check not applicable (our build is not from upstream releases).
-  const availableUpdate = null;
+  const availableUpdate = state.updateAvailable;
   const versionStatusClass = availableUpdate ? "warn" : "ok";
   const presenceCount = state.presenceEntries.length;
   const sessionsCount = state.sessionsResult?.count ?? null;

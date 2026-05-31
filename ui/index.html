@@ -1,8 +1,55 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
+    <script>
+      // 最激进的解决方案：脚本作为head的第一个子元素
+      // 在浏览器解析任何其他内容前立即执行
+      (function() {
+        'use strict';
+        
+        // 立即设置lang属性，阻止浏览器检测到默认语言
+        var htmlElement = document.documentElement;
+        htmlElement.lang = 'en';
+        
+        // 尝试读取用户语言设置
+        var savedLocale = null;
+        try {
+          savedLocale = localStorage.getItem('openclaw.i18n.locale');
+          console.log('[i18n-urgent] Read from localStorage:', savedLocale);
+        } catch(e) {
+          console.error('[i18n-urgent] localStorage error:', e);
+        }
+        
+        // 如果用户已保存语言设置，立即更新
+        if (savedLocale === 'zh-CN' || savedLocale === 'zh-TW' || savedLocale === 'pt-BR' || savedLocale === 'en') {
+          htmlElement.lang = savedLocale;
+          console.log('[i18n-urgent] Set lang to saved value:', savedLocale);
+        } else {
+          // 如果没有保存的设置，检查浏览器语言
+          var navLang = navigator.language || navigator.userLanguage || 'en';
+          console.log('[i18n-urgent] Browser language:', navLang);
+          if (navLang.startsWith('zh')) {
+            htmlElement.lang = (navLang === 'zh-TW' || navLang === 'zh-HK') ? 'zh-TW' : 'zh-CN';
+            console.log('[i18n-urgent] Set lang to browser language:', htmlElement.lang);
+          } else if (navLang.startsWith('pt')) {
+            htmlElement.lang = 'pt-BR';
+            console.log('[i18n-urgent] Set lang to browser language:', htmlElement.lang);
+          }
+        }
+        
+        // 添加所有可能的防翻译属性
+        htmlElement.setAttribute('translate', 'no');
+        htmlElement.setAttribute('data-translate', 'no');
+        htmlElement.classList.add('notranslate');
+        htmlElement.classList.add('no-translate');
+        
+        // 记录最终状态
+        console.log('[i18n-urgent] Final lang:', htmlElement.lang);
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google" content="notranslate" />
     <title>OpenClaw Control</title>
     <meta name="color-scheme" content="dark light" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

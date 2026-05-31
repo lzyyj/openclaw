@@ -1,3 +1,5 @@
+import { t } from "../i18n/index.ts";
+
 const MAX_ASSISTANT_NAME = 50;
 const MAX_ASSISTANT_AVATAR = 200;
 
@@ -27,7 +29,10 @@ function coerceIdentityValue(value: string | undefined, maxLength: number): stri
 export function normalizeAssistantIdentity(
   input?: Partial<AssistantIdentity> | null,
 ): AssistantIdentity {
-  const name = coerceIdentityValue(input?.name, MAX_ASSISTANT_NAME) ?? DEFAULT_ASSISTANT_NAME;
+  const rawName = coerceIdentityValue(input?.name, MAX_ASSISTANT_NAME);
+  // Translate the default name "Assistant"; preserve custom names
+  const name =
+    rawName === DEFAULT_ASSISTANT_NAME ? t("chat.assistant") : (rawName ?? t("chat.assistant"));
   const avatar = coerceIdentityValue(input?.avatar ?? undefined, MAX_ASSISTANT_AVATAR) ?? null;
   const agentId =
     typeof input?.agentId === "string" && input.agentId.trim() ? input.agentId.trim() : null;

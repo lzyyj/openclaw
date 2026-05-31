@@ -80,6 +80,12 @@ class I18nManager {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("openclaw.i18n.locale", locale);
     }
+
+    // Update HTML document lang attribute to match the selected locale
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+    }
+
     this.notify();
   }
 

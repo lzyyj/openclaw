@@ -1,28 +1,61 @@
+import { TAGLINES_ZH, HOLIDAY_TAGLINES_ZH, DEFAULT_TAGLINE_ZH } from "./tagline-zh.js";
+
 const DEFAULT_TAGLINE = "All your chats, one OpenClaw.";
 
-const HOLIDAY_TAGLINES = {
-  newYear:
-    "New Year's Day: New year, new config—same old EADDRINUSE, but this time we resolve it like grown-ups.",
-  lunarNewYear:
-    "Lunar New Year: May your builds be lucky, your branches prosperous, and your merge conflicts chased away with fireworks.",
-  christmas:
-    "Christmas: Ho ho ho—Santa's little claw-sistant is here to ship joy, roll back chaos, and stash the keys safely.",
-  eid: "Eid al-Fitr: Celebration mode: queues cleared, tasks completed, and good vibes committed to main with clean history.",
-  diwali:
-    "Diwali: Let the logs sparkle and the bugs flee—today we light up the terminal and ship with pride.",
-  easter:
-    "Easter: I found your missing environment variable—consider it a tiny CLI egg hunt with fewer jellybeans.",
-  hanukkah:
-    "Hanukkah: Eight nights, eight retries, zero shame—may your gateway stay lit and your deployments stay peaceful.",
-  halloween:
-    "Halloween: Spooky season: beware haunted dependencies, cursed caches, and the ghost of node_modules past.",
-  thanksgiving:
-    "Thanksgiving: Grateful for stable ports, working DNS, and a bot that reads the logs so nobody has to.",
-  valentines:
-    "Valentine's Day: Roses are typed, violets are piped—I'll automate the chores so you can spend time with humans.",
+// Holiday identifiers — used as placeholders in TAGLINES and as keys in HOLIDAY_RULES
+const HOLIDAY_IDS = {
+  newYear: "__HOLIDAY:newYear",
+  lunarNewYear: "__HOLIDAY:lunarNewYear",
+  christmas: "__HOLIDAY:christmas",
+  eid: "__HOLIDAY:eid",
+  diwali: "__HOLIDAY:diwali",
+  easter: "__HOLIDAY:easter",
+  hanukkah: "__HOLIDAY:hanukkah",
+  halloween: "__HOLIDAY:halloween",
+  thanksgiving: "__HOLIDAY:thanksgiving",
+  valentines: "__HOLIDAY:valentines",
 } as const;
 
-const TAGLINES: string[] = [
+type HolidayId = (typeof HOLIDAY_IDS)[keyof typeof HOLIDAY_IDS];
+
+const HOLIDAY_TAGLINES: Record<string, string> = {
+  [HOLIDAY_IDS.newYear]:
+    "New Year's Day: New year, new config—same old EADDRINUSE, but this time we resolve it like grown-ups.",
+  [HOLIDAY_IDS.lunarNewYear]:
+    "Lunar New Year: May your builds be lucky, your branches prosperous, and your merge conflicts chased away with fireworks.",
+  [HOLIDAY_IDS.christmas]:
+    "Christmas: Ho ho ho—Santa's little claw-sistant is here to ship joy, roll back chaos, and stash the keys safely.",
+  [HOLIDAY_IDS.eid]:
+    "Eid al-Fitr: Celebration mode: queues cleared, tasks completed, and good vibes committed to main with clean history.",
+  [HOLIDAY_IDS.diwali]:
+    "Diwali: Let the logs sparkle and the bugs flee—today we light up the terminal and ship with pride.",
+  [HOLIDAY_IDS.easter]:
+    "Easter: I found your missing environment variable—consider it a tiny CLI egg hunt with fewer jellybeans.",
+  [HOLIDAY_IDS.hanukkah]:
+    "Hanukkah: Eight nights, eight retries, zero shame—may your gateway stay lit and your deployments stay peaceful.",
+  [HOLIDAY_IDS.halloween]:
+    "Halloween: Spooky season: beware haunted dependencies, cursed caches, and the ghost of node_modules past.",
+  [HOLIDAY_IDS.thanksgiving]:
+    "Thanksgiving: Grateful for stable ports, working DNS, and a bot that reads the logs so nobody has to.",
+  [HOLIDAY_IDS.valentines]:
+    "Valentine's Day: Roses are typed, violets are piped—I'll automate the chores so you can spend time with humans.",
+};
+
+// Chinese holiday taglines, keyed by the same HOLIDAY_IDS
+const HOLIDAY_TAGLINES_ZH_BY_ID: Record<string, string> = {
+  [HOLIDAY_IDS.newYear]: HOLIDAY_TAGLINES_ZH.newYear,
+  [HOLIDAY_IDS.lunarNewYear]: HOLIDAY_TAGLINES_ZH.lunarNewYear,
+  [HOLIDAY_IDS.christmas]: HOLIDAY_TAGLINES_ZH.christmas,
+  [HOLIDAY_IDS.eid]: HOLIDAY_TAGLINES_ZH.eid,
+  [HOLIDAY_IDS.diwali]: HOLIDAY_TAGLINES_ZH.diwali,
+  [HOLIDAY_IDS.easter]: HOLIDAY_TAGLINES_ZH.easter,
+  [HOLIDAY_IDS.hanukkah]: HOLIDAY_TAGLINES_ZH.hanukkah,
+  [HOLIDAY_IDS.halloween]: HOLIDAY_TAGLINES_ZH.halloween,
+  [HOLIDAY_IDS.thanksgiving]: HOLIDAY_TAGLINES_ZH.thanksgiving,
+  [HOLIDAY_IDS.valentines]: HOLIDAY_TAGLINES_ZH.valentines,
+};
+
+const TAGLINE_ENTRIES: string[] = [
   "Your terminal just grew claws—type something and let the bot pinch the busywork.",
   "Welcome to the command line: where dreams compile and confidence segfaults.",
   'I run on caffeine, JSON5, and the audacity of "it worked on my machine."',
@@ -91,17 +124,37 @@ const TAGLINES: string[] = [
   "Think different. Actually think.",
   "Ah, the fruit tree company! 🍎",
   "Greetings, Professor Falken",
-  HOLIDAY_TAGLINES.newYear,
-  HOLIDAY_TAGLINES.lunarNewYear,
-  HOLIDAY_TAGLINES.christmas,
-  HOLIDAY_TAGLINES.eid,
-  HOLIDAY_TAGLINES.diwali,
-  HOLIDAY_TAGLINES.easter,
-  HOLIDAY_TAGLINES.hanukkah,
-  HOLIDAY_TAGLINES.halloween,
-  HOLIDAY_TAGLINES.thanksgiving,
-  HOLIDAY_TAGLINES.valentines,
+  HOLIDAY_IDS.newYear,
+  HOLIDAY_IDS.lunarNewYear,
+  HOLIDAY_IDS.christmas,
+  HOLIDAY_IDS.eid,
+  HOLIDAY_IDS.diwali,
+  HOLIDAY_IDS.easter,
+  HOLIDAY_IDS.hanukkah,
+  HOLIDAY_IDS.halloween,
+  HOLIDAY_IDS.thanksgiving,
+  HOLIDAY_IDS.valentines,
 ];
+
+// Build resolved tagline arrays for both languages
+const TAGLINES_EN: string[] = TAGLINE_ENTRIES.map((entry) => {
+  if (typeof entry === "string" && entry.startsWith("__HOLIDAY:")) {
+    return HOLIDAY_TAGLINES[entry];
+  }
+  return entry;
+});
+
+const TAGLINES_ZH_RESOLVED: string[] = TAGLINE_ENTRIES.map((entry) => {
+  if (typeof entry === "string" && entry.startsWith("__HOLIDAY:")) {
+    return HOLIDAY_TAGLINES_ZH_BY_ID[entry];
+  }
+  // Map Chinese counterparts for regular entries
+  const idx = TAGLINE_ENTRIES.indexOf(entry);
+  if (idx >= 0 && idx < TAGLINES_ZH.length) {
+    return TAGLINES_ZH[idx];
+  }
+  return entry;
+});
 
 type HolidayRule = (date: Date) => boolean;
 
@@ -167,10 +220,10 @@ const isFourthThursdayOfNovember: HolidayRule = (date) => {
   return parts.day === fourthThursday;
 };
 
-const HOLIDAY_RULES = new Map<string, HolidayRule>([
-  [HOLIDAY_TAGLINES.newYear, onMonthDay(0, 1)],
+const HOLIDAY_RULES = new Map<HolidayId, HolidayRule>([
+  [HOLIDAY_IDS.newYear, onMonthDay(0, 1)],
   [
-    HOLIDAY_TAGLINES.lunarNewYear,
+    HOLIDAY_IDS.lunarNewYear,
     onSpecificDates(
       [
         [2025, 0, 29],
@@ -181,7 +234,7 @@ const HOLIDAY_RULES = new Map<string, HolidayRule>([
     ),
   ],
   [
-    HOLIDAY_TAGLINES.eid,
+    HOLIDAY_IDS.eid,
     onSpecificDates(
       [
         [2025, 2, 30],
@@ -193,7 +246,7 @@ const HOLIDAY_RULES = new Map<string, HolidayRule>([
     ),
   ],
   [
-    HOLIDAY_TAGLINES.diwali,
+    HOLIDAY_IDS.diwali,
     onSpecificDates(
       [
         [2025, 9, 20],
@@ -204,7 +257,7 @@ const HOLIDAY_RULES = new Map<string, HolidayRule>([
     ),
   ],
   [
-    HOLIDAY_TAGLINES.easter,
+    HOLIDAY_IDS.easter,
     onSpecificDates(
       [
         [2025, 3, 20],
@@ -215,56 +268,75 @@ const HOLIDAY_RULES = new Map<string, HolidayRule>([
     ),
   ],
   [
-    HOLIDAY_TAGLINES.hanukkah,
+    HOLIDAY_IDS.hanukkah,
     inYearWindow([
       { year: 2025, month: 11, day: 15, duration: 8 },
       { year: 2026, month: 11, day: 5, duration: 8 },
       { year: 2027, month: 11, day: 25, duration: 8 },
     ]),
   ],
-  [HOLIDAY_TAGLINES.halloween, onMonthDay(9, 31)],
-  [HOLIDAY_TAGLINES.thanksgiving, isFourthThursdayOfNovember],
-  [HOLIDAY_TAGLINES.valentines, onMonthDay(1, 14)],
-  [HOLIDAY_TAGLINES.christmas, onMonthDay(11, 25)],
+  [HOLIDAY_IDS.halloween, onMonthDay(9, 31)],
+  [HOLIDAY_IDS.thanksgiving, isFourthThursdayOfNovember],
+  [HOLIDAY_IDS.valentines, onMonthDay(1, 14)],
+  [HOLIDAY_IDS.christmas, onMonthDay(11, 25)],
 ]);
 
-function isTaglineActive(tagline: string, date: Date): boolean {
-  const rule = HOLIDAY_RULES.get(tagline);
-  if (!rule) {
-    return true;
+type TaglinePool = { entries: string[]; holidayTexts: Record<string, string> };
+
+function resolveTaglines(options: TaglineOptions): TaglinePool {
+  const locale = options.locale ?? process.env.LANG ?? "";
+  if (locale.startsWith("zh")) {
+    return { entries: TAGLINES_ZH_RESOLVED, holidayTexts: HOLIDAY_TAGLINES_ZH_BY_ID };
   }
-  return rule(date);
+  return { entries: TAGLINES_EN, holidayTexts: HOLIDAY_TAGLINES };
+}
+
+function isTaglineActive(tagline: string, date: Date, pool: TaglinePool): boolean {
+  // Check if this is a holiday tagline
+  for (const [id, text] of Object.entries(pool.holidayTexts)) {
+    if (tagline === text) {
+      const rule = HOLIDAY_RULES.get(id as HolidayId);
+      if (rule) {
+        return rule(date);
+      }
+    }
+  }
+  return true; // non-holiday taglines are always active
 }
 
 export interface TaglineOptions {
   env?: NodeJS.ProcessEnv;
   random?: () => number;
   now?: () => Date;
+  locale?: string;
 }
 
 export function activeTaglines(options: TaglineOptions = {}): string[] {
-  if (TAGLINES.length === 0) {
-    return [DEFAULT_TAGLINE];
+  const pool = resolveTaglines(options);
+  if (pool.entries.length === 0) {
+    const locale = options.locale ?? process.env.LANG ?? "";
+    return [locale.startsWith("zh") ? DEFAULT_TAGLINE_ZH : DEFAULT_TAGLINE];
   }
   const today = options.now ? options.now() : new Date();
-  const filtered = TAGLINES.filter((tagline) => isTaglineActive(tagline, today));
-  return filtered.length > 0 ? filtered : TAGLINES;
+  const filtered = pool.entries.filter((tagline) => isTaglineActive(tagline, today, pool));
+  return filtered.length > 0 ? filtered : pool.entries;
 }
 
 export function pickTagline(options: TaglineOptions = {}): string {
   const env = options.env ?? process.env;
   const override = env?.OPENCLAW_TAGLINE_INDEX;
+  const pool = resolveTaglines(options);
   if (override !== undefined) {
     const parsed = Number.parseInt(override, 10);
     if (!Number.isNaN(parsed) && parsed >= 0) {
-      const pool = TAGLINES.length > 0 ? TAGLINES : [DEFAULT_TAGLINE];
-      return pool[parsed % pool.length];
+      const fallbackPool = pool.entries.length > 0 ? pool.entries : [DEFAULT_TAGLINE];
+      return fallbackPool[parsed % fallbackPool.length];
     }
   }
-  const pool = activeTaglines(options);
+  const active = activeTaglines(options);
   const rand = options.random ?? Math.random;
-  const index = Math.floor(rand() * pool.length) % pool.length;
-  return pool[index];
+  const index = Math.floor(rand() * active.length) % active.length;
+  return active[index];
 }
 
-export { TAGLINES, HOLIDAY_RULES, DEFAULT_TAGLINE };
+export { TAGLINES_ZH_RESOLVED as TAGLINES, HOLIDAY_RULES, DEFAULT_TAGLINE };

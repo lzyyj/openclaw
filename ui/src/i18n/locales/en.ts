@@ -699,6 +699,11 @@ export const en: TranslationMap = {
     message: "Message",
     default: "Tool",
   },
+  update: {
+    banner: "Update available: v{latestVersion} (running v{currentVersion})",
+    now: "Update now",
+    inProgress: "Updating...",
+  },
   toolVerb: {
     status: "status",
     start: "start",

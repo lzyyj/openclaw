@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { formatCliCommand } from "../cli/command-format.js";
+import { getText } from "../cli/i18n.js";
 import type { loadConfig } from "../config/config.js";
 import { resolveStateDir } from "../config/paths.js";
 import { runCommandWithTimeout } from "../process/exec.js";
@@ -399,8 +400,9 @@ export async function runGatewayUpdateCheck(params: {
     const shouldNotify =
       state.lastNotifiedVersion !== resolved.version || state.lastNotifiedTag !== tag;
     if (shouldRunUpdateHints && shouldNotify) {
+      const cmd = formatCliCommand("openclaw update");
       params.log.info(
-        `update available (${tag}): v${resolved.version} (current v${VERSION}). Run: ${formatCliCommand("openclaw update")}`,
+        getText("update.startup.notify", `update available (${tag}): v${resolved.version} (current v${VERSION}). Run: ${cmd}`, { tag, version: `v${resolved.version}`, currentVersion: `v${VERSION}`, command: cmd }),
       );
       nextState.lastNotifiedVersion = resolved.version;
       nextState.lastNotifiedTag = tag;

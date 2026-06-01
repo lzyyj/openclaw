@@ -61,6 +61,10 @@ const ZH_CN: Record<string, string> = {
   "help.display_help": "显示命令帮助",
   "help.dev_profile":
     "开发模式：隔离状态至 ~/.openclaw-dev，默认网关端口 19001，同时迁移衍生端口（浏览器/面板）",
+
+  // ---- Update ----
+  "update.available": "有可用更新{suffix}。运行：{cmd}",
+  "update.startup.notify": "有可用更新（{tag}）：{version}（当前 {currentVersion}）。运行：{command}",
   "help.profile":
     "使用指定配置文件（将 OPENCLAW_STATE_DIR/OPENCLAW_CONFIG_PATH 隔离至 ~/.openclaw-<name>）",
   "help.log_level": "文件和控制台的全局日志级别覆盖（{levels}）",

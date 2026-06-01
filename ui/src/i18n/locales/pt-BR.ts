@@ -177,6 +177,11 @@ export const pt_BR: TranslationMap = {
     message: "Mensagem",
     default: "Ferramenta",
   },
+  update: {
+    banner: "Update available: v{latestVersion} (running v{currentVersion})",
+    now: "Update now",
+    inProgress: "Updating...",
+  },
   toolVerb: {
     status: "status",
     start: "iniciar",

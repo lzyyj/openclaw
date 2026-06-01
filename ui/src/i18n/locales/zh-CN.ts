@@ -721,6 +721,11 @@ export const zh_CN: TranslationMap = {
     message: "消息",
     default: "工具",
   },
+  update: {
+    banner: "有可用更新：v{latestVersion}（当前 v{currentVersion}）",
+    now: "立即更新",
+    inProgress: "更新中…",
+  },
   toolVerb: {
     status: "状态",
     start: "启动",

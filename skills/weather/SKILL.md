@@ -1,112 +1,23 @@
 ---
 name: weather
-description: "Get current weather and forecasts via wttr.in or Open-Meteo. Use when: user asks about weather, temperature, or forecasts for any location. NOT for: historical weather data, severe weather alerts, or detailed meteorological analysis. No API key needed."
-homepage: https://wttr.in/:help
-metadata: { "openclaw": { "emoji": "🌤️", "requires": { "bins": ["curl"] } } }
+description: "Get current weather and forecasts for any location via wttr.in. No API key needed."
 ---
 
 # Weather Skill
 
-Get current weather conditions and forecasts.
+Get current weather and forecasts for any location.
 
-## When to Use
+## Usage
 
-✅ **USE this skill when:**
+Ask the agent: "What's the weather in Beijing?" or "天气怎么样"
 
-- "What's the weather?"
-- "Will it rain today/tomorrow?"
-- "Temperature in [city]"
-- "Weather forecast for the week"
-- Travel planning weather checks
+## Implementation
 
-## When NOT to Use
+This skill uses wttr.in (curl-friendly weather service, no API key required).
 
-❌ **DON'T use this skill when:**
+For the actual weather fetching logic, the agent uses web_fetch or direct HTTP requests to wttr.in at these endpoints:
 
-- Historical weather data → use weather archives/APIs
-- Climate analysis or trends → use specialized data sources
-- Hyper-local microclimate data → use local sensors
-- Severe weather alerts → check official NWS sources
-- Aviation/marine weather → use specialized services (METAR, etc.)
+- Current conditions: `https://wttr.in/{location}?format=%C+%t+%h+%w&m`
+- Full forecast: `https://wttr.in/{location}?m`
 
-## Location
-
-Always include a city, region, or airport code in weather queries.
-
-## Commands
-
-### Current Weather
-
-```bash
-# One-line summary
-curl "wttr.in/London?format=3"
-
-# Detailed current conditions
-curl "wttr.in/London?0"
-
-# Specific city
-curl "wttr.in/New+York?format=3"
-```
-
-### Forecasts
-
-```bash
-# 3-day forecast
-curl "wttr.in/London"
-
-# Week forecast
-curl "wttr.in/London?format=v2"
-
-# Specific day (0=today, 1=tomorrow, 2=day after)
-curl "wttr.in/London?1"
-```
-
-### Format Options
-
-```bash
-# One-liner
-curl "wttr.in/London?format=%l:+%c+%t+%w"
-
-# JSON output
-curl "wttr.in/London?format=j1"
-
-# PNG image
-curl "wttr.in/London.png"
-```
-
-### Format Codes
-
-- `%c` — Weather condition emoji
-- `%t` — Temperature
-- `%f` — "Feels like"
-- `%w` — Wind
-- `%h` — Humidity
-- `%p` — Precipitation
-- `%l` — Location
-
-## Quick Responses
-
-**"What's the weather?"**
-
-```bash
-curl -s "wttr.in/London?format=%l:+%c+%t+(feels+like+%f),+%w+wind,+%h+humidity"
-```
-
-**"Will it rain?"**
-
-```bash
-curl -s "wttr.in/London?format=%l:+%c+%p"
-```
-
-**"Weekend forecast"**
-
-```bash
-curl "wttr.in/London?format=v2"
-```
-
-## Notes
-
-- No API key needed (uses wttr.in)
-- Rate limited; don't spam requests
-- Works for most global cities
-- Supports airport codes: `curl wttr.in/ORD`
+The `%C` = weather condition, `%t` = temperature, `%h` = humidity, `%w` = wind. The `&m` flag sets units to metric.

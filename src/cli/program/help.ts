@@ -5,6 +5,7 @@ import { escapeRegExp } from "../../utils.js";
 import { hasFlag, hasRootVersionAlias } from "../argv.js";
 import { formatCliBannerLine, hasEmittedCliBanner } from "../banner.js";
 import { replaceCliName, resolveCliName } from "../cli-name.js";
+import { getText } from "../i18n.js";
 import { CLI_LOG_LEVEL_VALUES, parseCliLogLevelOption } from "../log-level-option.js";
 import { getCoreCliCommandsWithSubcommands } from "./command-registry.js";
 import type { ProgramContext } from "./context.js";
@@ -16,29 +17,53 @@ const ROOT_COMMANDS_WITH_SUBCOMMANDS = new Set([
   ...getCoreCliCommandsWithSubcommands(),
   ...getSubCliCommandsWithSubcommands(),
 ]);
-const ROOT_COMMANDS_HINT =
-  "Hint: commands suffixed with * have subcommands. Run <command> --help for details.";
+const ROOT_COMMANDS_HINT = getText(
+  "help.subcommands_hint",
+  "Hint: commands suffixed with * have subcommands. Run <command> --help for details.",
+);
 
-const EXAMPLES = [
-  ["openclaw models --help", "Show detailed help for the models command."],
+type ExampleEntry = [command: string, descriptionKey: string, descriptionFallbackEn: string];
+
+const EXAMPLES: ExampleEntry[] = [
+  [
+    "openclaw models --help",
+    "help.example.show_model_help",
+    "Show detailed help for the models command.",
+  ],
   [
     "openclaw channels login --verbose",
+    "help.example.login_whatsapp",
     "Link personal WhatsApp Web and show QR + connection logs.",
   ],
   [
     'openclaw message send --target +15555550123 --message "Hi" --json',
+    "help.example.send_json",
     "Send via your web session and print JSON result.",
   ],
-  ["openclaw gateway --port 18789", "Run the WebSocket Gateway locally."],
-  ["openclaw --dev gateway", "Run a dev Gateway (isolated state/config) on ws://127.0.0.1:19001."],
-  ["openclaw gateway --force", "Kill anything bound to the default gateway port, then start it."],
-  ["openclaw gateway ...", "Gateway control via WebSocket."],
+  [
+    "openclaw gateway --port 18789",
+    "help.example.run_gateway",
+    "Run the WebSocket Gateway locally.",
+  ],
+  [
+    "openclaw --dev gateway",
+    "help.example.dev_gateway",
+    "Run a dev Gateway (isolated state/config) on ws://127.0.0.1:19001.",
+  ],
+  [
+    "openclaw gateway --force",
+    "help.example.force_gateway",
+    "Kill anything bound to the default gateway port, then start it.",
+  ],
+  ["openclaw gateway ...", "help.example.gateway_control", "Gateway control via WebSocket."],
   [
     'openclaw agent --to +15555550123 --message "Run summary" --deliver',
+    "help.example.agent_deliver",
     "Talk directly to the agent using the Gateway; optionally send the WhatsApp reply.",
   ],
   [
     'openclaw message send --channel telegram --target @mychat --message "Hi"',
+    "help.example.send_telegram",
     "Send via your Telegram bot.",
   ],
 ] as const;
@@ -50,21 +75,31 @@ export function configureProgramHelp(program: Command, ctx: ProgramContext) {
     .version(ctx.programVersion)
     .option(
       "--dev",
-      "Dev profile: isolate state under ~/.openclaw-dev, default gateway port 19001, and shift derived ports (browser/canvas)",
+      getText(
+        "help.dev_profile",
+        "Dev profile: isolate state under ~/.openclaw-dev, default gateway port 19001, and shift derived ports (browser/canvas)",
+      ),
     )
     .option(
       "--profile <name>",
-      "Use a named profile (isolates OPENCLAW_STATE_DIR/OPENCLAW_CONFIG_PATH under ~/.openclaw-<name>)",
+      getText(
+        "help.profile",
+        "Use a named profile (isolates OPENCLAW_STATE_DIR/OPENCLAW_CONFIG_PATH under ~/.openclaw-<name>)",
+      ),
     )
     .option(
       "--log-level <level>",
-      `Global log level override for file + console (${CLI_LOG_LEVEL_VALUES})`,
+      getText(
+        "help.log_level",
+        `Global log level override for file + console (${CLI_LOG_LEVEL_VALUES})`,
+        { levels: CLI_LOG_LEVEL_VALUES },
+      ),
       parseCliLogLevelOption,
     );
 
-  program.option("--no-color", "Disable ANSI colors", false);
-  program.helpOption("-h, --help", "Display help for command");
-  program.helpCommand("help [command]", "Display help for command");
+  program.option("--no-color", getText("help.no_color", "Disable ANSI colors"), false);
+  program.helpOption("-h, --help", getText("help.display_help", "Display help for command"));
+  program.helpCommand("help [command]", getText("help.display_help", "Display help for command"));
 
   program.configureHelp({
     // sort options and subcommands alphabetically
@@ -85,13 +120,16 @@ export function configureProgramHelp(program: Command, ctx: ProgramContext) {
       "m",
     ).test(output);
     if (isRootHelp && /^Commands:/m.test(output)) {
-      output = output.replace(/^Commands:/m, `Commands:\n  ${theme.muted(ROOT_COMMANDS_HINT)}`);
+      output = output.replace(
+        /^Commands:/m,
+        `${getText("help.commands", "Commands:")}\n  ${theme.muted(ROOT_COMMANDS_HINT)}`,
+      );
     }
 
     return output
-      .replace(/^Usage:/gm, theme.heading("Usage:"))
-      .replace(/^Options:/gm, theme.heading("Options:"))
-      .replace(/^Commands:/gm, theme.heading("Commands:"));
+      .replace(/^Usage:/gm, theme.heading(getText("help.usage", "Usage:")))
+      .replace(/^Options:/gm, theme.heading(getText("help.options", "Options:")))
+      .replace(/^Commands:/gm, theme.heading(getText("help.commands", "Commands:")));
   };
 
   program.configureOutput({
@@ -122,15 +160,16 @@ export function configureProgramHelp(program: Command, ctx: ProgramContext) {
     return `\n${line}\n`;
   });
 
-  const fmtExamples = EXAMPLES.map(
-    ([cmd, desc]) => `  ${theme.command(replaceCliName(cmd, CLI_NAME))}\n    ${theme.muted(desc)}`,
-  ).join("\n");
+  const fmtExamples = EXAMPLES.map(([cmd, key, fallback]) => {
+    const desc = getText(key, fallback);
+    return `  ${theme.command(replaceCliName(cmd, CLI_NAME))}\n    ${theme.muted(desc)}`;
+  }).join("\n");
 
   program.addHelpText("afterAll", ({ command }) => {
     if (command !== program) {
       return "";
     }
     const docs = formatDocsLink("/cli", "docs.openclaw.ai/cli");
-    return `\n${theme.heading("Examples:")}\n${fmtExamples}\n\n${theme.muted("Docs:")} ${docs}\n`;
+    return `\n${theme.heading(getText("help.examples", "Examples:"))}\n${fmtExamples}\n\n${theme.muted(getText("help.docs", "Docs:"))} ${docs}\n`;
   });
 }

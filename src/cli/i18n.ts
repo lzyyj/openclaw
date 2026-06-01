@@ -1,8 +1,10 @@
 /**
- * CLI i18n: resolve locale from OPENCLAW_LANG or LANG and return translated string.
+ * CLI i18n: resolve locale from OPENCLAW_LANG or LANG or system UI language.
  * Use getText(key, fallbackEn, params?) so upstream can stay English-only;
  * zh-CN bundle is maintained separately for easy merge.
  */
+
+import { detectOsLanguage } from "../infra/detect-language.js";
 
 export type CliLocale = "en" | "zh-CN";
 
@@ -12,6 +14,7 @@ export function resolveCliLocale(): CliLocale {
   if (cachedLocale !== null) {
     return cachedLocale;
   }
+  // 1. Process env (explicit override from config or command line)
   const raw =
     process.env.OPENCLAW_LANG?.trim() ||
     process.env.LANG?.trim() ||
@@ -23,9 +26,14 @@ export function resolveCliLocale(): CliLocale {
     return "zh-CN";
   }
   if (lower.startsWith("zh_tw") || lower.startsWith("zh-tw")) {
-    // Keep English for zh-TW unless we add a bundle later
     cachedLocale = "en";
     return "en";
+  }
+  // 2. System UI language detection
+  const osLang = detectOsLanguage();
+  if (osLang === "zh-CN") {
+    cachedLocale = "zh-CN";
+    return "zh-CN";
   }
   cachedLocale = "en";
   return "en";
@@ -38,8 +46,38 @@ function interpolate(template: string, params?: Record<string, string>): string 
   return template.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `{${k}}`);
 }
 
-/** zh-CN CLI strings (onboarding, wizard, etc.). Key = getText key. */
+/** zh-CN CLI strings (onboarding, wizard, help, banner, etc.). */
 const ZH_CN: Record<string, string> = {
+  // ---- Banner ----
+  "banner.tagline": "一个 CLI 统治一切，" + "再重启一次因为改了端口。",
+
+  // ---- Help ----
+  "help.usage": "用法：",
+  "help.options": "选项：",
+  "help.commands": "命令：",
+  "help.subcommands_hint": "提示：带 * 的命令有子命令。运行 <command> --help 查看详情。",
+  "help.examples": "示例：",
+  "help.docs": "文档：",
+  "help.display_help": "显示命令帮助",
+  "help.dev_profile":
+    "开发模式：隔离状态至 ~/.openclaw-dev，默认网关端口 19001，同时迁移衍生端口（浏览器/面板）",
+  "help.profile":
+    "使用指定配置文件（将 OPENCLAW_STATE_DIR/OPENCLAW_CONFIG_PATH 隔离至 ~/.openclaw-<name>）",
+  "help.log_level": "文件和控制台的全局日志级别覆盖（{levels}）",
+  "help.no_color": "禁用 ANSI 颜色",
+
+  // ---- Help examples ----
+  "help.example.show_model_help": "查看 models 命令的详细帮助。",
+  "help.example.login_whatsapp": "关联个人 WhatsApp Web 并显示二维码 + 连接日志。",
+  "help.example.send_json": "通过 Web 会话发送并打印 JSON 结果。",
+  "help.example.run_gateway": "运行 WebSocket 网关。",
+  "help.example.dev_gateway": "运行开发网关（隔离状态/配置），地址 ws://127.0.0.1:19001。",
+  "help.example.force_gateway": "杀死绑定在默认网关端口的所有进程，然后启动。",
+  "help.example.gateway_control": "通过 WebSocket 控制网关。",
+  "help.example.agent_deliver": "使用网关直接与代理对话，可选发送 WhatsApp 回复。",
+  "help.example.send_telegram": "通过 Telegram Bot 发送消息。",
+
+  // ---- Onboarding / wizard (existing) ----
   "onboarding.intro": "OpenClaw 初始化向导",
   "onboarding.risk.title": "安全",
   "onboarding.risk.body": [
@@ -95,11 +133,7 @@ const ZH_CN: Record<string, string> = {
  * Return translated string for key when locale is zh-CN, otherwise fallbackEn.
  * params are used to replace {name} placeholders in the string.
  */
-export function getText(
-  key: string,
-  fallbackEn: string,
-  params?: Record<string, string>,
-): string {
+export function getText(key: string, fallbackEn: string, params?: Record<string, string>): string {
   const locale = resolveCliLocale();
   if (locale === "en") {
     return interpolate(fallbackEn, params);

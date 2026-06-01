@@ -1,3 +1,4 @@
+import { resolveCliLocale } from "./i18n.js";
 import { TAGLINES_ZH, HOLIDAY_TAGLINES_ZH, DEFAULT_TAGLINE_ZH } from "./tagline-zh.js";
 
 const DEFAULT_TAGLINE = "All your chats, one OpenClaw.";
@@ -284,8 +285,8 @@ const HOLIDAY_RULES = new Map<HolidayId, HolidayRule>([
 type TaglinePool = { entries: string[]; holidayTexts: Record<string, string> };
 
 function resolveTaglines(options: TaglineOptions): TaglinePool {
-  const locale = options.locale ?? process.env.LANG ?? "";
-  if (locale.startsWith("zh")) {
+  const locale = options.locale ?? resolveCliLocale();
+  if (locale === "zh-CN") {
     return { entries: TAGLINES_ZH_RESOLVED, holidayTexts: HOLIDAY_TAGLINES_ZH_BY_ID };
   }
   return { entries: TAGLINES_EN, holidayTexts: HOLIDAY_TAGLINES };
@@ -314,8 +315,8 @@ export interface TaglineOptions {
 export function activeTaglines(options: TaglineOptions = {}): string[] {
   const pool = resolveTaglines(options);
   if (pool.entries.length === 0) {
-    const locale = options.locale ?? process.env.LANG ?? "";
-    return [locale.startsWith("zh") ? DEFAULT_TAGLINE_ZH : DEFAULT_TAGLINE];
+    const locale = options.locale ?? resolveCliLocale();
+    return [locale === "zh-CN" ? DEFAULT_TAGLINE_ZH : DEFAULT_TAGLINE];
   }
   const today = options.now ? options.now() : new Date();
   const filtered = pool.entries.filter((tagline) => isTaglineActive(tagline, today, pool));

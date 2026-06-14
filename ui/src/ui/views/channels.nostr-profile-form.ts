@@ -5,6 +5,7 @@
  */
 
 import { html, nothing, type TemplateResult } from "lit";
+import { t } from "../../i18n/index.ts";
 import type { NostrProfile as NostrProfileType } from "../types.ts";
 
 // ============================================================================
@@ -166,8 +167,8 @@ export function renderNostrProfileForm(params: {
   return html`
     <div class="nostr-profile-form" style="padding: 16px; background: var(--bg-secondary); border-radius: 8px; margin-top: 12px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div style="font-weight: 600; font-size: 16px;">Edit Profile</div>
-        <div style="font-size: 12px; color: var(--text-muted);">Account: ${accountId}</div>
+        <div style="font-weight: 600; font-size: 16px;">${t("channels.editProfile")}</div>
+        <div style="font-size: 12px; color: var(--text-muted);">${t("channels.account", { id: accountId })}</div>
       </div>
 
       ${
@@ -184,26 +185,26 @@ export function renderNostrProfileForm(params: {
 
       ${renderPicturePreview()}
 
-      ${renderField("name", "Username", {
+      ${renderField("name", t("channels.username"), {
         placeholder: "satoshi",
         maxLength: 256,
         help: "Short username (e.g., satoshi)",
       })}
 
-      ${renderField("displayName", "Display Name", {
+      ${renderField("displayName", t("channels.displayName"), {
         placeholder: "Satoshi Nakamoto",
         maxLength: 256,
         help: "Your full display name",
       })}
 
-      ${renderField("about", "Bio", {
+      ${renderField("about", t("channels.bio"), {
         type: "textarea",
         placeholder: "Tell people about yourself...",
         maxLength: 2000,
         help: "A brief bio or description",
       })}
 
-      ${renderField("picture", "Avatar URL", {
+      ${renderField("picture", t("channels.avatarUrl"), {
         type: "url",
         placeholder: "https://example.com/avatar.jpg",
         help: "HTTPS URL to your profile picture",
@@ -213,26 +214,26 @@ export function renderNostrProfileForm(params: {
         state.showAdvanced
           ? html`
             <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px;">
-              <div style="font-weight: 500; margin-bottom: 12px; color: var(--text-muted);">Advanced</div>
+              <div style="font-weight: 500; margin-bottom: 12px; color: var(--text-muted);">${t("channels.advanced")}</div>
 
-              ${renderField("banner", "Banner URL", {
+              ${renderField("banner", t("channels.bannerUrl"), {
                 type: "url",
                 placeholder: "https://example.com/banner.jpg",
                 help: "HTTPS URL to a banner image",
               })}
 
-              ${renderField("website", "Website", {
+              ${renderField("website", t("channels.website"), {
                 type: "url",
                 placeholder: "https://example.com",
                 help: "Your personal website",
               })}
 
-              ${renderField("nip05", "NIP-05 Identifier", {
+              ${renderField("nip05", t("channels.nip05"), {
                 placeholder: "you@example.com",
                 help: "Verifiable identifier (e.g., you@domain.com)",
               })}
 
-              ${renderField("lud16", "Lightning Address", {
+              ${renderField("lud16", t("channels.lightning"), {
                 placeholder: "you@getalby.com",
                 help: "Lightning address for tips (LUD-16)",
               })}
@@ -247,7 +248,7 @@ export function renderNostrProfileForm(params: {
           @click=${callbacks.onSave}
           ?disabled=${state.saving || !isDirty}
         >
-          ${state.saving ? "Saving..." : "Save & Publish"}
+          ${state.saving ? t("channels.savingDots") : t("channels.saveAndPublish")}
         </button>
 
         <button
@@ -255,14 +256,14 @@ export function renderNostrProfileForm(params: {
           @click=${callbacks.onImport}
           ?disabled=${state.importing || state.saving}
         >
-          ${state.importing ? "Importing..." : "Import from Relays"}
+          ${state.importing ? t("channels.importing") : t("channels.importFromRelays")}
         </button>
 
         <button
           class="btn"
           @click=${callbacks.onToggleAdvanced}
         >
-          ${state.showAdvanced ? "Hide Advanced" : "Show Advanced"}
+          ${state.showAdvanced ? t("channels.hideAdvanced") : t("channels.showAdvanced")}
         </button>
 
         <button
@@ -270,7 +271,7 @@ export function renderNostrProfileForm(params: {
           @click=${callbacks.onCancel}
           ?disabled=${state.saving}
         >
-          Cancel
+          ${t("common.cancel")}
         </button>
       </div>
 
@@ -278,7 +279,7 @@ export function renderNostrProfileForm(params: {
         isDirty
           ? html`
               <div style="font-size: 12px; color: var(--warning-color); margin-top: 8px">
-                You have unsaved changes
+                ${t("common.unsavedChanges")}
               </div>
             `
           : nothing

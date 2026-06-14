@@ -1,6 +1,6 @@
 import { formatCliCommand } from "../cli/command-format.js";
-import { resolveOpenClawPackageRoot } from "../infra/openclaw-root.js";
 import { getText } from "../cli/i18n.js";
+import { resolveOpenClawPackageRoot } from "../infra/openclaw-root.js";
 import {
   checkUpdateStatus,
   compareSemverStrings,
@@ -35,8 +35,10 @@ export type UpdateAvailability = {
 };
 
 export function resolveUpdateAvailability(update: UpdateCheckResult): UpdateAvailability {
+  const isCnVersion = VERSION.endsWith("-cn");
   const latestVersion = update.registry?.latestVersion ?? null;
-  const registryCmp = latestVersion ? compareSemverStrings(VERSION, latestVersion) : null;
+  const registryCmp =
+    !isCnVersion && latestVersion ? compareSemverStrings(VERSION, latestVersion) : null;
   const hasRegistryUpdate = registryCmp != null && registryCmp < 0;
   const gitBehind =
     update.installKind === "git" && typeof update.git?.behind === "number"

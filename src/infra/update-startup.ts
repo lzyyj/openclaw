@@ -159,7 +159,8 @@ function resolvePersistedUpdateAvailable(state: UpdateCheckState): UpdateAvailab
   if (!latestVersion) {
     return null;
   }
-  const cmp = compareSemverStrings(VERSION, latestVersion);
+  const isCnVersion = VERSION.endsWith("-cn");
+  const cmp = isCnVersion ? 0 : compareSemverStrings(VERSION, latestVersion);
   if (cmp == null || cmp >= 0) {
     return null;
   }
@@ -382,7 +383,8 @@ export async function runGatewayUpdateCheck(params: {
     return;
   }
 
-  const cmp = compareSemverStrings(VERSION, resolved.version);
+  const isCnVersion = VERSION.endsWith("-cn");
+  const cmp = isCnVersion ? 0 : compareSemverStrings(VERSION, resolved.version);
   if (cmp != null && cmp < 0) {
     const nextAvailable: UpdateAvailable = {
       currentVersion: VERSION,
@@ -402,7 +404,11 @@ export async function runGatewayUpdateCheck(params: {
     if (shouldRunUpdateHints && shouldNotify) {
       const cmd = formatCliCommand("openclaw update");
       params.log.info(
-        getText("update.startup.notify", `update available (${tag}): v${resolved.version} (current v${VERSION}). Run: ${cmd}`, { tag, version: `v${resolved.version}`, currentVersion: `v${VERSION}`, command: cmd }),
+        getText(
+          "update.startup.notify",
+          `update available (${tag}): v${resolved.version} (current v${VERSION}). Run: ${cmd}`,
+          { tag, version: `v${resolved.version}`, currentVersion: `v${VERSION}`, command: cmd },
+        ),
       );
       nextState.lastNotifiedVersion = resolved.version;
       nextState.lastNotifiedTag = tag;

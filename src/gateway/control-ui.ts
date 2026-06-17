@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { getText } from "../cli/i18n.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
@@ -352,7 +353,7 @@ export function handleControlUiHttpRequest(
     res.statusCode = 503;
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.end(
-      `Control UI assets not found at ${rootState.path}. Build them with \`pnpm ui:build\` (auto-installs UI deps), or update gateway.controlUi.root.`,
+      getText("gateway.control_ui.not_found_at", `Control UI assets not found at ${rootState.path}. Build them with \`pnpm ui:build\` (auto-installs UI deps), or update gateway.controlUi.root.`, { path: rootState.path }),
     );
     return true;
   }
@@ -360,7 +361,7 @@ export function handleControlUiHttpRequest(
     res.statusCode = 503;
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.end(
-      "Control UI assets not found. Build them with `pnpm ui:build` (auto-installs UI deps), or run `pnpm ui:dev` during development.",
+      getText("gateway.control_ui.not_found", "Control UI assets not found. Build them with `pnpm ui:build` (auto-installs UI deps), or run `pnpm ui:dev` during development."),
     );
     return true;
   }
@@ -377,7 +378,7 @@ export function handleControlUiHttpRequest(
     res.statusCode = 503;
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.end(
-      "Control UI assets not found. Build them with `pnpm ui:build` (auto-installs UI deps), or run `pnpm ui:dev` during development.",
+      getText("gateway.control_ui.not_found", "Control UI assets not found. Build them with `pnpm ui:build` (auto-installs UI deps), or run `pnpm ui:dev` during development."),
     );
     return true;
   }
@@ -396,7 +397,7 @@ export function handleControlUiHttpRequest(
     res.statusCode = 503;
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.end(
-      "Control UI assets not found. Build them with `pnpm ui:build` (auto-installs UI deps), or run `pnpm ui:dev` during development.",
+      getText("gateway.control_ui.not_found", "Control UI assets not found. Build them with `pnpm ui:build` (auto-installs UI deps), or run `pnpm ui:dev` during development."),
     );
     return true;
   }

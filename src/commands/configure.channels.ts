@@ -1,5 +1,6 @@
 import { getChannelPlugin, listChannelPlugins } from "../channels/plugins/index.js";
 import { formatCliCommand } from "../cli/command-format.js";
+import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { CONFIG_PATH } from "../config/config.js";
 import type { RuntimeEnv } from "../runtime.js";
@@ -25,7 +26,7 @@ export async function removeChannelConfigWizard(
       note(
         [
           "No channel config found in openclaw.json.",
-          `Tip: \`${formatCliCommand("openclaw channels status")}\` shows what is configured and enabled.`,
+          getText("configure.channels.tip", `Tip: \`${formatCliCommand("openclaw channels status")}\` shows what is configured and enabled.`, { cmd: formatCliCommand("openclaw channels status") }),
         ].join("\n"),
         "Remove channel",
       );

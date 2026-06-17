@@ -7,6 +7,7 @@ import { formatTargetDisplay } from "../infra/outbound/target-resolver.js";
 import { renderTable } from "../terminal/table.js";
 import { isRich, theme } from "../terminal/theme.js";
 import { shortenText } from "./text-format.js";
+import { getText } from "../cli/i18n.js";
 
 const resolveChannelLabel = (channel: ChannelId) =>
   getChannelPlugin(channel)?.meta.label ?? channel;
@@ -409,7 +410,7 @@ export function formatMessageCliText(result: MessageActionRunResult): string[] {
     lines.push("");
     lines.push(...summary);
     lines.push("");
-    lines.push(muted("Tip: use --json for full output."));
+    lines.push(muted(getText("message.format.json_tip", "Tip: use --json for full output.")));
   }
   return lines;
 }

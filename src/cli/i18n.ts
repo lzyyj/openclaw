@@ -5,10 +5,35 @@
  */
 
 import { detectOsLanguage } from "../infra/detect-language.js";
+import { execSync } from "node:child_process";
 
 export type CliLocale = "en" | "zh-CN";
 
 let cachedLocale: CliLocale | null = null;
+let cachedCanDisplayChinese: boolean | null = null;
+
+/**
+ * On Windows, the terminal may use a legacy code page (e.g., 936/GBK) that
+ * cannot render UTF-8 Chinese characters properly. We check whether the
+ * terminal is capable before outputting zh-CN, and fall back to English.
+ */
+function windowsCanDisplayChinese(): boolean {
+  if (process.platform !== "win32") {return true;}
+  if (!process.stdout.isTTY) {return true;}
+  try {
+    const buf = execSync("chcp", { encoding: "buffer", stdio: ["pipe", "pipe", "pipe"] });
+    const out = buf.toString("utf-8");
+    const m = out.match(/(\d+)/);
+    if (m) {
+      const cp = parseInt(m[1], 10);
+      // Only UTF-8 code page (65001) can render Chinese properly
+      return cp === 65001;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
 
 export function resolveCliLocale(): CliLocale {
   if (cachedLocale !== null) {
@@ -22,8 +47,11 @@ export function resolveCliLocale(): CliLocale {
     "";
   const lower = raw.toLowerCase();
   if (lower.startsWith("zh_cn") || lower.startsWith("zh-cn") || lower === "zh") {
-    cachedLocale = "zh-CN";
-    return "zh-CN";
+    if (cachedCanDisplayChinese === null) {
+      cachedCanDisplayChinese = windowsCanDisplayChinese();
+    }
+    cachedLocale = cachedCanDisplayChinese ? "zh-CN" : "en";
+    return cachedLocale;
   }
   if (lower.startsWith("zh_tw") || lower.startsWith("zh-tw")) {
     cachedLocale = "en";
@@ -32,8 +60,11 @@ export function resolveCliLocale(): CliLocale {
   // 2. System UI language detection
   const osLang = detectOsLanguage();
   if (osLang === "zh-CN") {
-    cachedLocale = "zh-CN";
-    return "zh-CN";
+    if (cachedCanDisplayChinese === null) {
+      cachedCanDisplayChinese = windowsCanDisplayChinese();
+    }
+    cachedLocale = cachedCanDisplayChinese ? "zh-CN" : "en";
+    return cachedLocale;
   }
   cachedLocale = "en";
   return "en";
@@ -131,6 +162,67 @@ const ZH_CN: Record<string, string> = {
   "onboarding.helpers.gateway.mode": "网关模式",
   "onboarding.helpers.gateway.bind": "网关绑定",
   "onboarding.helpers.gateway.remote.url": "远程网关 URL",
+
+  // ---- Health / error messages ----
+  "health.failed": "健康检查失败：",
+  "health.failed.short": "健康检查失败",
+
+  // ---- Daemon install ----
+  "daemon.install.gateway_check_failed": "网关服务检查失败：{error}",
+  "daemon.install.already_installed": "网关服务已{status}。",
+  "daemon.install.reinstall_hint": "如需重新安装：{cmd}",
+  "daemon.install.invalid_port": "无效端口",
+  "daemon.install.nix_detected": "检测到 Nix 模式；服务安装已禁用。",
+  "daemon.install.invalid_runtime": "无效的 --runtime（使用 \"node\" 或 \"bun\"）",
+  "daemon.install.no_token_warn": "未找到网关令牌。已自动生成并保存到配置。",
+  "daemon.install.config_invalid_skip": "警告：配置文件存在但无效；跳过令牌持久化。",
+  "daemon.install.persist_token_failed": "警告：无法将令牌持久化到配置：{error}",
+
+  // ---- Daemon install error hint ----
+  "daemon.install.hint.win32": "提示：请以管理员身份重新运行 PowerShell（开始 → 输入 PowerShell → 右键 → 以管理员身份运行），或跳过服务安装。",
+  "daemon.install.hint.other": "提示：修复错误后重新运行 {cmd}。",
+
+  // ---- Doctor UI ----
+  "doctor.ui.missing": "- 控制界面资源缺失。\n- 运行：pnpm ui:build",
+  "doctor.ui.skipped_no_sources": "跳过 UI 构建：ui/ 源码不存在。",
+  "doctor.ui.build_confirm": "现在构建控制界面资源？",
+  "doctor.ui.building": "正在构建控制界面资源...（可能需要一点时间）",
+  "doctor.ui.build_complete": "UI 构建完成。",
+  "doctor.ui.build_failed": "UI 构建失败（退出码 {code}）。",
+  "doctor.ui.stale_header": "UI 资源比协议模式旧。\n上次构建以来的功能变更：",
+  "doctor.ui.rebuild_confirm": "立即重新构建 UI？（检测到协议不匹配，需要更新）",
+  "doctor.ui.skipped_no_sources_rebuild": "跳过 UI 重新构建：ui/ 源码不存在。",
+  "doctor.ui.rebuilding": "正在重新构建过期的 UI 资源...（可能需要一点时间）",
+  "doctor.ui.rebuild_complete": "UI 重新构建完成。",
+  "doctor.ui.rebuild_failed": "UI 重新构建失败（退出码 {code}）。",
+
+  // ---- Gateway control-ui ----
+  "gateway.control_ui.not_found_at": "在 {path} 未找到控制界面资源。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖），或更新 gateway.controlUi.root。",
+  "gateway.control_ui.not_found": "未找到控制界面资源。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖），或在开发时运行 `pnpm ui:dev`。",
+
+  // ---- Skills CLI ----
+  "skills.list.tip": "提示：使用 `npx clawhub` 搜索、安装和同步技能。",
+
+  // ---- Configure channels ----
+  "configure.channels.tip": "提示：运行 {cmd} 查看已配置和已启用的通道。",
+
+  // ---- Doctor state integrity ----
+  "doctor.state.backup_tip": "- 提示：将工作区备份到私有 git 仓库（GitHub 或 GitLab）。",
+
+  // ---- Gateway status ----
+  "gateway.status.mdns_tip": "提示：如果网关在远程，mDNS 无法跨网络工作；请使用 Wide-Area Bonjour（拆分 DNS）或 SSH 隧道。",
+
+  // ---- Message format ----
+  "message.format.json_tip": "提示：使用 --json 获取完整输出。",
+
+  // ---- Onboard skills tip ----
+  "onboard.skills.tip": "提示：运行 {cmd} 查看技能和要求。",
+
+  // ---- Uninstall ----
+  "uninstall.workspace_preserved": "提示：工作区已保留。如需删除请重新运行 --workspace。",
+
+  // ---- Tailscale ----
+  "tailscale.funnel_tip": "提示：Funnel 对于 OpenClaw 是可选的。您可以在没有 Funnel 的情况下继续运行 Web 网关：{cmd}",
 };
 
 /**

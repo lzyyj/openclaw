@@ -3,6 +3,7 @@ import { renderTable } from "../terminal/table.js";
 import { theme } from "../terminal/theme.js";
 import { shortenHomePath } from "../utils.js";
 import { formatCliCommand } from "./command-format.js";
+import { getText } from "./i18n.js";
 
 export type SkillsListOptions = {
   json?: boolean;
@@ -22,7 +23,7 @@ function appendClawHubHint(output: string, json?: boolean): string {
   if (json) {
     return output;
   }
-  return `${output}\n\nTip: use \`npx clawhub\` to search, install, and sync skills.`;
+  return `${output}\n\n${getText("skills.list.tip", "Tip: use `npx clawhub` to search, install, and sync skills.")}`;
 }
 
 function formatSkillStatus(skill: SkillStatusEntry): string {

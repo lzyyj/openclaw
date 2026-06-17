@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { getText } from "../cli/i18n.js";
 import { formatCliCommand } from "../cli/command-format.js";
 import { promptYesNo } from "../cli/prompt.js";
 import { danger, info, logVerbose, shouldLogVerbose, warn } from "../globals.js";
@@ -372,7 +373,7 @@ export async function ensureFunnel(
     runtime.error("Failed to enable Tailscale Funnel. Is it allowed on your tailnet?");
     runtime.error(
       info(
-        `Tip: Funnel is optional for OpenClaw. You can keep running the web gateway without it: \`${formatCliCommand("openclaw gateway")}\``,
+        getText("tailscale.funnel_tip", `Tip: Funnel is optional for OpenClaw. You can keep running the web gateway without it: \`${formatCliCommand("openclaw gateway")}\``, { cmd: formatCliCommand("openclaw gateway") }),
       ),
     );
     if (shouldLogVerbose()) {

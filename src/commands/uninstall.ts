@@ -3,8 +3,9 @@ import { cancel, confirm, isCancel, multiselect } from "@clack/prompts";
 import { isNixMode } from "../config/config.js";
 import { resolveGatewayService } from "../daemon/service.js";
 import type { RuntimeEnv } from "../runtime.js";
-import { stylePromptHint, stylePromptMessage, stylePromptTitle } from "../terminal/prompt-style.js";
+import { stylePromptHint, stylePromptMessage } from "../terminal/prompt-style.js";
 import { resolveHomeDir } from "../utils.js";
+import { getText } from "../cli/i18n.js";
 import { resolveCleanupPlanFromDisk } from "./cleanup-plan.js";
 import { removePath, removeStateAndLinkedPaths, removeWorkspaceDirs } from "./cleanup-utils.js";
 
@@ -126,7 +127,7 @@ export async function uninstallCommand(runtime: RuntimeEnv, opts: UninstallOptio
       initialValues: ["service", "state", "workspace"],
     });
     if (isCancel(selection)) {
-      cancel(stylePromptTitle("Uninstall cancelled.") ?? "Uninstall cancelled.");
+      cancel(getText("uninstall.cancelled", "Uninstall cancelled."));
       runtime.exit(0);
       return;
     }
@@ -136,16 +137,16 @@ export async function uninstallCommand(runtime: RuntimeEnv, opts: UninstallOptio
   }
 
   if (scopes.size === 0) {
-    runtime.log("Nothing selected.");
+    runtime.log(getText("uninstall.nothing_selected", "Nothing selected."));
     return;
   }
 
   if (interactive && !opts.yes) {
     const ok = await confirm({
-      message: stylePromptMessage("Proceed with uninstall?"),
+      message: getText("uninstall.confirm_prompt", "Proceed with uninstall?"),
     });
     if (isCancel(ok) || !ok) {
-      cancel(stylePromptTitle("Uninstall cancelled.") ?? "Uninstall cancelled.");
+      cancel(getText("uninstall.cancelled", "Uninstall cancelled."));
       runtime.exit(0);
       return;
     }
@@ -184,7 +185,7 @@ export async function uninstallCommand(runtime: RuntimeEnv, opts: UninstallOptio
   if (scopes.has("state") && !scopes.has("workspace")) {
     const home = resolveHomeDir();
     if (home && workspaceDirs.some((dir) => dir.startsWith(path.resolve(home)))) {
-      runtime.log("Tip: workspaces were preserved. Re-run with --workspace to remove them.");
+      runtime.log(getText("uninstall.workspace_preserved", "Tip: workspaces were preserved. Re-run with --workspace to remove them."));
     }
   }
 }

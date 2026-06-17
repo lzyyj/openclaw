@@ -15,6 +15,7 @@ import { resolveGatewayService } from "../../daemon/service.js";
 import { resolveGatewayAuth } from "../../gateway/auth.js";
 import { defaultRuntime } from "../../runtime.js";
 import { formatCliCommand } from "../command-format.js";
+import { getText } from "../i18n.js";
 import {
   buildDaemonServiceSnapshot,
   createDaemonActionContext,
@@ -28,24 +29,24 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
   const { stdout, warnings, emit, fail } = createDaemonActionContext({ action: "install", json });
 
   if (resolveIsNixMode(process.env)) {
-    fail("Nix mode detected; service install is disabled.");
+    fail(getText("daemon.install.nix_detected", "Nix mode detected; service install is disabled."));
     return;
   }
 
   const cfg = loadConfig();
   const portOverride = parsePort(opts.port);
   if (opts.port !== undefined && portOverride === null) {
-    fail("Invalid port");
+    fail(getText("daemon.install.invalid_port", "Invalid port"));
     return;
   }
   const port = portOverride ?? resolveGatewayPort(cfg);
   if (!Number.isFinite(port) || port <= 0) {
-    fail("Invalid port");
+    fail(getText("daemon.install.invalid_port", "Invalid port"));
     return;
   }
   const runtimeRaw = opts.runtime ? String(opts.runtime) : DEFAULT_GATEWAY_DAEMON_RUNTIME;
   if (!isGatewayDaemonRuntime(runtimeRaw)) {
-    fail('Invalid --runtime (use "node" or "bun")');
+    fail(getText("daemon.install.invalid_runtime", 'Invalid --runtime (use "node" or "bun")'));
     return;
   }
 
@@ -54,7 +55,7 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
   try {
     loaded = await service.isLoaded({ env: process.env });
   } catch (err) {
-    fail(`Gateway service check failed: ${String(err)}`);
+    fail(getText("daemon.install.gateway_check_failed", `Gateway service check failed: ${String(err)}`, { error: String(err) }));
     return;
   }
   if (loaded) {
@@ -62,13 +63,13 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
       emit({
         ok: true,
         result: "already-installed",
-        message: `Gateway service already ${service.loadedText}.`,
+        message: getText("daemon.install.already_installed", `Gateway service already ${service.loadedText}.`, { status: service.loadedText }),
         service: buildDaemonServiceSnapshot(service, loaded),
       });
       if (!json) {
-        defaultRuntime.log(`Gateway service already ${service.loadedText}.`);
+        defaultRuntime.log(getText("daemon.install.already_installed", `Gateway service already ${service.loadedText}.`, { status: service.loadedText }));
         defaultRuntime.log(
-          `Reinstall with: ${formatCliCommand("openclaw gateway install --force")}`,
+          getText("daemon.install.reinstall_hint", `Reinstall with: ${formatCliCommand("openclaw gateway install --force")}`, { cmd: formatCliCommand("openclaw gateway install --force") }),
         );
       }
       return;
@@ -92,7 +93,7 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
 
   if (!token && needsToken) {
     token = randomToken();
-    const warnMsg = "No gateway token found. Auto-generated one and saving to config.";
+    const warnMsg = getText("daemon.install.no_token_warn", "No gateway token found. Auto-generated one and saving to config.");
     if (json) {
       warnings.push(warnMsg);
     } else {
@@ -107,7 +108,7 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
       if (snapshot.exists && !snapshot.valid) {
         // Config file exists but is corrupt/unparseable — don't risk overwriting.
         // Token is still embedded in the plist EnvironmentVariables.
-        const msg = "Warning: config file exists but is invalid; skipping token persistence.";
+        const msg = getText("daemon.install.config_invalid_skip", "Warning: config file exists but is invalid; skipping token persistence.");
         if (json) {
           warnings.push(msg);
         } else {
@@ -134,7 +135,7 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
       }
     } catch (err) {
       // Non-fatal: token is still embedded in the plist EnvironmentVariables.
-      const msg = `Warning: could not persist token to config: ${String(err)}`;
+      const msg = getText("daemon.install.persist_token_failed", `Warning: could not persist token to config: ${String(err)}`, { error: String(err) });
       if (json) {
         warnings.push(msg);
       } else {

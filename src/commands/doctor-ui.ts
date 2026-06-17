@@ -7,6 +7,7 @@ import {
 import { resolveOpenClawPackageRoot } from "../infra/openclaw-root.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import type { RuntimeEnv } from "../runtime.js";
+import { getText } from "../cli/i18n.js";
 import { note } from "../terminal/note.js";
 import type { DoctorPrompter } from "./doctor-prompter.js";
 
@@ -38,24 +39,24 @@ export async function maybeRepairUiProtocolFreshness(
     ]);
 
     if (schemaStats && !uiStats) {
-      note(["- Control UI assets are missing.", "- Run: pnpm ui:build"].join("\n"), "UI");
+      note(getText("doctor.ui.missing", ["- Control UI assets are missing.", "- Run: pnpm ui:build"].join("\n")), "UI");
 
       // In slim/docker environments we may not have the UI source tree. Trying
       // to build would fail (and spam logs), so skip the interactive repair.
       const uiSourcesPath = path.join(root, "ui/package.json");
       const uiSourcesExist = await fs.stat(uiSourcesPath).catch(() => null);
       if (!uiSourcesExist) {
-        note("Skipping UI build: ui/ sources not present.", "UI");
+        note(getText("doctor.ui.skipped_no_sources", "Skipping UI build: ui/ sources not present."), "UI");
         return;
       }
 
       const shouldRepair = await prompter.confirmRepair({
-        message: "Build Control UI assets now?",
+        message: getText("doctor.ui.build_confirm", "Build Control UI assets now?"),
         initialValue: true,
       });
 
       if (shouldRepair) {
-        note("Building Control UI assets... (this may take a moment)", "UI");
+        note(getText("doctor.ui.building", "Building Control UI assets... (this may take a moment)"), "UI");
         const uiScriptPath = path.join(root, "scripts/ui.js");
         const buildResult = await runCommandWithTimeout([process.execPath, uiScriptPath, "build"], {
           cwd: root,
@@ -63,10 +64,10 @@ export async function maybeRepairUiProtocolFreshness(
           env: { ...process.env, FORCE_COLOR: "1" },
         });
         if (buildResult.code === 0) {
-          note("UI build complete.", "UI");
+          note(getText("doctor.ui.build_complete", "UI build complete."), "UI");
         } else {
           const details = [
-            `UI build failed (exit ${buildResult.code ?? "unknown"}).`,
+            getText("doctor.ui.build_failed", `UI build failed (exit ${buildResult.code ?? "unknown"}).`, { code: String(buildResult.code ?? "unknown") }),
             buildResult.stderr.trim() ? buildResult.stderr.trim() : null,
           ]
             .filter(Boolean)
@@ -108,7 +109,7 @@ export async function maybeRepairUiProtocolFreshness(
         );
 
         const shouldRepair = await prompter.confirmAggressive({
-          message: "Rebuild UI now? (Detected protocol mismatch requiring update)",
+          message: getText("doctor.ui.rebuild_confirm", "Rebuild UI now? (Detected protocol mismatch requiring update)"),
           initialValue: true,
         });
 
@@ -116,11 +117,11 @@ export async function maybeRepairUiProtocolFreshness(
           const uiSourcesPath = path.join(root, "ui/package.json");
           const uiSourcesExist = await fs.stat(uiSourcesPath).catch(() => null);
           if (!uiSourcesExist) {
-            note("Skipping UI rebuild: ui/ sources not present.", "UI");
+            note(getText("doctor.ui.skipped_no_sources_rebuild", "Skipping UI rebuild: ui/ sources not present."), "UI");
             return;
           }
 
-          note("Rebuilding stale UI assets... (this may take a moment)", "UI");
+          note(getText("doctor.ui.rebuilding", "Rebuilding stale UI assets... (this may take a moment)"), "UI");
           // Use scripts/ui.js to build, assuming node is available as we are running in it.
           // We use the same node executable to run the script.
           const uiScriptPath = path.join(root, "scripts/ui.js");
@@ -133,10 +134,10 @@ export async function maybeRepairUiProtocolFreshness(
             },
           );
           if (buildResult.code === 0) {
-            note("UI rebuild complete.", "UI");
+            note(getText("doctor.ui.rebuild_complete", "UI rebuild complete."), "UI");
           } else {
             const details = [
-              `UI rebuild failed (exit ${buildResult.code ?? "unknown"}).`,
+              getText("doctor.ui.rebuild_failed", `UI rebuild failed (exit ${buildResult.code ?? "unknown"}).`, { code: String(buildResult.code ?? "unknown") }),
               buildResult.stderr.trim() ? buildResult.stderr.trim() : null,
             ]
               .filter(Boolean)

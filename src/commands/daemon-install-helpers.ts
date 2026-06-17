@@ -1,4 +1,5 @@
 import { formatCliCommand } from "../cli/command-format.js";
+import { getText } from "../cli/i18n.js";
 import { collectConfigServiceEnvVars } from "../config/env-vars.js";
 import type { OpenClawConfig } from "../config/types.js";
 import { resolveGatewayLaunchAgentLabel } from "../daemon/constants.js";
@@ -76,6 +77,6 @@ export async function buildGatewayInstallPlan(params: {
 
 export function gatewayInstallErrorHint(platform = process.platform): string {
   return platform === "win32"
-    ? "Tip: rerun from an elevated PowerShell (Start → type PowerShell → right-click → Run as administrator) or skip service install."
-    : `Tip: rerun \`${formatCliCommand("openclaw gateway install")}\` after fixing the error.`;
+    ? getText("daemon.install.hint.win32", "Tip: rerun from an elevated PowerShell (Start → type PowerShell → right-click → Run as administrator) or skip service install.")
+    : getText("daemon.install.hint.other", `Tip: rerun \`${formatCliCommand("openclaw gateway install")}\` after fixing the error.`);
 }

@@ -1,5 +1,6 @@
 import { installSkill } from "../agents/skills-install.js";
 import { buildWorkspaceSkillStatus } from "../agents/skills-status.js";
+import { getText } from "../cli/i18n.js";
 import { formatCliCommand } from "../cli/command-format.js";
 import type { OpenClawConfig } from "../config/config.js";
 import type { RuntimeEnv } from "../runtime.js";
@@ -192,7 +193,7 @@ export async function setupSkills(
         runtime.log(result.stdout.trim());
       }
       runtime.log(
-        `Tip: run \`${formatCliCommand("openclaw doctor")}\` to review skills + requirements.`,
+        getText("onboard.skills.tip", `Tip: run \`${formatCliCommand("openclaw doctor")}\` to review skills + requirements.`, { cmd: formatCliCommand("openclaw doctor") }),
       );
       runtime.log("Docs: https://docs.openclaw.ai/skills");
     }

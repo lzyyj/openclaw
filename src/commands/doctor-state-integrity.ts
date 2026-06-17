@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resolveDefaultAgentId } from "../agents/agent-scope.js";
+import { getText } from "../cli/i18n.js";
 import { formatCliCommand } from "../cli/command-format.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveOAuthDir, resolveStateDir } from "../config/paths.js";
@@ -520,7 +521,7 @@ export function noteWorkspaceBackupTip(workspaceDir: string) {
   }
   note(
     [
-      "- Tip: back up the workspace in a private git repo (GitHub or GitLab).",
+      getText("doctor.state.backup_tip", "- Tip: back up the workspace in a private git repo (GitHub or GitLab)."),
       "- Keep ~/.openclaw out of git; it contains credentials and session history.",
       "- Details: /concepts/agent-workspace#git-backup-recommended",
     ].join("\n"),

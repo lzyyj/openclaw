@@ -17,6 +17,11 @@ function usage() {
   process.stderr.write("Usage: node scripts/ui.js <install|dev|build|test> [...args]\n");
 }
 
+/**
+ * Find a command on PATH, preferring paths without spaces on Windows.
+ * This avoids shell-quoting issues with `spawn` + `shell: true` when the
+ * resolved path contains spaces (e.g. "C:\Program Files\nodejs\pnpm.CMD").
+ */
 function which(cmd) {
   try {
     const key = process.platform === "win32" ? "Path" : "PATH";
@@ -27,18 +32,28 @@ function which(cmd) {
       process.platform === "win32"
         ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean)
         : [""];
+
+    let candidateWithSpaces = null;
     for (const entry of paths) {
       for (const ext of extensions) {
         const candidate = path.join(entry, process.platform === "win32" ? `${cmd}${ext}` : cmd);
         try {
           if (fs.existsSync(candidate)) {
-            return candidate;
+            // On Windows, prefer paths without spaces to avoid shell quoting issues.
+            if (process.platform !== "win32" || !candidate.includes(" ")) {
+              return candidate;
+            }
+            // Keep as fallback if we find one with spaces.
+            if (!candidateWithSpaces) {
+              candidateWithSpaces = candidate;
+            }
           }
         } catch {
           // ignore
         }
       }
     }
+    return candidateWithSpaces;
   } catch {
     // ignore
   }

@@ -1046,6 +1046,7 @@ export function renderApp(state: AppViewState) {
                 onOpenSidebar: (content: string) => state.handleOpenSidebar(content),
                 onCloseSidebar: () => state.handleCloseSidebar(),
                 onSplitRatioChange: (ratio: number) => state.handleSplitRatioChange(ratio),
+                showNav: true,
                 assistantName: state.assistantName,
                 assistantAvatar: state.assistantAvatar,
               })

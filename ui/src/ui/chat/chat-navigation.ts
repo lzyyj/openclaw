@@ -11,54 +11,85 @@ export type NavEntry = {
   timestamp: number;
 };
 
+/** Extract readable text from a NormalizedMessage or unknown message object */
+function extractMessageText(msg: unknown): string {
+  if (!msg) return "";
+  const m = msg as Record<string, unknown>;
+  // NormalizedMessage has content: MessageContentItem[]
+  const content = m.content;
+  if (Array.isArray(content)) {
+    return content
+      .map((item: Record<string, unknown>) => {
+        if (item.type === "text" && typeof item.text === "string") return item.text;
+        if (item.type === "tool_call" && typeof item.name === "string") return `🔧 ${item.name}`;
+        if (item.type === "tool_result" && typeof item.text === "string") return `📎 ${item.text}`;
+        return "";
+      })
+      .filter(Boolean)
+      .join(" | ");
+  }
+  // Plain string
+  if (typeof content === "string") return content;
+  return "";
+}
+
 export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry[] {
   const entries: NavEntry[] = [];
+
+  // Track consecutive user/assistant to skip assistant follow-ups (only first message per group)
   for (const item of items) {
+    // Skip transient items
+    if (item.kind === "reading-indicator" || item.kind === "stream") continue;
+
     if (item.kind === "divider") {
       entries.push({
         key: item.key,
         role: "divider",
-        label: item.label,
+        label: item.label || "compacted",
         excerpt: "",
         timestamp: item.timestamp,
       });
       continue;
     }
 
-    if (item.kind === "reading-indicator" || item.kind === "stream") {
-      continue;
-    }
-
     if (item.kind === "message" || item.kind === "group") {
-      const messages = item.kind === "group" ? item.messages : [{ message: item.message, key: item.key }];
-      for (const msgObj of messages) {
-        const m = msgObj.message as Record<string, unknown>;
-        const role = (m.role as string) ?? "system";
-        const content = (m.content as string) ?? "";
-        const excerpt = String(content)
-          .replace(/<[^>]*>/g, "")
-          .slice(0, 80)
-          .trim();
-        const key = item.key;
-        const timestamp = item.kind === "group"
-          ? (item.timestamp as number)
-          : ((m.timestamp as number) ?? Date.now());
-        entries.push({
-          key,
-          role: role as NavEntry["role"],
-          label:
-            role === "user"
-              ? t("chat.you")
-              : role === "assistant"
-                ? t("chat.assistant")
-                : role === "system"
-                  ? "System"
-                  : t("chat.tool"),
-          excerpt,
-          timestamp,
-        });
-        break; // only first message per group
-      }
+      const messages = item.kind === "group"
+        ? item.messages
+        : [{ message: item.message, key: item.key }];
+      const firstMsg = messages[0];
+      if (!firstMsg) continue;
+
+      const m = firstMsg.message as Record<string, unknown> | undefined;
+      if (!m) continue;
+
+      const role = (m.role as string) ?? "system";
+      const rawText = extractMessageText(m);
+      // Clean up HTML tags
+      const excerpt = rawText
+        .replace(/<[^>]*>/g, "")
+        .replace(/\s+/g, " ")
+        .slice(0, 60)
+        .trim();
+
+      const key = item.key;
+      const timestamp = item.kind === "group"
+        ? item.timestamp
+        : ((m.timestamp as number) ?? Date.now());
+
+      entries.push({
+        key,
+        role: role as NavEntry["role"],
+        label:
+          role === "user"
+            ? t("chat.you")
+            : role === "assistant"
+              ? t("chat.assistant")
+              : role === "system"
+                ? "System"
+                : t("chat.tool"),
+        excerpt,
+        timestamp,
+      });
     }
   }
   return entries;
@@ -79,19 +110,18 @@ export function renderChatNav(
           const isActive = entry.key === activeKey;
           return html`
             <button
-              class="chat-nav__item ${isActive ? "chat-nav__item--active" : ""}"
+              class="chat-nav__item ${isActive ? "chat-nav__item--active" : ""} ${entry.role === "divider" ? "chat-nav__item--divider" : ""}"
               data-nav-key=${entry.key}
               @click=${() => onJump(entry.key)}
               title=${entry.excerpt || entry.label}
             >
               <span class="chat-nav__role chat-nav__role--${entry.role}">
-                ${entry.role === "user" || entry.role === "assistant"
-                  ? icons.brain
-                  : entry.role === "divider"
-                    ? "—"
-                    : "⚙"}
+                ${entry.role === "divider" ? "📦"
+                  : entry.role === "user" || entry.role === "assistant"
+                    ? icons.brain ?? "💬"
+                    : entry.role === "tool" ? "🔧" : "⚙"}
               </span>
-              <span class="chat-nav__excerpt">${entry.excerpt || entry.label}</span>
+              <span class="chat-nav__excerpt">${entry.role === "divider" ? t("chat.compacted") : (entry.excerpt || entry.label)}</span>
             </button>
           `;
         })}

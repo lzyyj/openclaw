@@ -14,6 +14,7 @@ import type { SessionsListResult } from "../types.ts";
 import type { ChatItem, MessageGroup } from "../types/chat-types.ts";
 import type { ChatAttachment, ChatQueueItem } from "../ui-types.ts";
 import { renderMarkdownSidebar } from "./markdown-sidebar.ts";
+import { buildNavEntries, renderChatNav, findVisibleKey, scrollToKey } from "../chat/chat-navigation.ts";
 import "../components/resizable-divider.ts";
 
 export type CompactionIndicatorStatus = {
@@ -61,6 +62,10 @@ export type ChatProps = {
   sidebarContent?: string | null;
   sidebarError?: string | null;
   splitRatio?: number;
+  // Chat navigation sidebar
+  showNav?: boolean;
+  navActiveKey?: string | null;
+  onNavVisibleKeyChange?: (key: string | null) => void;
   assistantName: string;
   assistantAvatar: string | null;
   // Image attachments
@@ -259,12 +264,22 @@ export function renderChat(props: ChatProps) {
 
   const splitRatio = props.splitRatio ?? 0.6;
   const sidebarOpen = Boolean(props.sidebarOpen && props.onCloseSidebar);
+  const chatItems = buildChatItems(props);
+  const navEntries = buildNavEntries(chatItems);
+  const hasNav = props.showNav && navEntries.length > 1;
   const thread = html`
     <div
       class="chat-thread"
       role="log"
       aria-live="polite"
-      @scroll=${props.onChatScroll}
+      @scroll=${(e: Event) => {
+        props.onChatScroll?.(e);
+        const threadEl = e.currentTarget as HTMLElement;
+        const key = findVisibleKey(threadEl);
+        if (key !== props.navActiveKey) {
+          props.onNavVisibleKeyChange?.(key);
+        }
+      }}
     >
       ${
         props.loading
@@ -274,12 +289,12 @@ export function renderChat(props: ChatProps) {
           : nothing
       }
       ${repeat(
-        buildChatItems(props),
+        chatItems,
         (item) => item.key,
         (item) => {
           if (item.kind === "divider") {
             return html`
-              <div class="chat-divider" role="separator" data-ts=${String(item.timestamp)}>
+              <div class="chat-divider" role="separator" data-key=${item.key} data-ts=${String(item.timestamp)}>
                 <span class="chat-divider__line"></span>
                 <span class="chat-divider__label">${item.label}</span>
                 <span class="chat-divider__line"></span>
@@ -288,25 +303,25 @@ export function renderChat(props: ChatProps) {
           }
 
           if (item.kind === "reading-indicator") {
-            return renderReadingIndicatorGroup(assistantIdentity);
+            return html`<div data-key=${item.key}>${renderReadingIndicatorGroup(assistantIdentity)}</div>`;
           }
 
           if (item.kind === "stream") {
-            return renderStreamingGroup(
+            return html`<div data-key=${item.key}>${renderStreamingGroup(
               item.text,
               item.startedAt,
               props.onOpenSidebar,
               assistantIdentity,
-            );
+            )}</div>`;
           }
 
           if (item.kind === "group") {
-            return renderMessageGroup(item, {
+            return html`<div data-key=${item.key}>${renderMessageGroup(item, {
               onOpenSidebar: props.onOpenSidebar,
               showReasoning,
               assistantName: props.assistantName,
               assistantAvatar: assistantIdentity.avatar,
-            });
+            })}</div>`;
           }
 
           return nothing;
@@ -340,34 +355,51 @@ export function renderChat(props: ChatProps) {
       <div
         class="chat-split-container ${sidebarOpen ? "chat-split-container--open" : ""}"
       >
-        <div
-          class="chat-main"
-          style="flex: ${sidebarOpen ? `0 0 ${splitRatio * 100}%` : "1 1 100%"}"
-        >
-          ${thread}
+        <div class="chat-with-nav">
+          <div
+            class="chat-main"
+            style="flex: ${sidebarOpen ? `0 0 ${splitRatio * 100}%` : "1 1 100%"}"
+          >
+            <div class="chat-thread-container">
+              ${thread}
+            </div>
+          </div>
+
+          ${
+            sidebarOpen
+              ? html`
+                <resizable-divider
+                  .splitRatio=${splitRatio}
+                  @resize=${(e: CustomEvent) => props.onSplitRatioChange?.(e.detail.splitRatio)}
+                ></resizable-divider>
+                <div class="chat-sidebar">
+                  ${renderMarkdownSidebar({
+                    content: props.sidebarContent ?? null,
+                    error: props.sidebarError ?? null,
+                    onClose: props.onCloseSidebar!,
+                    onViewRawText: () => {
+                      if (!props.sidebarContent || !props.onOpenSidebar) {
+                        return;
+                      }
+                      props.onOpenSidebar(`\`\`\`\n${props.sidebarContent}\n\`\`\``);
+                    },
+                  })}
+                </div>
+              `
+              : nothing
+          }
         </div>
 
         ${
-          sidebarOpen
-            ? html`
-              <resizable-divider
-                .splitRatio=${splitRatio}
-                @resize=${(e: CustomEvent) => props.onSplitRatioChange?.(e.detail.splitRatio)}
-              ></resizable-divider>
-              <div class="chat-sidebar">
-                ${renderMarkdownSidebar({
-                  content: props.sidebarContent ?? null,
-                  error: props.sidebarError ?? null,
-                  onClose: props.onCloseSidebar!,
-                  onViewRawText: () => {
-                    if (!props.sidebarContent || !props.onOpenSidebar) {
-                      return;
-                    }
-                    props.onOpenSidebar(`\`\`\`\n${props.sidebarContent}\n\`\`\``);
-                  },
-                })}
-              </div>
-            `
+          hasNav
+            ? renderChatNav(
+                navEntries,
+                props.navActiveKey ?? null,
+                (key) => {
+                  const threadEl = document.querySelector(".chat-thread") as HTMLElement | null;
+                  scrollToKey(threadEl, key);
+                },
+              )
             : nothing
         }
       </div>

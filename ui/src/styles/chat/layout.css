@@ -461,3 +461,130 @@
     min-width: 120px;
   }
 }
+
+/* =============================================
+   CHAT NAVIGATION SIDEBAR - Message TOC
+   ============================================= */
+
+.chat-with-nav {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chat-thread-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-nav {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--border, #e0e0e0);
+  background: var(--bg-secondary, #f8f8f8);
+  padding: 8px 0;
+}
+
+.chat-nav__header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 12px;
+  color: var(--text-muted, #888);
+  font-weight: 600;
+}
+
+.chat-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.chat-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text, #333);
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s;
+  font-family: var(--font-body);
+}
+
+.chat-nav__item:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.chat-nav__item--active {
+  background: var(--accent-bg, rgba(0, 120, 255, 0.1));
+  color: var(--accent, #0078ff);
+  font-weight: 500;
+}
+
+.chat-nav__role {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.chat-nav__role--user {
+  color: #4a9eff;
+}
+
+.chat-nav__role--assistant {
+  color: #22c55e;
+}
+
+.chat-nav__role--system {
+  color: #a855f7;
+}
+
+.chat-nav__role--tool {
+  color: #f59e0b;
+}
+
+.chat-nav__role--divider {
+  color: var(--text-muted, #888);
+}
+
+.chat-nav__excerpt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Light theme overrides for chat nav */
+:root[data-theme="light"] .chat-nav {
+  border-left-color: rgba(16, 24, 40, 0.12);
+  background: #f9fafb;
+}
+
+:root[data-theme="light"] .chat-nav__item {
+  color: #475569;
+}
+
+:root[data-theme="light"] .chat-nav__item:hover {
+  background: rgba(16, 24, 40, 0.05);
+}
+
+:root[data-theme="light"] .chat-nav__item--active {
+  background: rgba(0, 120, 255, 0.08);
+  color: #0066cc;
+}

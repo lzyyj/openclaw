@@ -143,6 +143,7 @@ export const pt_BR: TranslationMap = {
     toolCardCompleted: "Concluído",
     toolCardNoOutput: "Sem saída — ferramenta concluída com sucesso.",
     toolCardCommand: "Comando",
+    navigation: "Navegação de Mensagens",
     sidebar: {
       toolOutput: "Saída de Ferramenta",
       noContentAvailable: "Nenhum conteúdo disponível",

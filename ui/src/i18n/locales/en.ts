@@ -154,6 +154,7 @@ export const en: TranslationMap = {
     toolCardCompleted: "Completed",
     toolCardNoOutput: "No output — tool completed successfully.",
     toolCardCommand: "Command",
+    navigation: "Message Navigation",
     sidebar: {
       toolOutput: "Tool Output",
       noContentAvailable: "No content available",

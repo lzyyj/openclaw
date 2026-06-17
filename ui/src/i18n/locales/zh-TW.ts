@@ -140,6 +140,7 @@ export const zh_TW: TranslationMap = {
     toolCardCompleted: "已完成",
     toolCardNoOutput: "無輸出——工具已成功完成。",
     toolCardCommand: "命令",
+    navigation: "消息導航",
     sidebar: {
       toolOutput: "工具輸出",
       noContentAvailable: "暫無內容",

@@ -153,6 +153,7 @@ export const zh_CN: TranslationMap = {
     toolCardCompleted: "已完成",
     toolCardNoOutput: "无输出——工具已成功完成。",
     toolCardCommand: "命令",
+    navigation: "消息导航",
     sidebar: {
       toolOutput: "工具输出",
       noContentAvailable: "暂无内容",

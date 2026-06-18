@@ -5,7 +5,6 @@
  */
 
 import { detectOsLanguage } from "../infra/detect-language.js";
-import { execSync } from "node:child_process";
 
 export type CliLocale = "en" | "zh-CN";
 
@@ -13,26 +12,12 @@ let cachedLocale: CliLocale | null = null;
 let cachedCanDisplayChinese: boolean | null = null;
 
 /**
- * On Windows, the terminal may use a legacy code page (e.g., 936/GBK) that
- * cannot render UTF-8 Chinese characters properly. We check whether the
- * terminal is capable before outputting zh-CN, and fall back to English.
+ * On Windows, LANG may not be set but the system UI language is zh-CN.
+ * We do NOT gate on terminal code page — both 936 (GBK) and 65001 (UTF-8)
+ * can render Chinese characters; encoding is a separate concern from locale.
  */
 function windowsCanDisplayChinese(): boolean {
-  if (process.platform !== "win32") {return true;}
-  if (!process.stdout.isTTY) {return true;}
-  try {
-    const buf = execSync("chcp", { encoding: "buffer", stdio: ["pipe", "pipe", "pipe"] });
-    const out = buf.toString("utf-8");
-    const m = out.match(/(\d+)/);
-    if (m) {
-      const cp = parseInt(m[1], 10);
-      // Only UTF-8 code page (65001) can render Chinese properly
-      return cp === 65001;
-    }
-  } catch {
-    return false;
-  }
-  return false;
+  return true;
 }
 
 export function resolveCliLocale(): CliLocale {

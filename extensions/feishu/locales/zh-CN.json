@@ -1,0 +1,15 @@
+{
+  "feishu.setup.title": "飞书设置",
+  "feishu.setup.description": "创建一个飞书/Lark应用并启用机器人 + 事件订阅（WebSocket）。\n从应用凭证页面复制应用ID和应用密钥。\nLark（国际版）：使用 open.larksuite.com 并设置 domain=\"lark\"。\n文档：{docsLink}",
+  "feishu.allowFrom.message": "飞书允许发送者（open_id 或 union_id）",
+  "feishu.allowFrom.placeholder": "ou_xxx",
+  "feishu.label": "飞书",
+  "feishu.domain.message": "飞书域名",
+  "feishu.domain.feishu": "飞书（中国） — open.feishu.cn",
+  "feishu.domain.lark": "Lark（国际版） — open.larksuite.com",
+  "feishu.envVars.message": "检测到 FEISHU_APP_ID/FEISHU_APP_SECRET 环境变量。使用环境变量？",
+  "feishu.appId.message": "飞书应用ID（cli_...）",
+  "feishu.appSecret.message": "飞书应用密钥",
+  "feishu.appId.required": "必填",
+  "feishu.appSecret.required": "必填"
+}

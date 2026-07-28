@@ -256,12 +256,15 @@ export type FallbackStatus = {
 type CompactionHost = ToolStreamHost & {
   compactionStatus?: CompactionStatus | null;
   compactionClearTimer?: number | null;
+  compactionLongWarnTimer?: number | null;
   fallbackStatus?: FallbackStatus | null;
   fallbackClearTimer?: number | null;
 };
 
 const COMPACTION_TOAST_DURATION_MS = 5000;
 const FALLBACK_TOAST_DURATION_MS = 8000;
+// If compaction runs longer than this without an "end" event, show a warning
+const COMPACTION_LONG_WARN_MS = 30_000;
 
 export function handleCompactionEvent(host: CompactionHost, payload: AgentEventPayload) {
   const data = payload.data ?? {};
@@ -279,7 +282,23 @@ export function handleCompactionEvent(host: CompactionHost, payload: AgentEventP
       startedAt: Date.now(),
       completedAt: null,
     };
+    // Set a warning timer: if compaction takes too long, mark it for UI feedback
+    host.compactionLongWarnTimer = window.setTimeout(() => {
+      if (host.compactionStatus?.active) {
+        host.compactionStatus = {
+          active: true,
+          startedAt: host.compactionStatus.startedAt,
+          completedAt: null,
+        };
+      }
+      host.compactionLongWarnTimer = null;
+    }, COMPACTION_LONG_WARN_MS);
   } else if (phase === "end") {
+    // Clear the long-warning timer if it's still running
+    if (host.compactionLongWarnTimer != null) {
+      window.clearTimeout(host.compactionLongWarnTimer);
+      host.compactionLongWarnTimer = null;
+    }
     host.compactionStatus = {
       active: false,
       startedAt: host.compactionStatus?.startedAt ?? null,

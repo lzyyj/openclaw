@@ -115,3 +115,7 @@ dist/protocol.schema.json
 
 # Synthing
 **/.stfolder/
+
+dist.bak/
+*.tgz
+sync-global.bat

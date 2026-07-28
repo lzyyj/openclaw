@@ -84,7 +84,13 @@ pnpm openclaw gateway
 # 6.1 再次启动网关后，如何再次打开管理页面（管理页面已关闭的前提下）
 pnpm openclaw dashboard
 
+# 6.2 启动网关(使用指定配置方案目录)
 pnpm openclaw --profile lzyyj gateway run
+
+# 6.3 进行本地全局安装
+pnpm pack
+npm i -g openclaw-*.tgz
+pnpm install -g .\openclaw-2026.6.6-cn.tgz
 ```
 
 > **💡 开发模式**: 如果你想修改源码并实时预览，请使用 `pnpm gateway:watch` 启动。

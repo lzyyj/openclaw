@@ -12,6 +12,7 @@ import { resolveHeartbeatPrompt } from "../../auto-reply/heartbeat.js";
 import type { ReasoningLevel, ThinkLevel } from "../../auto-reply/thinking.js";
 import { resolveChannelCapabilities } from "../../config/channel-capabilities.js";
 import type { OpenClawConfig } from "../../config/config.js";
+import { emitAgentEvent } from "../../infra/agent-events.js";
 import { getMachineDisplayName } from "../../infra/machine-name.js";
 import { generateSecureToken } from "../../infra/secure-random.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
@@ -266,6 +267,17 @@ export async function compactEmbeddedPiSessionDirect(
         `attempt=${attempt} maxAttempts=${maxAttempts} outcome=failed reason=${classifyCompactionReason(reason)} ` +
         `durationMs=${Date.now() - startedAt}`,
     );
+    // Notify webchat that compaction is finished (so it stops showing spinner)
+    try {
+      emitAgentEvent({
+        runId,
+        sessionKey: params.sessionKey ?? params.sessionId,
+        stream: "compaction",
+        data: { phase: "end", failed: true, reason },
+      });
+    } catch {
+      /* best-effort */
+    }
     return {
       ok: false,
       compacted: false,

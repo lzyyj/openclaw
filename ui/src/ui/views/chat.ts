@@ -3,6 +3,12 @@ import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import { t } from "../../i18n/index.ts";
 import {
+  buildNavEntries,
+  renderChatNav,
+  findVisibleKey,
+  scrollToKey,
+} from "../chat/chat-navigation.ts";
+import {
   renderMessageGroup,
   renderReadingIndicatorGroup,
   renderStreamingGroup,
@@ -14,7 +20,6 @@ import type { SessionsListResult } from "../types.ts";
 import type { ChatItem, MessageGroup } from "../types/chat-types.ts";
 import type { ChatAttachment, ChatQueueItem } from "../ui-types.ts";
 import { renderMarkdownSidebar } from "./markdown-sidebar.ts";
-import { buildNavEntries, renderChatNav, findVisibleKey, scrollToKey } from "../chat/chat-navigation.ts";
 import "../components/resizable-divider.ts";
 
 export type CompactionIndicatorStatus = {
@@ -90,6 +95,15 @@ export type ChatProps = {
 
 const COMPACTION_TOAST_DURATION_MS = 5000;
 const FALLBACK_TOAST_DURATION_MS = 8000;
+const COMPACTION_LONG_WARN_MS = 30_000;
+
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
 
 function adjustTextareaHeight(el: HTMLTextAreaElement) {
   el.style.height = "auto";
@@ -103,9 +117,11 @@ function renderCompactionIndicator(status: CompactionIndicatorStatus | null | un
 
   // Show "compacting..." while active
   if (status.active) {
+    const elapsed = status.startedAt ? Date.now() - status.startedAt : 0;
+    const isLong = elapsed > COMPACTION_LONG_WARN_MS;
     return html`
       <div class="compaction-indicator compaction-indicator--active" role="status" aria-live="polite">
-        ${icons.loader} ${t("chat.compacting")}
+        ${icons.loader} ${t("chat.compacting")}${isLong ? html`<span class="compaction-indicator__long"> (${formatDuration(elapsed)})</span>` : nothing}
       </div>
     `;
   }
@@ -392,14 +408,10 @@ export function renderChat(props: ChatProps) {
 
         ${
           hasNav
-            ? renderChatNav(
-                navEntries,
-                props.navActiveKey ?? null,
-                (key) => {
-                  const threadEl = document.querySelector(".chat-thread") as HTMLElement | null;
-                  scrollToKey(threadEl, key);
-                },
-              )
+            ? renderChatNav(navEntries, props.navActiveKey ?? null, (key) => {
+                const threadEl = document.querySelector(".chat-thread");
+                scrollToKey(threadEl, key);
+              })
             : nothing
         }
       </div>

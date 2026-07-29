@@ -10,7 +10,17 @@ import { type LogLevel, levelToMinLevel, normalizeLogLevel } from "./levels.js";
 import { resolveNodeRequireFromMeta } from "./node-require.js";
 import { loggingState } from "./state.js";
 
-export const DEFAULT_LOG_DIR = resolvePreferredOpenClawTmpDir();
+export function resolveDefaultLogDir(): string {
+  const profile = process.env.OPENCLAW_PROFILE?.trim();
+  const base = resolvePreferredOpenClawTmpDir();
+  if (!profile || profile.toLowerCase() === "default") {
+    return base;
+  }
+  // e.g. /tmp/openclaw-lzyyj  → append suffix to dir name, not as a subdir
+  return `${base}-${profile}`;
+}
+
+export const DEFAULT_LOG_DIR = /* @__PURE__ */ resolveDefaultLogDir();
 export const DEFAULT_LOG_FILE = path.join(DEFAULT_LOG_DIR, "openclaw.log"); // legacy single-file path
 
 const LOG_PREFIX = "openclaw";
@@ -269,7 +279,9 @@ function formatLocalDate(date: Date): string {
 
 function defaultRollingPathForToday(): string {
   const today = formatLocalDate(new Date());
-  return path.join(DEFAULT_LOG_DIR, `${LOG_PREFIX}-${today}${LOG_SUFFIX}`);
+  // Lazily resolve the log dir so that OPENCLAW_PROFILE (set after entry.mjs
+  // top-level consts are evaluated) is honored.
+  return path.join(resolveDefaultLogDir(), `${LOG_PREFIX}-${today}${LOG_SUFFIX}`);
 }
 
 function isRollingPath(file: string): boolean {

@@ -189,7 +189,7 @@ const ZH_CN: Record<string, string> = {
   "skills.list.tip": "提示：使用 `npx clawhub` 搜索、安装和同步技能。",
 
   // ---- Configure channels ----
-  "configure.channels.tip": "提示：运行 {cmd} 查看已配置和已启用的通道。",
+  "configure.channels.tip": "提示：运行 {cmd} 查看已配置和已启用的信道。",
 
   // ---- Doctor state integrity ----
   "doctor.state.backup_tip": "- 提示：将工作区备份到私有 git 仓库（GitHub 或 GitLab）。",
@@ -219,11 +219,11 @@ const ZH_CN: Record<string, string> = {
   "configure.section.continue": "继续",
   "configure.section.continue_done": "已完成",
   "configure.section.continue_skip": "暂不配置",
-  "configure.channels.message": "通道",
+  "configure.channels.message": "信道",
   "configure.channels.configure.label": "配置/关联",
-  "configure.channels.configure.hint": "添加/更新通道；禁用未选择的账号",
-  "configure.channels.remove.label": "移除通道配置",
-  "configure.channels.remove.hint": "从 openclaw.json 中删除通道令牌/设置",
+  "configure.channels.configure.hint": "添加/更新信道；禁用未选择的账号",
+  "configure.channels.remove.label": "移除信道配置",
+  "configure.channels.remove.hint": "从 openclaw.json 中删除信道令牌/设置",
   "configure.web_search.note_title": "Web 搜索",
   "configure.web_search.note_body": "Web 搜索让代理可以使用 `web_search` 工具在线查询信息。\n需要 Brave Search API 密钥（可存入配置或设置 BRAVE_API_KEY 环境变量）。\n文档：https://docs.openclaw.ai/tools/web",
   "configure.web_search.enable.message": "启用 web_search（Brave Search）？",
@@ -286,12 +286,12 @@ const ZH_CN: Record<string, string> = {
   "configure.section.gateway.hint": "端口、绑定、认证、Tailscale",
   "configure.section.daemon.label": "后台服务",
   "configure.section.daemon.hint": "安装/管理后台服务",
-  "configure.section.channels.label": "通道",
+  "configure.section.channels.label": "信道",
   "configure.section.channels.hint": "关联 WhatsApp/Telegram 等并设置默认值",
   "configure.section.skills.label": "技能",
   "configure.section.skills.hint": "安装/启用工作区技能",
   "configure.section.health.label": "健康检查",
-  "configure.section.health.hint": "运行网关 + 通道检查",
+  "configure.section.health.hint": "运行网关 + 信道检查",
 
   // ---- Onboard summary labels ----
   "onboarding.summary.workspace": "工作区",

@@ -148,7 +148,7 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "vercel-ai-gateway:default",
     expectedProviders: ["vercel-ai-gateway"],
     envLabel: "AI_GATEWAY_API_KEY",
-    promptMessage: "Enter Vercel AI Gateway API key",
+    promptMessage: getText("configure.provider.vercel_ai_gateway.prompt", "Enter Vercel AI Gateway API key"),
     setCredential: setVercelAiGatewayApiKey,
     defaultModel: VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyVercelAiGatewayConfig,
@@ -199,7 +199,7 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "xiaomi:default",
     expectedProviders: ["xiaomi"],
     envLabel: "XIAOMI_API_KEY",
-    promptMessage: "Enter Xiaomi API key",
+    promptMessage: getText("configure.provider.xiaomi.prompt", "Enter Xiaomi API key"),
     setCredential: setXiaomiApiKey,
     defaultModel: XIAOMI_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyXiaomiConfig,
@@ -211,7 +211,7 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "mistral:default",
     expectedProviders: ["mistral"],
     envLabel: "MISTRAL_API_KEY",
-    promptMessage: "Enter Mistral API key",
+    promptMessage: getText("configure.provider.mistral.prompt", "Enter Mistral API key"),
     setCredential: setMistralApiKey,
     defaultModel: MISTRAL_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyMistralConfig,
@@ -223,95 +223,95 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "venice:default",
     expectedProviders: ["venice"],
     envLabel: "VENICE_API_KEY",
-    promptMessage: "Enter Venice AI API key",
+    promptMessage: getText("configure.provider.venice.prompt", "Enter Venice AI API key"),
     setCredential: setVeniceApiKey,
     defaultModel: VENICE_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyVeniceConfig,
     applyProviderConfig: applyVeniceProviderConfig,
     noteDefault: VENICE_DEFAULT_MODEL_REF,
-    noteMessage: [
+    noteMessage: getText("configure.provider.venice.note", [
       "Venice AI provides privacy-focused inference with uncensored models.",
       "Get your API key at: https://venice.ai/settings/api",
       "Supports 'private' (fully private) and 'anonymized' (proxy) modes.",
-    ].join("\n"),
-    noteTitle: "Venice AI",
+    ].join("\n")),
+    noteTitle: getText("configure.provider.venice.title", "Venice AI"),
   },
   "opencode-zen": {
     provider: "opencode",
     profileId: "opencode:default",
     expectedProviders: ["opencode"],
     envLabel: "OPENCODE_API_KEY",
-    promptMessage: "Enter OpenCode Zen API key",
+    promptMessage: getText("configure.provider.opencode_zen.prompt", "Enter OpenCode Zen API key"),
     setCredential: setOpencodeZenApiKey,
     defaultModel: OPENCODE_ZEN_DEFAULT_MODEL,
     applyDefaultConfig: applyOpencodeZenConfig,
     applyProviderConfig: applyOpencodeZenProviderConfig,
     noteDefault: OPENCODE_ZEN_DEFAULT_MODEL,
-    noteMessage: [
+    noteMessage: getText("configure.provider.opencode_zen.note", [
       "OpenCode Zen provides access to Claude, GPT, Gemini, and more models.",
       "Get your API key at: https://opencode.ai/auth",
       "OpenCode Zen bills per request. Check your OpenCode dashboard for details.",
-    ].join("\n"),
-    noteTitle: "OpenCode Zen",
+    ].join("\n")),
+    noteTitle: getText("configure.provider.opencode_zen.title", "OpenCode Zen"),
   },
   "together-api-key": {
     provider: "together",
     profileId: "together:default",
     expectedProviders: ["together"],
     envLabel: "TOGETHER_API_KEY",
-    promptMessage: "Enter Together AI API key",
+    promptMessage: getText("configure.provider.together.prompt", "Enter Together AI API key"),
     setCredential: setTogetherApiKey,
     defaultModel: TOGETHER_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyTogetherConfig,
     applyProviderConfig: applyTogetherProviderConfig,
     noteDefault: TOGETHER_DEFAULT_MODEL_REF,
-    noteMessage: [
+    noteMessage: getText("configure.provider.together.note", [
       "Together AI provides access to leading open-source models including Llama, DeepSeek, Qwen, and more.",
       "Get your API key at: https://api.together.xyz/settings/api-keys",
-    ].join("\n"),
-    noteTitle: "Together AI",
+    ].join("\n")),
+    noteTitle: getText("configure.provider.together.title", "Together AI"),
   },
   "qianfan-api-key": {
     provider: "qianfan",
     profileId: "qianfan:default",
     expectedProviders: ["qianfan"],
     envLabel: "QIANFAN_API_KEY",
-    promptMessage: "Enter QIANFAN API key",
+    promptMessage: getText("configure.provider.qianfan.prompt", "Enter QIANFAN API key"),
     setCredential: setQianfanApiKey,
     defaultModel: QIANFAN_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyQianfanConfig,
     applyProviderConfig: applyQianfanProviderConfig,
     noteDefault: QIANFAN_DEFAULT_MODEL_REF,
-    noteMessage: [
+    noteMessage: getText("configure.provider.qianfan.note", [
       "Get your API key at: https://console.bce.baidu.com/qianfan/ais/console/apiKey",
       "API key format: bce-v3/ALTAK-...",
-    ].join("\n"),
-    noteTitle: "QIANFAN",
+    ].join("\n")),
+    noteTitle: getText("configure.provider.qianfan.title", "QIANFAN"),
   },
   "deepseek-api-key": {
     provider: "deepseek",
     profileId: "deepseek:default",
     expectedProviders: ["deepseek"],
     envLabel: "DEEPSEEK_API_KEY",
-    promptMessage: "Enter DeepSeek API key",
+    promptMessage: getText("configure.provider.deepseek.prompt", "Enter DeepSeek API key"),
     setCredential: setDeepseekApiKey,
     defaultModel: DEEPSEEK_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyDeepseekConfig,
     applyProviderConfig: applyDeepseekProviderConfig,
     noteDefault: DEEPSEEK_DEFAULT_MODEL_REF,
-    noteMessage: [
+    noteMessage: getText("configure.provider.deepseek.note", [
       "DeepSeek API provides deepseek-chat (V3.2) and deepseek-reasoner (thinking mode).",
       "Get your API key at: https://platform.deepseek.com",
       "Pricing: https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
-    ].join("\n"),
-    noteTitle: "DeepSeek",
+    ].join("\n")),
+    noteTitle: getText("configure.provider.deepseek.title", "DeepSeek"),
   },
   "kilocode-api-key": {
     provider: "kilocode",
     profileId: "kilocode:default",
     expectedProviders: ["kilocode"],
     envLabel: "KILOCODE_API_KEY",
-    promptMessage: "Enter Kilo Gateway API key",
+    promptMessage: getText("configure.provider.kilocode.prompt", "Enter Kilo Gateway API key"),
     setCredential: setKilocodeApiKey,
     defaultModel: KILOCODE_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyKilocodeConfig,
@@ -323,7 +323,7 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "synthetic:default",
     expectedProviders: ["synthetic"],
     envLabel: "SYNTHETIC_API_KEY",
-    promptMessage: "Enter Synthetic API key",
+    promptMessage: getText("configure.provider.synthetic.prompt", "Enter Synthetic API key"),
     setCredential: setSyntheticApiKey,
     defaultModel: SYNTHETIC_DEFAULT_MODEL_REF,
     applyDefaultConfig: applySyntheticConfig,
@@ -448,14 +448,13 @@ export async function applyAuthChoiceApiProviders(
         expectedProviders: ["litellm"],
         provider: "litellm",
         envLabel: "LITELLM_API_KEY",
-        promptMessage: "Enter LiteLLM API key",
+        promptMessage: getText("configure.provider.litellm.prompt", "Enter LiteLLM API key"),
         normalize: normalizeApiKeyInput,
         validate: validateApiKeyInput,
         prompter: params.prompter,
         setCredential: async (apiKey) => setLitellmApiKey(apiKey, params.agentDir),
-        noteMessage:
-          "LiteLLM provides a unified API to 100+ LLM providers.\nGet your API key from your LiteLLM proxy or https://litellm.ai\nDefault proxy runs on http://localhost:4000",
-        noteTitle: "LiteLLM",
+        noteMessage: getText("configure.provider.litellm.note", "LiteLLM provides a unified API to 100+ LLM providers.\nGet your API key from your LiteLLM proxy or https://litellm.ai\nDefault proxy runs on http://localhost:4000"),
+        noteTitle: getText("configure.provider.litellm.title", "LiteLLM"),
       });
       hasCredential = true;
     }
@@ -505,15 +504,15 @@ export async function applyAuthChoiceApiProviders(
     const ensureAccountGateway = async () => {
       if (!accountId) {
         const value = await params.prompter.text({
-          message: "Enter Cloudflare Account ID",
-          validate: (val) => (String(val ?? "").trim() ? undefined : "Account ID is required"),
+          message: getText("configure.provider.cloudflare_account_id.prompt", "Enter Cloudflare Account ID"),
+          validate: (val) => (String(val ?? "").trim() ? undefined : getText("configure.provider.cloudflare_account_id.required", "Account ID is required")),
         });
         accountId = String(value ?? "").trim();
       }
       if (!gatewayId) {
         const value = await params.prompter.text({
-          message: "Enter Cloudflare AI Gateway ID",
-          validate: (val) => (String(val ?? "").trim() ? undefined : "Gateway ID is required"),
+          message: getText("configure.provider.cloudflare_gateway_id.prompt", "Enter Cloudflare AI Gateway ID"),
+          validate: (val) => (String(val ?? "").trim() ? undefined : getText("configure.provider.cloudflare_gateway_id.required", "Gateway ID is required")),
         });
         gatewayId = String(value ?? "").trim();
       }
@@ -545,7 +544,7 @@ export async function applyAuthChoiceApiProviders(
     if (!resolvedApiKey) {
       await ensureAccountGateway();
       const key = await params.prompter.text({
-        message: "Enter Cloudflare AI Gateway API key",
+        message: getText("configure.provider.cloudflare_ai_gateway.prompt", "Enter Cloudflare AI Gateway API key"),
         validate: validateApiKeyInput,
       });
       resolvedApiKey = normalizeApiKeyInput(String(key ?? ""));
@@ -581,7 +580,7 @@ export async function applyAuthChoiceApiProviders(
       tokenProvider: normalizedTokenProvider,
       expectedProviders: ["google"],
       envLabel: "GEMINI_API_KEY",
-      promptMessage: "Enter Gemini API key",
+      promptMessage: getText("configure.provider.gemini.prompt", "Enter Gemini API key"),
       normalize: normalizeApiKeyInput,
       validate: validateApiKeyInput,
       prompter: params.prompter,
@@ -623,7 +622,7 @@ export async function applyAuthChoiceApiProviders(
       tokenProvider: normalizedTokenProvider,
       expectedProviders: ["zai"],
       envLabel: "ZAI_API_KEY",
-      promptMessage: "Enter Z.AI API key",
+      promptMessage: getText("configure.provider.zai.prompt", "Enter Z.AI API key"),
       normalize: normalizeApiKeyInput,
       validate: validateApiKeyInput,
       prompter: params.prompter,

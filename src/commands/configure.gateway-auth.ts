@@ -2,7 +2,7 @@ import { ensureAuthProfileStore } from "../agents/auth-profiles.js";
 import type { OpenClawConfig, GatewayAuthConfig } from "../config/config.js";
 import type { RuntimeEnv } from "../runtime.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
-import { promptAuthChoiceGrouped } from "./auth-choice-prompt.js";
+import { promptAuthChoiceGrouped, resolveInitialGroupFromConfig } from "./auth-choice-prompt.js";
 import { applyAuthChoice, resolvePreferredProviderForAuthChoice } from "./auth-choice.js";
 import {
   applyModelAllowlist,
@@ -13,6 +13,7 @@ import {
 } from "./model-picker.js";
 import { promptCustomApiConfig } from "./onboard-custom.js";
 import { randomToken } from "./onboard-helpers.js";
+import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 
 type GatewayAuthChoice = "token" | "password" | "trusted-proxy";
 
@@ -76,12 +77,16 @@ export async function promptAuthConfig(
   runtime: RuntimeEnv,
   prompter: WizardPrompter,
 ): Promise<OpenClawConfig> {
+  const existingModel = cfg.agents?.defaults?.model
+    ? resolveAgentModelPrimaryValue(cfg.agents.defaults.model)
+    : undefined;
   const authChoice = await promptAuthChoiceGrouped({
     prompter,
     store: ensureAuthProfileStore(undefined, {
       allowKeychainPrompt: false,
     }),
     includeSkip: true,
+    initialGroupValue: resolveInitialGroupFromConfig(existingModel),
   });
 
   let next = cfg;

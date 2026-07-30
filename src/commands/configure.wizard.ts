@@ -7,7 +7,7 @@ import { ensureControlUiAssetsBuilt } from "../infra/control-ui-assets.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { defaultRuntime } from "../runtime.js";
 import { note } from "../terminal/note.js";
-import { resolveUserPath } from "../utils.js";
+import { resolveUserPath, shortenHomeInString } from "../utils.js";
 import { createClackPrompter } from "../wizard/clack-prompter.js";
 import { WizardCancelledError } from "../wizard/prompts.js";
 import { removeChannelConfigWizard } from "./configure.channels.js";
@@ -341,7 +341,7 @@ export async function runConfigureWizard(
       const workspaceInput = guardCancel(
         await text({
           message: getText("configure.workspace.message", "Workspace directory"),
-          initialValue: workspaceDir,
+          initialValue: shortenHomeInString(workspaceDir),
         }),
         runtime,
       );

@@ -39,7 +39,7 @@ function localizeClackChunk(chunk: string): string {
 
 async function withLocalizedClackOutput<T>(work: () => Promise<T>): Promise<T> {
   type StdoutWrite = typeof process.stdout.write;
-  const originalWrite = process.stdout.write.bind(process.stdout) as StdoutWrite;
+  const originalWrite = process.stdout.write.bind(process.stdout);
   const patchedWrite = ((chunk: string | Uint8Array, ...args: unknown[]) => {
     let nextChunk = chunk;
     if (typeof nextChunk === "string") {

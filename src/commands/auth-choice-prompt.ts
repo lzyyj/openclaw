@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import type { AuthProfileStore } from "../agents/auth-profiles.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { buildAuthChoiceGroups } from "./auth-choice-options.js";
@@ -24,7 +25,7 @@ export async function promptAuthChoiceGrouped(params: {
     ];
 
     const providerSelection = (await params.prompter.select({
-      message: "Model/auth provider",
+      message: getText("configure.model.auth_provider", "Model/auth provider"),
       options: providerOptions,
     })) as string;
 
@@ -36,8 +37,8 @@ export async function promptAuthChoiceGrouped(params: {
 
     if (!group || group.options.length === 0) {
       await params.prompter.note(
-        "No auth methods available for that provider.",
-        "Model/auth choice",
+        getText("configure.model.no_auth_methods", "No auth methods available for that provider."),
+        getText("configure.model.choice_title", "Model/auth choice"),
       );
       continue;
     }
@@ -47,8 +48,11 @@ export async function promptAuthChoiceGrouped(params: {
     }
 
     const methodSelection = await params.prompter.select({
-      message: `${group.label} auth method`,
-      options: [...group.options, { value: BACK_VALUE, label: "Back" }],
+      message: `${group.label} ${getText("configure.model.auth_method", "auth method")}`,
+      options: [
+        ...group.options,
+        { value: BACK_VALUE, label: getText("configure.back", "Back") },
+      ],
     });
 
     if (methodSelection === BACK_VALUE) {

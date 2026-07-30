@@ -96,8 +96,7 @@ async function pollDeviceToken(params: {
     try {
       payload = (await response.json()) as { error?: string; error_description?: string };
     } catch {
-      const text = await response.text();
-      return { status: "error", message: text || response.statusText };
+      return { status: "error", message: response.statusText };
     }
 
     if (payload?.error === "authorization_pending") {

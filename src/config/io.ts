@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { getText } from "../cli/i18n.js";
 import JSON5 from "json5";
 import { ensureOwnerDisplaySecret } from "../agents/owner-display.js";
 import { loadDotEnv } from "../infra/dotenv.js";
@@ -1135,7 +1136,17 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
       const changeSummary =
         typeof changedPathCount === "number" ? `, changedPaths=${changedPathCount}` : "";
       deps.logger.warn(
-        `Config overwrite: ${configPath} (sha256 ${previousHash ?? "unknown"} -> ${nextHash}, backup=${configPath}.bak${changeSummary})`,
+        getText(
+          "config.io.overwrite",
+          `Config overwrite: ${configPath} (sha256 ${previousHash ?? "unknown"} -> ${nextHash}, backup=${configPath}.bak${changeSummary})`,
+          {
+            path: configPath,
+            previousHash: previousHash ?? "unknown",
+            nextHash,
+            backup: `${configPath}.bak`,
+            changeSummary,
+          },
+        ),
       );
     };
     const logConfigWriteAnomalies = () => {

@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import { ensureAuthProfileStore, listProfilesForProvider } from "../agents/auth-profiles.js";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "../agents/defaults.js";
 import { getCustomProviderApiKey, resolveEnvApiKey } from "../agents/model-auth.js";
@@ -437,7 +438,7 @@ export async function promptModelAllowlist(params: {
   }
 
   const selection = await params.prompter.multiselect({
-    message: params.message ?? "Models in /model picker (multi-select)",
+    message: params.message ?? getText("configure.model.multiselect", "Models in /model picker (multi-select)"),
     options,
     initialValues: initialKeys.length > 0 ? initialKeys : undefined,
     searchable: true,

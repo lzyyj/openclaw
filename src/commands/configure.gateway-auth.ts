@@ -116,17 +116,27 @@ export async function promptAuthConfig(
   const anthropicOAuth =
     authChoice === "setup-token" || authChoice === "token" || authChoice === "oauth";
 
-  if (authChoice !== "custom-api-key") {
-    const allowlistSelection = await promptModelAllowlist({
-      config: next,
-      prompter,
-      allowedKeys: anthropicOAuth ? ANTHROPIC_OAUTH_MODEL_KEYS : undefined,
-      initialSelections: anthropicOAuth ? ["anthropic/claude-sonnet-4-6"] : undefined,
-      message: anthropicOAuth ? "Anthropic OAuth models" : undefined,
-    });
-    if (allowlistSelection.models) {
-      next = applyModelAllowlist(next, allowlistSelection.models);
-      next = applyModelFallbacksFromSelection(next, allowlistSelection.models);
+  if (authChoice !== "custom-api-key" && authChoice !== "skip") {
+    if (anthropicOAuth) {
+      // For Anthropic OAuth, show the model allowlist with limited set
+      const allowlistSelection = await promptModelAllowlist({
+        config: next,
+        prompter,
+        allowedKeys: ANTHROPIC_OAUTH_MODEL_KEYS,
+        initialSelections: ["anthropic/claude-sonnet-4-6"],
+        message: "Anthropic OAuth models",
+      });
+      if (allowlistSelection.models) {
+        next = applyModelAllowlist(next, allowlistSelection.models);
+        next = applyModelFallbacksFromSelection(next, allowlistSelection.models);
+      }
+    } else {
+      // API-key providers: auto-populate allowlist with the chosen default model,
+      // no interactive multi-select needed (too many models for most providers).
+      const chosenDefaultModel = next.models?.primary;
+      if (chosenDefaultModel) {
+        next = applyModelAllowlist(next, [chosenDefaultModel]);
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import { resolveEnvApiKey } from "../agents/model-auth.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { formatApiKeyPreview } from "./auth-choice.api-key.js";
@@ -12,8 +13,8 @@ export function createAuthChoiceAgentModelNoter(
       return;
     }
     await params.prompter.note(
-      `Default model set to ${model} for agent "${params.agentId}".`,
-      "Model configured",
+      getText("configure.model.default_set_agent", `Default model set to ${model} for agent "${params.agentId}".`, { model, agentId: params.agentId }),
+      getText("configure.model.configured", "Model configured"),
     );
   };
 }
@@ -149,7 +150,15 @@ export async function ensureApiKeyFromEnvOrPrompt(params: {
   const envKey = resolveEnvApiKey(params.provider);
   if (envKey) {
     const useExisting = await params.prompter.confirm({
-      message: `Use existing ${params.envLabel} (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+      message: getText(
+        "configure.model.use_existing_key",
+        `Use existing ${params.envLabel} (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+        {
+          envLabel: params.envLabel,
+          source: envKey.source,
+          preview: formatApiKeyPreview(envKey.apiKey),
+        },
+      ),
       initialValue: true,
     });
     if (useExisting) {

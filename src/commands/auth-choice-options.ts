@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import type { AuthProfileStore } from "../agents/auth-profiles.js";
 import { AUTH_CHOICE_LEGACY_ALIASES_FOR_CLI } from "./auth-choice-legacy.js";
 import { ONBOARD_PROVIDER_AUTH_FLAGS } from "./onboard-provider-auth-flags.js";
@@ -104,8 +105,8 @@ const AUTH_CHOICE_GROUP_DEFS: {
   {
     value: "qwen",
     label: "Qwen",
-    hint: "OAuth",
-    choices: ["qwen-portal"],
+    hint: "Coder model (recommended)",
+    choices: ["qwen-portal-api-key", "qwen-portal"],
   },
   {
     value: "zai",
@@ -202,9 +203,9 @@ const PROVIDER_AUTH_CHOICE_OPTION_HINTS: Partial<Record<AuthChoice, string>> = {
 };
 
 const PROVIDER_AUTH_CHOICE_OPTION_LABELS: Partial<Record<AuthChoice, string>> = {
-  "moonshot-api-key": "Kimi API key (.ai)",
-  "moonshot-api-key-cn": "Kimi API key (.cn)",
-  "kimi-code-api-key": "Kimi Code API key (subscription)",
+  "moonshot-api-key": getText("configure.provider.kimi_api_key_ai", "Kimi API key (.ai)"),
+  "moonshot-api-key-cn": getText("configure.provider.kimi_api_key_cn", "Kimi API key (.cn)"),
+  "kimi-code-api-key": getText("configure.provider.kimi_code_api_key", "Kimi Code API key (subscription)"),
   "cloudflare-ai-gateway-api-key": "Cloudflare AI Gateway",
 };
 
@@ -237,7 +238,7 @@ const BASE_AUTH_CHOICE_OPTIONS: ReadonlyArray<AuthChoiceOption> = [
   ...buildProviderAuthChoiceOptions(),
   {
     value: "moonshot-api-key-cn",
-    label: "Kimi API key (.cn)",
+    label: getText("configure.provider.kimi_api_key_cn", "Kimi API key (.cn)"),
   },
   {
     value: "github-copilot",
@@ -280,7 +281,8 @@ const BASE_AUTH_CHOICE_OPTIONS: ReadonlyArray<AuthChoiceOption> = [
     label: "MiniMax OAuth",
     hint: "Oauth plugin for MiniMax",
   },
-  { value: "qwen-portal", label: "Qwen OAuth" },
+  { value: "qwen-portal-api-key", label: "Qwen API key", hint: "Portal API key" },
+  { value: "qwen-portal", label: "Qwen OAuth", hint: "Device code login" },
   {
     value: "copilot-proxy",
     label: "Copilot Proxy (local)",
@@ -332,7 +334,7 @@ export function buildAuthChoiceOptions(params: {
   const options: AuthChoiceOption[] = [...BASE_AUTH_CHOICE_OPTIONS];
 
   if (params.includeSkip) {
-    options.push({ value: "skip", label: "Skip for now" });
+    options.push({ value: "skip", label: getText("configure.skip_for_now", "Skip for now") });
   }
 
   return options;
@@ -350,6 +352,19 @@ export function buildAuthChoiceGroups(params: { store: AuthProfileStore; include
     options.map((opt) => [opt.value, opt]),
   );
 
+  // Add options from ONBOARD_PROVIDER_AUTH_FLAGS that aren't already in BASE_AUTH_CHOICE_OPTIONS
+  for (const flag of ONBOARD_PROVIDER_AUTH_FLAGS) {
+    if (!optionByValue.has(flag.authChoice)) {
+      optionByValue.set(flag.authChoice, {
+        value: flag.authChoice,
+        label: PROVIDER_AUTH_CHOICE_OPTION_LABELS[flag.authChoice] ?? flag.description,
+        ...(PROVIDER_AUTH_CHOICE_OPTION_HINTS[flag.authChoice]
+          ? { hint: PROVIDER_AUTH_CHOICE_OPTION_HINTS[flag.authChoice] }
+          : {}),
+      });
+    }
+  }
+
   const groups = AUTH_CHOICE_GROUP_DEFS.map((group) => ({
     ...group,
     options: group.choices
@@ -358,7 +373,7 @@ export function buildAuthChoiceGroups(params: { store: AuthProfileStore; include
   }));
 
   const skipOption = params.includeSkip
-    ? ({ value: "skip", label: "Skip for now" } satisfies AuthChoiceOption)
+    ? ({ value: "skip", label: getText("configure.skip_for_now", "Skip for now") } satisfies AuthChoiceOption)
     : undefined;
 
   return { groups, skipOption };

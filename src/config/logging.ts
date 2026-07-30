@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { displayPath } from "../utils.js";
 import { CONFIG_PATH } from "./paths.js";
@@ -14,5 +15,5 @@ export function formatConfigPath(path: string = CONFIG_PATH): string {
 export function logConfigUpdated(runtime: RuntimeEnv, opts: LogConfigUpdatedOptions = {}): void {
   const path = formatConfigPath(opts.path ?? CONFIG_PATH);
   const suffix = opts.suffix ? ` ${opts.suffix}` : "";
-  runtime.log(`Updated ${path}${suffix}`);
+  runtime.log(getText("config.logging.updated", `Updated ${path}${suffix}`, { path, suffix }));
 }

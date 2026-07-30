@@ -48,9 +48,72 @@ const qwenPortalPlugin = {
       aliases: ["qwen"],
       auth: [
         {
+          id: "api-key",
+          label: "Qwen API key",
+          hint: "Portal API key",
+          kind: "api_key",
+          run: async (ctx: ProviderAuthContext) => {
+            const apiKey = await ctx.prompter.text({
+              message: "Enter Qwen Portal API key",
+              validate: (v) => (String(v ?? "").trim() ? undefined : "Required"),
+            });
+
+            const trimmed = String(apiKey ?? "").trim();
+            const profileId = `${PROVIDER_ID}:default`;
+
+            return {
+              profiles: [
+                {
+                  profileId,
+                  credential: {
+                    type: "api_key",
+                    provider: PROVIDER_ID,
+                    key: trimmed,
+                  },
+                },
+              ],
+              configPatch: {
+                models: {
+                  providers: {
+                    [PROVIDER_ID]: {
+                      baseUrl: DEFAULT_BASE_URL,
+                      apiKey: trimmed,
+                      api: "openai-completions",
+                      models: [
+                        buildModelDefinition({
+                          id: "coder-model",
+                          name: "Qwen Coder",
+                          input: ["text"],
+                        }),
+                        buildModelDefinition({
+                          id: "vision-model",
+                          name: "Qwen Vision",
+                          input: ["text", "image"],
+                        }),
+                      ],
+                    },
+                  },
+                },
+                agents: {
+                  defaults: {
+                    models: {
+                      "qwen-portal/coder-model": { alias: "qwen" },
+                      "qwen-portal/vision-model": {},
+                    },
+                  },
+                },
+              },
+              defaultModel: DEFAULT_MODEL,
+              notes: [
+                `Set models.providers.${PROVIDER_ID}.baseUrl if needed. Default: ${DEFAULT_BASE_URL}`,
+              ],
+            };
+          },
+        },
+        {
           id: "device",
           label: "Qwen OAuth",
-          hint: "Device code login",
+          hint: "\u8BBE\u5907\u7801\u767B\u5F55 / Device code login",
           kind: "device_code",
           run: async (ctx: ProviderAuthContext) => {
             const progress = ctx.prompter.progress("Starting Qwen OAuth…");

@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import { resolveOpenClawAgentDir } from "../agents/agent-paths.js";
 import {
   resolveDefaultAgentId,
@@ -111,12 +112,15 @@ export async function applyAuthChoicePluginProvider(
   if (result.defaultModel) {
     if (params.setDefaultModel) {
       nextConfig = applyDefaultModel(nextConfig, result.defaultModel);
-      await params.prompter.note(`Default model set to ${result.defaultModel}`, "Model configured");
+      await params.prompter.note(
+        getText("configure.model.default_set", `Default model set to ${result.defaultModel}`, { model: result.defaultModel }),
+        getText("configure.model.configured", "Model configured"),
+      );
     } else if (params.agentId) {
       agentModelOverride = result.defaultModel;
       await params.prompter.note(
-        `Default model set to ${result.defaultModel} for agent "${params.agentId}".`,
-        "Model configured",
+        getText("configure.model.default_set_agent", `Default model set to ${result.defaultModel} for agent "${params.agentId}".`, { model: result.defaultModel, agentId: params.agentId }),
+        getText("configure.model.configured", "Model configured"),
       );
     }
   }

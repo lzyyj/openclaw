@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import { ensureAuthProfileStore, resolveAuthProfileOrder } from "../agents/auth-profiles.js";
 import { resolveEnvApiKey } from "../agents/model-auth.js";
 import {
@@ -159,7 +160,7 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "moonshot:default",
     expectedProviders: ["moonshot"],
     envLabel: "MOONSHOT_API_KEY",
-    promptMessage: "Enter Moonshot API key",
+    promptMessage: getText("configure.provider.moonshot_api_key.prompt", "Enter Moonshot API key"),
     setCredential: setMoonshotApiKey,
     defaultModel: MOONSHOT_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyMoonshotConfig,
@@ -170,7 +171,7 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "moonshot:default",
     expectedProviders: ["moonshot"],
     envLabel: "MOONSHOT_API_KEY",
-    promptMessage: "Enter Moonshot API key (.cn)",
+    promptMessage: getText("configure.provider.moonshot_api_key_cn.prompt", "Enter Moonshot API key (.cn)"),
     setCredential: setMoonshotApiKey,
     defaultModel: MOONSHOT_DEFAULT_MODEL_REF,
     applyDefaultConfig: applyMoonshotConfigCn,
@@ -181,17 +182,17 @@ const SIMPLE_API_KEY_PROVIDER_FLOWS: Partial<Record<AuthChoice, SimpleApiKeyProv
     profileId: "kimi-coding:default",
     expectedProviders: ["kimi-code", "kimi-coding"],
     envLabel: "KIMI_API_KEY",
-    promptMessage: "Enter Kimi Coding API key",
+    promptMessage: getText("configure.provider.kimi_code_api_key.prompt", "Enter Kimi Coding API key"),
     setCredential: setKimiCodingApiKey,
     defaultModel: KIMI_CODING_MODEL_REF,
     applyDefaultConfig: applyKimiCodeConfig,
     applyProviderConfig: applyKimiCodeProviderConfig,
     noteDefault: KIMI_CODING_MODEL_REF,
-    noteMessage: [
-      "Kimi Coding uses a dedicated endpoint and API key.",
-      "Get your API key at: https://www.kimi.com/code/en",
-    ].join("\n"),
-    noteTitle: "Kimi Coding",
+    noteMessage: getText(
+      "configure.provider.kimi_code.note",
+      ["Kimi Coding uses a dedicated endpoint and API key.", "Get your API key at: https://www.kimi.com/code/en"].join("\n"),
+    ),
+    noteTitle: getText("configure.provider.kimi_code.title", "Kimi Coding"),
   },
   "xiaomi-api-key": {
     provider: "xiaomi",
@@ -596,8 +597,8 @@ export async function applyAuthChoiceApiProviders(
       nextConfig = applied.next;
       if (applied.changed) {
         await params.prompter.note(
-          `Default model set to ${GOOGLE_GEMINI_DEFAULT_MODEL}`,
-          "Model configured",
+          getText("configure.model.default_set", `Default model set to ${GOOGLE_GEMINI_DEFAULT_MODEL}`, { model: GOOGLE_GEMINI_DEFAULT_MODEL }),
+          getText("configure.model.configured", "Model configured"),
         );
       }
     } else {

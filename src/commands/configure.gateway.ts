@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveGatewayPort } from "../config/config.js";
 import {
@@ -30,9 +31,9 @@ export async function promptGatewayConfig(
 }> {
   const portRaw = guardCancel(
     await text({
-      message: "Gateway port",
+      message: getText("configure.gateway.port.message", "Gateway port"),
       initialValue: String(resolveGatewayPort(cfg)),
-      validate: (value) => (Number.isFinite(Number(value)) ? undefined : "Invalid port"),
+      validate: (value) => (Number.isFinite(Number(value)) ? undefined : getText("onboarding.helpers.setup_cancelled", "Invalid port")),
     }),
     runtime,
   );
@@ -40,32 +41,32 @@ export async function promptGatewayConfig(
 
   let bind = guardCancel(
     await select({
-      message: "Gateway bind mode",
+      message: getText("configure.gateway.bind.message", "Gateway bind mode"),
       options: [
         {
           value: "loopback",
-          label: "Loopback (Local only)",
-          hint: "Bind to 127.0.0.1 - secure, local-only access",
+          label: getText("configure.gateway.bind.loopback", "Loopback (Local only)"),
+          hint: getText("configure.gateway.bind.loopback.hint", "Bind to 127.0.0.1 - secure, local-only access"),
         },
         {
           value: "tailnet",
-          label: "Tailnet (Tailscale IP)",
-          hint: "Bind to your Tailscale IP only (100.x.x.x)",
+          label: getText("configure.gateway.bind.tailnet", "Tailnet (Tailscale IP)"),
+          hint: getText("configure.gateway.bind.tailnet.hint", "Bind to your Tailscale IP only (100.x.x.x)"),
         },
         {
           value: "auto",
-          label: "Auto (Loopback → LAN)",
-          hint: "Prefer loopback; fall back to all interfaces if unavailable",
+          label: getText("configure.gateway.bind.auto", "Auto (Loopback → LAN)"),
+          hint: getText("configure.gateway.bind.auto.hint", "Prefer loopback; fall back to all interfaces if unavailable"),
         },
         {
           value: "lan",
-          label: "LAN (All interfaces)",
-          hint: "Bind to 0.0.0.0 - accessible from anywhere on your network",
+          label: getText("configure.gateway.bind.lan", "LAN (All interfaces)"),
+          hint: getText("configure.gateway.bind.lan.hint", "Bind to 0.0.0.0 - accessible from anywhere on your network"),
         },
         {
           value: "custom",
-          label: "Custom IP",
-          hint: "Specify a specific IP address, with 0.0.0.0 fallback if unavailable",
+          label: getText("configure.gateway.bind.custom", "Custom IP"),
+          hint: getText("configure.gateway.bind.custom.hint", "Specify a specific IP address, with 0.0.0.0 fallback if unavailable"),
         },
       ],
     }),
@@ -76,7 +77,7 @@ export async function promptGatewayConfig(
   if (bind === "custom") {
     const input = guardCancel(
       await text({
-        message: "Custom IP address",
+        message: getText("configure.gateway.custom_ip.message", "Custom IP address"),
         placeholder: "192.168.1.100",
         validate: validateIPv4AddressInput,
       }),
@@ -87,14 +88,14 @@ export async function promptGatewayConfig(
 
   let authMode = guardCancel(
     await select({
-      message: "Gateway auth",
+      message: getText("configure.gateway.auth.message", "Gateway auth"),
       options: [
-        { value: "token", label: "Token", hint: "Recommended default" },
-        { value: "password", label: "Password" },
+        { value: "token", label: getText("configure.gateway.auth.token", "Token"), hint: getText("configure.gateway.auth.token.hint", "Recommended default") },
+        { value: "password", label: getText("configure.gateway.auth.password", "Password") },
         {
           value: "trusted-proxy",
-          label: "Trusted Proxy",
-          hint: "Behind reverse proxy (Pomerium, Caddy, Traefik, etc.)",
+          label: getText("configure.gateway.auth.trusted_proxy", "Trusted Proxy"),
+          hint: getText("configure.gateway.auth.trusted_proxy.hint", "Behind reverse proxy (Pomerium, Caddy, Traefik, etc.)"),
         },
       ],
       initialValue: "token",
@@ -104,7 +105,7 @@ export async function promptGatewayConfig(
 
   let tailscaleMode = guardCancel(
     await select({
-      message: "Tailscale exposure",
+      message: getText("configure.gateway.tailscale.message", "Tailscale exposure"),
       options: [...TAILSCALE_EXPOSURE_OPTIONS],
     }),
     runtime,
@@ -124,7 +125,7 @@ export async function promptGatewayConfig(
     tailscaleResetOnExit = Boolean(
       guardCancel(
         await confirm({
-          message: "Reset Tailscale serve/funnel on exit?",
+          message: getText("configure.gateway.tailscale.reset.message", "Reset Tailscale serve/funnel on exit?"),
           initialValue: false,
         }),
         runtime,
@@ -133,12 +134,12 @@ export async function promptGatewayConfig(
   }
 
   if (tailscaleMode !== "off" && bind !== "loopback") {
-    note("Tailscale requires bind=loopback. Adjusting bind to loopback.", "Note");
+    note(getText("configure.gateway.tailscale.conflict_bind", "Tailscale requires bind=loopback. Adjusting bind to loopback."), "Note");
     bind = "loopback";
   }
 
   if (tailscaleMode === "funnel" && authMode !== "password") {
-    note("Tailscale funnel requires password auth.", "Note");
+    note(getText("configure.gateway.tailscale.funnel_password", "Tailscale funnel requires password auth."), "Note");
     authMode = "password";
   }
 
@@ -146,7 +147,7 @@ export async function promptGatewayConfig(
   // host (e.g. cloudflared, nginx, Caddy). trustedProxies must include 127.0.0.1.
   if (authMode === "trusted-proxy" && tailscaleMode !== "off") {
     note(
-      "Trusted proxy auth is incompatible with Tailscale serve/funnel. Disabling Tailscale.",
+      getText("configure.gateway.tailscale.conflict_auth", "Trusted proxy auth is incompatible with Tailscale serve/funnel. Disabling Tailscale."),
       "Note",
     );
     tailscaleMode = "off";
@@ -164,7 +165,7 @@ export async function promptGatewayConfig(
   if (authMode === "token") {
     const tokenInput = guardCancel(
       await text({
-        message: "Gateway token (blank to generate)",
+        message: getText("configure.gateway.token.message", "Gateway token (blank to generate)"),
         initialValue: randomToken(),
       }),
       runtime,
@@ -175,7 +176,7 @@ export async function promptGatewayConfig(
   if (authMode === "password") {
     const password = guardCancel(
       await text({
-        message: "Gateway password",
+        message: getText("configure.gateway.password.message", "Gateway password"),
         validate: validateGatewayPasswordInput,
       }),
       runtime,
@@ -185,20 +186,23 @@ export async function promptGatewayConfig(
 
   if (authMode === "trusted-proxy") {
     note(
-      [
-        "Trusted proxy mode: OpenClaw trusts user identity from a reverse proxy.",
-        "The proxy must authenticate users and pass identity via headers.",
-        "Only requests from specified proxy IPs will be trusted.",
-        "",
-        "Common use cases: Pomerium, Caddy + OAuth, Traefik + forward auth",
-        "Docs: https://docs.openclaw.ai/gateway/trusted-proxy-auth",
-      ].join("\n"),
-      "Trusted Proxy Auth",
+      getText(
+        "configure.gateway.trusted_proxy.note_body",
+        [
+          "Trusted proxy mode: OpenClaw trusts user identity from a reverse proxy.",
+          "The proxy must authenticate users and pass identity via headers.",
+          "Only requests from specified proxy IPs will be trusted.",
+          "",
+          "Common use cases: Pomerium, Caddy + OAuth, Traefik + forward auth",
+          "Docs: https://docs.openclaw.ai/gateway/trusted-proxy-auth",
+        ].join("\n"),
+      ),
+      getText("configure.gateway.trusted_proxy.note_title", "Trusted Proxy Auth"),
     );
 
     const userHeader = guardCancel(
       await text({
-        message: "Header containing user identity",
+        message: getText("configure.gateway.trusted_proxy.header.message", "Header containing user identity"),
         placeholder: "x-forwarded-user",
         initialValue: "x-forwarded-user",
         validate: (value) => (value?.trim() ? undefined : "User header is required"),
@@ -208,7 +212,7 @@ export async function promptGatewayConfig(
 
     const requiredHeadersRaw = guardCancel(
       await text({
-        message: "Required headers (comma-separated, optional)",
+        message: getText("configure.gateway.trusted_proxy.headers.message", "Required headers (comma-separated, optional)"),
         placeholder: "x-forwarded-proto,x-forwarded-host",
       }),
       runtime,
@@ -222,7 +226,7 @@ export async function promptGatewayConfig(
 
     const allowUsersRaw = guardCancel(
       await text({
-        message: "Allowed users (comma-separated, blank = all authenticated users)",
+        message: getText("configure.gateway.trusted_proxy.users.message", "Allowed users (comma-separated, blank = all authenticated users)"),
         placeholder: "nick@example.com,admin@company.com",
       }),
       runtime,
@@ -236,7 +240,7 @@ export async function promptGatewayConfig(
 
     const trustedProxiesRaw = guardCancel(
       await text({
-        message: "Trusted proxy IPs (comma-separated)",
+        message: getText("configure.gateway.trusted_proxy.ips.message", "Trusted proxy IPs (comma-separated)"),
         placeholder: "10.0.1.10,192.168.1.5",
         validate: (value) => {
           if (!value || String(value).trim() === "") {

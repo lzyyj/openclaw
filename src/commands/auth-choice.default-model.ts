@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig } from "../config/config.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { ensureModelAllowlistEntry } from "./model-allowlist.js";
@@ -15,7 +16,10 @@ export async function applyDefaultModelChoice(params: {
   if (params.setDefaultModel) {
     const next = params.applyDefaultConfig(params.config);
     if (params.noteDefault) {
-      await params.prompter.note(`Default model set to ${params.noteDefault}`, "Model configured");
+      await params.prompter.note(
+        getText("configure.model.default_set", `Default model set to ${params.noteDefault}`, { model: params.noteDefault }),
+        getText("configure.model.configured", "Model configured"),
+      );
     }
     return { config: next };
   }

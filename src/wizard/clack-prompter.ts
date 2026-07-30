@@ -12,6 +12,7 @@ import {
   text,
 } from "@clack/prompts";
 import { createCliProgress } from "../cli/progress.js";
+import { getText } from "../cli/i18n.js";
 import { stripAnsi } from "../terminal/ansi.js";
 import { note as emitNote } from "../terminal/note.js";
 import { stylePromptHint, stylePromptMessage, stylePromptTitle } from "../terminal/prompt-style.js";
@@ -25,6 +26,36 @@ function guardCancel<T>(value: T | symbol): T {
     throw new WizardCancelledError();
   }
   return value;
+}
+
+function localizeClackChunk(chunk: string): string {
+  return chunk
+    .replace(/(\d+) items selected/g, (_match, count: string) =>
+      getText("configure.model.items_selected", "{count} items selected", { count }),
+    )
+    .replace(/No matches found/g, getText("clack.no_matches", "No matches found"))
+    .replace(/Search:/g, getText("clack.search", "Search:"));
+}
+
+async function withLocalizedClackOutput<T>(work: () => Promise<T>): Promise<T> {
+  type StdoutWrite = typeof process.stdout.write;
+  const originalWrite = process.stdout.write.bind(process.stdout) as StdoutWrite;
+  const patchedWrite = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+    let nextChunk = chunk;
+    if (typeof nextChunk === "string") {
+      nextChunk = localizeClackChunk(nextChunk);
+    } else if (Buffer.isBuffer(nextChunk)) {
+      nextChunk = Buffer.from(localizeClackChunk(nextChunk.toString("utf8")), "utf8");
+    }
+    return (originalWrite as (...writeArgs: unknown[]) => boolean)(nextChunk, ...args);
+  }) as StdoutWrite;
+
+  process.stdout.write = patchedWrite;
+  try {
+    return await work();
+  } finally {
+    process.stdout.write = originalWrite;
+  }
 }
 
 function normalizeSearchTokens(search: string): string[] {
@@ -81,12 +112,14 @@ export function createClackPrompter(): WizardPrompter {
 
       if (params.searchable) {
         return guardCancel(
-          await autocompleteMultiselect({
-            message: stylePromptMessage(params.message),
-            options,
-            initialValues: params.initialValues,
-            filter: tokenizedOptionFilter,
-          }),
+          await withLocalizedClackOutput(() =>
+            autocompleteMultiselect({
+              message: stylePromptMessage(params.message),
+              options,
+              initialValues: params.initialValues,
+              filter: tokenizedOptionFilter,
+            }),
+          ),
         );
       }
 

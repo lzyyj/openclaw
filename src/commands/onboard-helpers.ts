@@ -43,28 +43,28 @@ export function summarizeExistingConfig(config: OpenClawConfig): string {
   const rows: string[] = [];
   const defaults = config.agents?.defaults;
   if (defaults?.workspace) {
-    rows.push(shortenHomeInString(`workspace: ${defaults.workspace}`));
+    rows.push(shortenHomeInString(`${getText("onboarding.summary.workspace", "workspace")}: ${defaults.workspace}`));
   }
   if (defaults?.model) {
     const model = resolveAgentModelPrimaryValue(defaults.model);
     if (model) {
-      rows.push(shortenHomeInString(`model: ${model}`));
+      rows.push(shortenHomeInString(`${getText("onboarding.summary.model", "model")}: ${model}`));
     }
   }
   if (config.gateway?.mode) {
-    rows.push(shortenHomeInString(`gateway.mode: ${config.gateway.mode}`));
+    rows.push(shortenHomeInString(`${getText("onboarding.summary.gateway.mode", "gateway.mode")}: ${config.gateway.mode}`));
   }
   if (typeof config.gateway?.port === "number") {
-    rows.push(shortenHomeInString(`gateway.port: ${config.gateway.port}`));
+    rows.push(shortenHomeInString(`${getText("onboarding.summary.gateway.port", "gateway.port")}: ${config.gateway.port}`));
   }
   if (config.gateway?.bind) {
-    rows.push(shortenHomeInString(`gateway.bind: ${config.gateway.bind}`));
+    rows.push(shortenHomeInString(`${getText("onboarding.summary.gateway.bind", "gateway.bind")}: ${config.gateway.bind}`));
   }
   if (config.gateway?.remote?.url) {
-    rows.push(shortenHomeInString(`gateway.remote.url: ${config.gateway.remote.url}`));
+    rows.push(shortenHomeInString(`${getText("onboarding.summary.gateway.remote.url", "gateway.remote.url")}: ${config.gateway.remote.url}`));
   }
   if (config.skills?.install?.nodeManager) {
-    rows.push(shortenHomeInString(`skills.nodeManager: ${config.skills.install.nodeManager}`));
+    rows.push(shortenHomeInString(`${getText("onboarding.summary.skills.nodeManager", "skills.nodeManager")}: ${config.skills.install.nodeManager}`));
   }
   return rows.length ? rows.join("\n") : getText("onboarding.helpers.no_settings", "No key settings detected.");
 }

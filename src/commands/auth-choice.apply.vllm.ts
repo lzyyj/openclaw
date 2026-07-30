@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig } from "../config/config.js";
 import type { ApplyAuthChoiceParams, ApplyAuthChoiceResult } from "./auth-choice.apply.js";
 import { promptAndConfigureVllm } from "./vllm-setup.js";
@@ -41,6 +42,9 @@ export async function applyAuthChoiceVllm(
     return { config: nextConfig, agentModelOverride: modelRef };
   }
 
-  await params.prompter.note(`Default model set to ${modelRef}`, "Model configured");
+  await params.prompter.note(
+    getText("configure.model.default_set", `Default model set to ${modelRef}`, { model: modelRef }),
+    getText("configure.model.configured", "Model configured"),
+  );
   return { config: applyVllmDefaultModel(nextConfig, modelRef) };
 }

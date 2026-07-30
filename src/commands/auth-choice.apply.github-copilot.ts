@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import { toAgentModelListLike } from "../config/model-input.js";
 import { githubCopilotLoginCommand } from "../providers/github-copilot-auth.js";
 import type { ApplyAuthChoiceParams, ApplyAuthChoiceResult } from "./auth-choice.apply.js";
@@ -56,7 +57,10 @@ export async function applyAuthChoiceGitHubCopilot(
         },
       },
     };
-    await params.prompter.note(`Default model set to ${model}`, "Model configured");
+    await params.prompter.note(
+      getText("configure.model.default_set", `Default model set to ${model}`, { model }),
+      getText("configure.model.configured", "Model configured"),
+    );
   }
 
   return { config: nextConfig };

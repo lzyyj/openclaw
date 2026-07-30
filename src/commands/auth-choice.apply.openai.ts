@@ -1,3 +1,4 @@
+import { getText } from "../cli/i18n.js";
 import { resolveEnvApiKey } from "../agents/model-auth.js";
 import { upsertSharedEnvVar } from "../infra/env-file.js";
 import {
@@ -130,8 +131,8 @@ export async function applyAuthChoiceOpenAI(
         nextConfig = applied.next;
         if (applied.changed) {
           await params.prompter.note(
-            `Default model set to ${OPENAI_CODEX_DEFAULT_MODEL}`,
-            "Model configured",
+            getText("configure.model.default_set", `Default model set to ${OPENAI_CODEX_DEFAULT_MODEL}`, { model: OPENAI_CODEX_DEFAULT_MODEL }),
+            getText("configure.model.configured", "Model configured"),
           );
         }
       } else {

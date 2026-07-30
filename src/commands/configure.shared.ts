@@ -5,6 +5,7 @@ import {
   select as clackSelect,
   text as clackText,
 } from "@clack/prompts";
+import { getText } from "../cli/i18n.js";
 import { stylePromptHint, stylePromptMessage, stylePromptTitle } from "../terminal/prompt-style.js";
 
 export const CONFIGURE_WIZARD_SECTIONS = [
@@ -50,25 +51,25 @@ export const CONFIGURE_SECTION_OPTIONS: Array<{
   label: string;
   hint: string;
 }> = [
-  { value: "workspace", label: "Workspace", hint: "Set workspace + sessions" },
-  { value: "model", label: "Model", hint: "Pick provider + credentials" },
-  { value: "web", label: "Web tools", hint: "Configure Brave search + fetch" },
-  { value: "gateway", label: "Gateway", hint: "Port, bind, auth, tailscale" },
+  { value: "workspace", label: getText("configure.section.workspace.label", "Workspace"), hint: getText("configure.section.workspace.hint", "Set workspace + sessions") },
+  { value: "model", label: getText("configure.section.model.label", "Model"), hint: getText("configure.section.model.hint", "Pick provider + credentials") },
+  { value: "web", label: getText("configure.section.web.label", "Web tools"), hint: getText("configure.section.web.hint", "Configure Brave search + fetch") },
+  { value: "gateway", label: getText("configure.section.gateway.label", "Gateway"), hint: getText("configure.section.gateway.hint", "Port, bind, auth, tailscale") },
   {
     value: "daemon",
-    label: "Daemon",
-    hint: "Install/manage the background service",
+    label: getText("configure.section.daemon.label", "Daemon"),
+    hint: getText("configure.section.daemon.hint", "Install/manage the background service"),
   },
   {
     value: "channels",
-    label: "Channels",
-    hint: "Link WhatsApp/Telegram/etc and defaults",
+    label: getText("configure.section.channels.label", "Channels"),
+    hint: getText("configure.section.channels.hint", "Link WhatsApp/Telegram/etc and defaults"),
   },
-  { value: "skills", label: "Skills", hint: "Install/enable workspace skills" },
+  { value: "skills", label: getText("configure.section.skills.label", "Skills"), hint: getText("configure.section.skills.hint", "Install/enable workspace skills") },
   {
     value: "health",
-    label: "Health check",
-    hint: "Run gateway + channel checks",
+    label: getText("configure.section.health.label", "Health check"),
+    hint: getText("configure.section.health.hint", "Run gateway + channel checks"),
   },
 ];
 

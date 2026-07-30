@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { DEFAULT_BOOTSTRAP_FILENAME } from "../agents/workspace.js";
 import { formatCliCommand } from "../cli/command-format.js";
+import { getText } from "../cli/i18n.js";
 import {
   buildGatewayInstallPlan,
   gatewayInstallErrorHint,
@@ -260,8 +261,8 @@ export async function finalizeOnboardingWizard(
     password: settings.authMode === "password" ? nextConfig.gateway?.auth?.password : "",
   });
   const gatewayStatusLine = gatewayProbe.ok
-    ? "Gateway: reachable"
-    : `Gateway: not detected${gatewayProbe.detail ? ` (${gatewayProbe.detail})` : ""}`;
+    ? getText("gateway.status.reachable", "Gateway: reachable")
+    : `${getText("gateway.status.not_detected", "Gateway: not detected")}${gatewayProbe.detail ? ` (${gatewayProbe.detail})` : ""}`;
   const bootstrapPath = path.join(
     resolveUserPath(options.workspaceDir),
     DEFAULT_BOOTSTRAP_FILENAME,
@@ -273,17 +274,17 @@ export async function finalizeOnboardingWizard(
 
   await prompter.note(
     [
-      `Web UI: ${links.httpUrl}`,
+      `${getText("configure.control_ui.web_ui", "Web UI:")} ${links.httpUrl}`,
       settings.authMode === "token" && settings.gatewayToken
-        ? `Web UI (with token): ${authedUrl}`
+        ? `${getText("configure.control_ui.web_ui_token", "Web UI (with token):")} ${authedUrl}`
         : undefined,
-      `Gateway WS: ${links.wsUrl}`,
+      `${getText("configure.control_ui.gateway_ws", "Gateway WS:")} ${links.wsUrl}`,
       gatewayStatusLine,
-      "Docs: https://docs.openclaw.ai/web/control-ui",
+      getText("configure.control_ui.docs_link", "Docs: https://docs.openclaw.ai/web/control-ui"),
     ]
       .filter(Boolean)
       .join("\n"),
-    "Control UI",
+    getText("configure.control_ui.note_title", "Control UI"),
   );
 
   let controlUiOpened = false;

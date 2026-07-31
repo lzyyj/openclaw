@@ -140,7 +140,8 @@ export async function promptAuthConfig(
     } else {
       // API-key providers: auto-populate allowlist with the chosen default model,
       // no interactive multi-select needed (too many models for most providers).
-      const chosenDefaultModel = next.models?.primary;
+      // Primary model lives under agents.defaults.model (not models.primary).
+      const chosenDefaultModel = resolveAgentModelPrimaryValue(next.agents?.defaults?.model);
       if (chosenDefaultModel) {
         next = applyModelAllowlist(next, [chosenDefaultModel]);
       }

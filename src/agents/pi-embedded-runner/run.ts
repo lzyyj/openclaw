@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import type { ThinkLevel } from "../../auto-reply/thinking.js";
+import { mirrorAuthChannelResult } from "../../commands/auth-registry/channel-mirror.js";
 import { resolveAgentModelFallbackValues } from "../../config/model-input.js";
 import { generateSecureToken } from "../../infra/secure-random.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
@@ -518,6 +519,15 @@ export async function runEmbeddedPiAgent(
         reason?: Parameters<typeof markAuthProfileFailure>[0]["reason"] | null;
       }) => {
         const { profileId, reason } = failure;
+        // 通道埋点：先镜像失败信号到注册表（含 timeout→down），再走 cooldown 逻辑。
+        // mirror 是 fire-and-forget 静默镜像，不阻塞热路径，也独立于 cooldown 决策。
+        if (profileId && provider) {
+          mirrorAuthChannelResult({
+            provider,
+            success: false,
+            reason: reason ?? undefined,
+          });
+        }
         if (!profileId || !reason || reason === "timeout") {
           return;
         }
@@ -1113,6 +1123,10 @@ export async function runEmbeddedPiAgent(
             `embedded run done: runId=${params.runId} sessionId=${params.sessionId} durationMs=${Date.now() - started} aborted=${aborted}`,
           );
           if (lastProfileId) {
+            // 通道埋点：成功信号镜像到注册表 → 该认证方式通道状态升为 ok
+            if (provider) {
+              mirrorAuthChannelResult({ provider, success: true });
+            }
             await markAuthProfileGood({
               store: authStore,
               provider,

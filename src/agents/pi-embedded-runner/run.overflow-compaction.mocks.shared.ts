@@ -39,6 +39,12 @@ vi.mock("../auth-profiles.js", () => ({
   markAuthProfileUsed: vi.fn(async () => {}),
 }));
 
+// 通道埋点：测试里 no-op，避免真实读写注册表文件（StateDir 副作用）
+export const mockedMirrorAuthChannelResult = vi.fn(() => {});
+vi.mock("../../commands/auth-registry/channel-mirror.js", () => ({
+  mirrorAuthChannelResult: mockedMirrorAuthChannelResult,
+}));
+
 vi.mock("../usage.js", () => ({
   normalizeUsage: vi.fn((usage?: unknown) =>
     usage && typeof usage === "object" ? usage : undefined,

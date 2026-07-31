@@ -1,3 +1,4 @@
+import { rmSync } from "node:fs";
 /**
  * AuthRegistry 数据层 smoke test
  * 验证 seed 加载、本地合并、软删除、通道状态更新。
@@ -14,12 +15,24 @@ import { AUTH_REGISTRY_SEED, AUTH_REGISTRY_VERSION } from "./seed.js";
 import { loadAuthRegistry, saveAuthRegistry } from "./store.js";
 
 // 隔离：用临时注册表路径避免污染真实 ~/.openclaw/auth-registry.json
+// 注意：用独立子目录，避免与其他 auth-registry 测试文件共享临时文件导致状态竞争
 vi.mock("./constants.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./constants.js")>();
   return {
     ...actual,
-    resolveAuthRegistryPath: () => "/tmp/openclaw-test/auth-registry.json",
+    resolveAuthRegistryPath: () => "/tmp/openclaw-test-store/auth-registry.json",
   };
+});
+
+// 每个用例前重置临时注册表文件，避免跨用例状态累积（addAuthMethod 幂等性依赖干净 seed）
+import { beforeEach } from "vitest";
+const TEST_REGISTRY_PATH = "/tmp/openclaw-test-store/auth-registry.json";
+beforeEach(() => {
+  try {
+    rmSync(TEST_REGISTRY_PATH, { force: true });
+  } catch {
+    // 文件不存在也正常
+  }
 });
 
 describe("auth-registry seed", () => {
@@ -91,6 +104,12 @@ describe("auth-registry mutations", () => {
   });
 
   it("disableAuthMethod soft-deletes", () => {
+    // 自包含：本用例独立创建待删条目，不依赖其他用例的执行顺序
+    addAuthMethod({
+      providerId: "test-vendor",
+      providerName: "Test Vendor",
+      method: { id: "test-vendor-api-key", name: "Test API Key", type: "api-key" },
+    });
     const ok = disableAuthMethod("test-vendor-api-key");
     expect(ok).toBe(true);
     const reg = loadAuthRegistry();

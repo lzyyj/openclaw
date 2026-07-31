@@ -136,6 +136,54 @@ describe("mirrorAuthChannelResult", () => {
     ).not.toThrow();
   });
 
+  it("format/model_not_found/unknown failure is ignored (no status change)", () => {
+    // 先让 deepseek 处于 ok
+    mirrorAuthChannelResult({
+      provider: "deepseek",
+      credentialType: "api_key",
+      success: true,
+    });
+    expect(getMethodStatus("deepseek-api-key").status).toBe("ok");
+
+    // 非通道 reason 失败不应降级
+    for (const reason of ["format", "model_not_found", "unknown"]) {
+      mirrorAuthChannelResult({
+        provider: "deepseek",
+        credentialType: "api_key",
+        success: false,
+        reason,
+      });
+    }
+    expect(getMethodStatus("deepseek-api-key").status).toBe("ok");
+  });
+
+  it("failure reason appends to channelNote keeping history", () => {
+    const reg = loadAuthRegistry();
+    const ds = reg.providers.find((p) => p.id === "deepseek");
+    const m = ds?.authMethods.find((x) => x.id === "deepseek-api-key");
+    if (m) {
+      m.channelNote = "manual note";
+      saveAuthRegistry(reg);
+    }
+
+    mirrorAuthChannelResult({
+      provider: "deepseek",
+      credentialType: "api_key",
+      success: false,
+      reason: "rate_limit",
+    });
+
+    const note = getMethodStatus("deepseek-api-key").status;
+    const reg2 = loadAuthRegistry();
+    const m2 = reg2.providers
+      .flatMap((p) => p.authMethods)
+      .find((x) => x.id === "deepseek-api-key");
+    // 人工备注保留，reason 追加
+    expect(m2?.channelNote).toContain("manual note");
+    expect(m2?.channelNote).toContain("rate_limit");
+    expect(note).toBe("suspect");
+  });
+
   it("oauth credential maps to oauth-type method (qwen-portal)", () => {
     mirrorAuthChannelResult({
       provider: "qwen",

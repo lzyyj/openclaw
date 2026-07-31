@@ -63,6 +63,11 @@ function resolveAuthMethodId(params: {
 /**
  * 镜像一条认证结果到注册表。
  * 静默执行：不抛错、不阻塞调用方。内部异步写盘。
+ *
+ * 失败 reason 语义（仅通道相关问题会上报，其余忽略防污染）：
+ * - timeout → down（网络级不可达）
+ * - auth / billing / rate_limit → suspect（通道可达，凭据/配额/限流问题）
+ * - format / model_not_found / unknown / 无 reason → 忽略（非通道问题，信息不足，不改状态）
  */
 export function mirrorAuthChannelResult(params: {
   provider: string;
@@ -87,19 +92,33 @@ export function mirrorAuthChannelResult(params: {
     }
 
     const now = new Date().toISOString();
-    let nextStatus: ChannelStatus;
+    let nextStatus: ChannelStatus | undefined;
 
     if (params.success) {
       nextStatus = "ok";
       method.lastSuccessAt = now;
     } else {
-      // 失败：timeout → down（网络级），其余 → suspect（通道可达）
-      nextStatus = params.reason === "timeout" ? "down" : "suspect";
-      method.lastFailureAt = now;
-      // 失败原因记录到备注（保留历史，不覆盖已有人工备注太长，用简短追加）
-      if (params.reason) {
-        method.channelNote = params.reason;
+      // 仅通道相关 reason 才降级；format/model_not_found/unknown/无 reason 忽略（不改状态）
+      const reason = params.reason;
+      if (reason === "timeout") {
+        nextStatus = "down";
+      } else if (reason === "auth" || reason === "billing" || reason === "rate_limit") {
+        nextStatus = "suspect";
       }
+      if (nextStatus !== undefined) {
+        method.lastFailureAt = now;
+        if (reason) {
+          // 失败原因简短追加到备注（保留历史，不覆盖已有人工备注）
+          method.channelNote = method.channelNote ? `${method.channelNote} | ${reason}` : reason;
+        }
+      }
+    }
+
+    if (nextStatus === undefined) {
+      // 无状态变化（如 unknown reason 失败）：仅更新检查时间，不降级
+      method.channelCheckedAt = now;
+      saveAuthRegistry(registry);
+      return;
     }
 
     // 状态机核心：ok 只被 down 推翻，suspect 不降级

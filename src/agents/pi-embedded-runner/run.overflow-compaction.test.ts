@@ -10,6 +10,7 @@ import {
   queueOverflowAttemptWithOversizedToolOutput,
 } from "./run.overflow-compaction.fixture.js";
 import { mockedGlobalHookRunner } from "./run.overflow-compaction.mocks.shared.js";
+import { mockedMirrorAuthChannelResult } from "./run.overflow-compaction.mocks.shared.js";
 import {
   mockedCompactDirect,
   mockedRunEmbeddedAttempt,
@@ -51,6 +52,10 @@ describe("runEmbeddedPiAgent overflow compaction trigger routing", () => {
       expect.objectContaining({
         legacyBeforeAgentStartResult: legacyResult,
       }),
+    );
+    // 通道埋点：成功路径应上报 ok
+    expect(mockedMirrorAuthChannelResult).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "anthropic", success: true }),
     );
   });
 

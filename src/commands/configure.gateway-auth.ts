@@ -16,6 +16,7 @@ import {
 } from "./model-picker.js";
 import { promptCustomApiConfig } from "./onboard-custom.js";
 import { randomToken } from "./onboard-helpers.js";
+import { verifyProviderAndRecord } from "./provider-verify.js";
 
 type GatewayAuthChoice = "token" | "password" | "trusted-proxy";
 
@@ -38,6 +39,29 @@ const ANTHROPIC_OAUTH_MODEL_KEYS = [
   "anthropic/claude-sonnet-4-5",
   "anthropic/claude-haiku-4-5",
 ];
+
+/**
+ * 从 auth choice（认证方式 id）推导出厂商 provider id，用于定位 config 里的
+ * models.providers[providerId]（读取 baseUrl/apiKey 做验证）。
+ * - "deepseek-api-key" -> "deepseek"
+ * - "moonshot-api-key" -> "moonshot"
+ * - "openrouter-api-key" -> "openrouter"
+ * 若无法可靠推导（如 custom-api-key），返回 undefined（跳过验证）。
+ */
+function providerIdFromAuthChoice(authChoice: string): string | undefined {
+  if (authChoice.endsWith("-api-key")) {
+    return authChoice.slice(0, -"-api-key".length);
+  }
+  // 特殊映射：部分 authChoice 与 provider id 不完全一致
+  const special: Record<string, string> = {
+    "ai-gateway-api-key": "vercel-ai-gateway",
+    "kimi-code-api-key": "kimi-coding",
+  };
+  if (special[authChoice]) {
+    return special[authChoice];
+  }
+  return undefined;
+}
 
 export function buildGatewayAuthConfig(params: {
   existing?: GatewayAuthConfig;
@@ -156,6 +180,16 @@ export async function promptAuthConfig(
         next = applyModelFallbacks(next, fallbackSelection.fallbacks);
       } else if (fallbackSelection.mode === "clear") {
         next = applyModelFallbacks(next, []);
+      }
+
+      // 拿到 key 后，并行验证厂商配置（GET /models）：验证成功升 ok、动态取模型写回；
+      // 失败标 suspect（认证错不改配置 / baseUrl 错提示核实）。不阻塞主流程。
+      const providerId = providerIdFromAuthChoice(authChoice);
+      if (providerId) {
+        void verifyProviderAndRecord({
+          providerId,
+          methodId: authChoice,
+        });
       }
     }
   }

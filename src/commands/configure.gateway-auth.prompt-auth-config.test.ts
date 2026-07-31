@@ -19,6 +19,7 @@ vi.mock("../agents/auth-profiles.js", () => ({
 
 vi.mock("./auth-choice-prompt.js", () => ({
   promptAuthChoiceGrouped: mocks.promptAuthChoiceGrouped,
+  resolveInitialGroupFromConfig: vi.fn(() => undefined),
 }));
 
 vi.mock("./auth-choice.js", () => ({

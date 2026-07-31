@@ -1,6 +1,8 @@
-import { getText } from "../cli/i18n.js";
 import type { AuthProfileStore } from "../agents/auth-profiles.js";
+import { getText } from "../cli/i18n.js";
 import { AUTH_CHOICE_LEGACY_ALIASES_FOR_CLI } from "./auth-choice-legacy.js";
+import { loadAuthRegistry } from "./auth-registry/index.js";
+import type { ChannelStatus } from "./auth-registry/types.js";
 import { ONBOARD_PROVIDER_AUTH_FLAGS } from "./onboard-provider-auth-flags.js";
 import type { AuthChoice, AuthChoiceGroupId } from "./onboard-types.js";
 
@@ -10,6 +12,8 @@ export type AuthChoiceOption = {
   value: AuthChoice;
   label: string;
   hint?: string;
+  /** 置灰不可选（如认证方式通道已 down） */
+  disabled?: boolean;
 };
 export type AuthChoiceGroup = {
   value: AuthChoiceGroupId;
@@ -125,7 +129,10 @@ const AUTH_CHOICE_GROUP_DEFS: {
   {
     value: "deepseek",
     label: "DeepSeek",
-    hint: getText("configure.provider.deepseek.hint", "API key (deepseek-chat / deepseek-reasoner)"),
+    hint: getText(
+      "configure.provider.deepseek.hint",
+      "API key (deepseek-chat / deepseek-reasoner)",
+    ),
     choices: ["deepseek-api-key"],
   },
   {
@@ -185,7 +192,10 @@ const AUTH_CHOICE_GROUP_DEFS: {
   {
     value: "cloudflare-ai-gateway",
     label: "Cloudflare AI Gateway",
-    hint: getText("configure.provider.cloudflare_ai_gateway.hint", "Account ID + Gateway ID + API key"),
+    hint: getText(
+      "configure.provider.cloudflare_ai_gateway.hint",
+      "Account ID + Gateway ID + API key",
+    ),
     choices: ["cloudflare-ai-gateway-api-key"],
   },
   {
@@ -197,9 +207,18 @@ const AUTH_CHOICE_GROUP_DEFS: {
 ];
 
 const PROVIDER_AUTH_CHOICE_OPTION_HINTS: Partial<Record<AuthChoice, string>> = {
-  "litellm-api-key": getText("configure.provider.litellm.hint", "Unified LLM gateway (100+ providers)"),
-  "cloudflare-ai-gateway-api-key": getText("configure.provider.cloudflare_ai_gateway.hint", "Account ID + Gateway ID + API key"),
-  "venice-api-key": getText("configure.provider.venice.hint", "Privacy-focused inference (uncensored models)"),
+  "litellm-api-key": getText(
+    "configure.provider.litellm.hint",
+    "Unified LLM gateway (100+ providers)",
+  ),
+  "cloudflare-ai-gateway-api-key": getText(
+    "configure.provider.cloudflare_ai_gateway.hint",
+    "Account ID + Gateway ID + API key",
+  ),
+  "venice-api-key": getText(
+    "configure.provider.venice.hint",
+    "Privacy-focused inference (uncensored models)",
+  ),
   "together-api-key": "Access to Llama, DeepSeek, Qwen, and more open models",
   "huggingface-api-key": getText("configure.provider.huggingface.hint", "Inference API (HF token)"),
 };
@@ -207,7 +226,10 @@ const PROVIDER_AUTH_CHOICE_OPTION_HINTS: Partial<Record<AuthChoice, string>> = {
 const PROVIDER_AUTH_CHOICE_OPTION_LABELS: Partial<Record<AuthChoice, string>> = {
   "moonshot-api-key": getText("configure.provider.kimi_api_key_ai", "Kimi API key (.ai)"),
   "moonshot-api-key-cn": getText("configure.provider.kimi_api_key_cn", "Kimi API key (.cn)"),
-  "kimi-code-api-key": getText("configure.provider.kimi_code_api_key", "Kimi Code API key (subscription)"),
+  "kimi-code-api-key": getText(
+    "configure.provider.kimi_code_api_key",
+    "Kimi Code API key (subscription)",
+  ),
   "cloudflare-ai-gateway-api-key": "Cloudflare AI Gateway",
 };
 
@@ -225,7 +247,10 @@ const BASE_AUTH_CHOICE_OPTIONS: ReadonlyArray<AuthChoiceOption> = [
   {
     value: "token",
     label: getText("configure.provider.anthropic.token", "Anthropic token (paste setup-token)"),
-    hint: getText("configure.provider.anthropic.token.hint", "run `claude setup-token` elsewhere, then paste the token here"),
+    hint: getText(
+      "configure.provider.anthropic.token.hint",
+      "run `claude setup-token` elsewhere, then paste the token here",
+    ),
   },
   {
     value: "openai-codex",
@@ -237,7 +262,7 @@ const BASE_AUTH_CHOICE_OPTIONS: ReadonlyArray<AuthChoiceOption> = [
     label: getText("configure.provider.vllm.label", "vLLM (custom URL + model)"),
     hint: getText("configure.provider.vllm.hint", "Local/self-hosted OpenAI-compatible server"),
   },
-  ...(buildProviderAuthChoiceOptions() as AuthChoiceOption[]),
+  ...buildProviderAuthChoiceOptions(),
   {
     value: "moonshot-api-key-cn",
     label: getText("configure.provider.kimi_api_key_cn", "Kimi API key (.cn)"),
@@ -247,11 +272,17 @@ const BASE_AUTH_CHOICE_OPTIONS: ReadonlyArray<AuthChoiceOption> = [
     label: getText("configure.provider.github_copilot", "GitHub Copilot (GitHub device login)"),
     hint: getText("configure.provider.github_copilot.hint", "Uses GitHub device flow"),
   },
-  { value: "gemini-api-key", label: getText("configure.provider.gemini_api_key", "Google Gemini API key") },
+  {
+    value: "gemini-api-key",
+    label: getText("configure.provider.gemini_api_key", "Google Gemini API key"),
+  },
   {
     value: "google-gemini-cli",
     label: getText("configure.provider.google_gemini_cli", "Google Gemini CLI OAuth"),
-    hint: getText("configure.provider.google_gemini_cli.hint", "Uses the bundled Gemini CLI auth plugin"),
+    hint: getText(
+      "configure.provider.google_gemini_cli.hint",
+      "Uses the bundled Gemini CLI auth plugin",
+    ),
   },
   { value: "zai-api-key", label: getText("configure.provider.zai_api_key", "Z.AI API key") },
   {
@@ -283,18 +314,32 @@ const BASE_AUTH_CHOICE_OPTIONS: ReadonlyArray<AuthChoiceOption> = [
     label: getText("configure.provider.minimax_portal", "MiniMax OAuth"),
     hint: getText("configure.provider.minimax_portal.hint", "Oauth plugin for MiniMax"),
   },
-  { value: "qwen-portal-api-key", label: getText("configure.provider.qwen_api_key", "Qwen API key"), hint: getText("configure.provider.qwen_api_key.hint", "Portal API key") },
-  { value: "qwen-portal", label: getText("configure.provider.qwen_oauth", "Qwen OAuth"), hint: getText("configure.provider.qwen_oauth.hint", "Device code login") },
+  {
+    value: "qwen-portal-api-key",
+    label: getText("configure.provider.qwen_api_key", "Qwen API key"),
+    hint: getText("configure.provider.qwen_api_key.hint", "Portal API key"),
+  },
+  {
+    value: "qwen-portal",
+    label: getText("configure.provider.qwen_oauth", "Qwen OAuth"),
+    hint: getText("configure.provider.qwen_oauth.hint", "Device code login"),
+  },
   {
     value: "copilot-proxy",
     label: getText("configure.provider.copilot_proxy", "Copilot Proxy (local)"),
-    hint: getText("configure.provider.copilot_proxy.hint", "Local proxy for VS Code Copilot models"),
+    hint: getText(
+      "configure.provider.copilot_proxy.hint",
+      "Local proxy for VS Code Copilot models",
+    ),
   },
   { value: "apiKey", label: getText("configure.provider.anthropic_api_key", "Anthropic API key") },
   {
     value: "opencode-zen",
     label: getText("configure.provider.opencode_zen.label", "OpenCode Zen (multi-model proxy)"),
-    hint: getText("configure.provider.opencode_zen.hint", "Claude, GPT, Gemini via opencode.ai/zen"),
+    hint: getText(
+      "configure.provider.opencode_zen.hint",
+      "Claude, GPT, Gemini via opencode.ai/zen",
+    ),
   },
   { value: "minimax-api", label: "MiniMax M2.5" },
   {
@@ -375,7 +420,100 @@ export function buildAuthChoiceGroups(params: { store: AuthProfileStore; include
   }));
 
   const skipOption = params.includeSkip
-    ? ({ value: "skip", label: getText("configure.skip_for_now", "Skip for now") } satisfies AuthChoiceOption)
+    ? ({
+        value: "skip",
+        label: getText("configure.skip_for_now", "Skip for now"),
+      } satisfies AuthChoiceOption)
+    : undefined;
+
+  return { groups, skipOption };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 注册表驱动分组（方案 A：渐进式接入）
+// 从 auth-registry.json 动态读取厂商与认证方式，支持软删除、通道状态置灰。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 通道状态 → 展示前缀标记 */
+const CHANNEL_STATUS_PREFIX: Record<ChannelStatus, string> = {
+  ok: "✅",
+  suspect: "⚠️",
+  down: "⛔",
+  unknown: "",
+};
+
+/** 通道状态 → 英文备注（hint 用的简短说明） */
+const CHANNEL_STATUS_NOTE: Record<ChannelStatus, string> = {
+  ok: "verified",
+  suspect: "unverified",
+  down: "unavailable",
+  unknown: "",
+};
+
+/**
+ * 从注册表构建认证方式分组。
+ * - 读取 auth-registry.json（seed + 本地合并）
+ * - 软删除（disabled）的厂商/认证方式被过滤
+ * - 通道 down 的认证方式置灰（disabled: true）
+ * - 通道状态用 ✅/⚠️/⛔ 前缀展示
+ */
+export function buildAuthChoiceGroupsFromRegistry(params: { includeSkip: boolean }): {
+  groups: AuthChoiceGroup[];
+  skipOption?: AuthChoiceOption;
+} {
+  const registry = loadAuthRegistry();
+  const groups: AuthChoiceGroup[] = [];
+
+  for (const provider of registry.providers) {
+    if (provider.disabled) {
+      continue;
+    }
+    const options = provider.authMethods
+      .filter((method) => !method.disabled)
+      .map((method): AuthChoiceOption => {
+        const status = method.channelStatus ?? "unknown";
+        const prefix = CHANNEL_STATUS_PREFIX[status];
+        const label = prefix
+          ? `${prefix} ${method.name ?? method.label ?? method.id}`
+          : (method.name ?? method.label ?? method.id);
+        const hintParts: string[] = [];
+        if (method.label && method.label !== method.name) {
+          hintParts.push(method.label);
+        }
+        if (status === "down") {
+          hintParts.push(CHANNEL_STATUS_NOTE.down);
+        } else if (status === "suspect") {
+          hintParts.push(CHANNEL_STATUS_NOTE.suspect);
+        }
+        if (method.hint) {
+          hintParts.push(method.hint);
+        }
+        return {
+          value: method.id as AuthChoice,
+          label,
+          ...(hintParts.length > 0 ? { hint: hintParts.join(" · ") } : {}),
+          // 通道 down 时置灰不可选
+          ...(status === "down" ? { disabled: true } : {}),
+        };
+      });
+
+    if (options.length === 0) {
+      continue;
+    }
+
+    groups.push({
+      value: provider.id as AuthChoiceGroupId,
+      label: provider.name ?? provider.id,
+      hint: provider.hint,
+      options,
+    });
+  }
+
+  const skipOption = params.includeSkip
+    ? ({
+        value: "skip",
+        label: getText("configure.skip_for_now", "Skip for now"),
+      } satisfies AuthChoiceOption)
     : undefined;
 
   return { groups, skipOption };

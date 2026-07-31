@@ -2,6 +2,8 @@ export type WizardSelectOption<T = string> = {
   value: T;
   label: string;
   hint?: string;
+  /** 置灰不可选（如：认证方式通道已 down） */
+  disabled?: boolean;
 };
 
 export type WizardSelectParams<T = string> = {

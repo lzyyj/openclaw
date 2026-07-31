@@ -44,6 +44,7 @@ export type AuthChoice =
   | "github-copilot"
   | "copilot-proxy"
   | "qwen-portal"
+  | "qwen-portal-api-key"
   | "xai-api-key"
   | "mistral-api-key"
   | "volcengine-api-key"

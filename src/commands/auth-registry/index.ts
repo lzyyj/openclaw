@@ -10,7 +10,6 @@ export type {
   ChannelStatus,
 } from "./types.js";
 export { AUTH_METHOD_TYPE_LABELS } from "./seed.js";
-
 import { loadAuthRegistry, saveAuthRegistry } from "./store.js";
 import type { AuthMethod, AuthProvider, AuthRegistry, ChannelStatus } from "./types.js";
 
@@ -136,4 +135,58 @@ export function addAuthMethod(params: {
   });
   saveAuthRegistry(registry);
   return true;
+}
+
+/**
+ * CLI 认证 flag 条目（动态生成，optionKey 为 string 以兼容注册表中任意厂商）。
+ * 形状与旧 ONBOARD_PROVIDER_AUTH_FLAGS 条目一致，便于 CLI 注册 / 非交互推断复用。
+ */
+export type ProviderAuthFlag = {
+  optionKey: string;
+  authChoice: string;
+  cliFlag: string;
+  cliOption: string;
+  description: string;
+};
+
+/**
+ * 从注册表动态生成 provider API-key 认证 flag 列表（阶段三：非交互 CLI 动态化）。
+ *
+ * 规则：
+ * - 只取 type === "api-key" 的认证方式（CLI flag 仅用于 API key 注入）
+ * - 过滤 disabled（软删除 / 停用）
+ * - 过滤缺失 cliFlag / cliOption / optionKey 的条目（无 CLI flag 或无法映射到 OnboardOptions）
+ *
+ * 结果与旧 ONBOARD_PROVIDER_AUTH_FLAGS 对齐；新增厂商在注册表补 cliFlag/optionKey 即自动获得 CLI flag。
+ */
+export function buildProviderAuthFlagsFromRegistry(): ProviderAuthFlag[] {
+  const registry = loadAuthRegistry();
+  const flags: ProviderAuthFlag[] = [];
+
+  for (const provider of registry.providers) {
+    if (provider.disabled) {
+      continue;
+    }
+    for (const method of provider.authMethods) {
+      if (
+        method.disabled ||
+        method.type !== "api-key" ||
+        !method.cliFlag ||
+        !method.cliOption ||
+        !method.optionKey
+      ) {
+        continue;
+      }
+      flags.push({
+        optionKey: method.optionKey,
+        // AuthMethod.id 保留旧 AuthChoice 字符串值做兼容，可直接作为 authChoice 用
+        authChoice: method.id,
+        cliFlag: method.cliFlag,
+        cliOption: method.cliOption,
+        description: method.label ?? `${provider.name} API key`,
+      });
+    }
+  }
+
+  return flags;
 }

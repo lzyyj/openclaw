@@ -13,13 +13,17 @@ vi.mock("../../commands/auth-choice-options.js", () => ({
   formatAuthChoiceChoicesForCli: () => "token|oauth",
 }));
 
-vi.mock("../../commands/onboard-provider-auth-flags.js", () => ({
-  ONBOARD_PROVIDER_AUTH_FLAGS: [
+// CLI flag 从注册表动态生成；测试里 mock 返回单一 mistral flag 以验证 option 注册与透传
+vi.mock("../../commands/auth-registry/index.js", () => ({
+  buildProviderAuthFlagsFromRegistry: () => [
     {
+      optionKey: "mistralApiKey",
+      authChoice: "mistral-api-key",
+      cliFlag: "--mistral-api-key",
       cliOption: "--mistral-api-key <key>",
       description: "Mistral API key",
     },
-  ] as Array<{ cliOption: string; description: string }>,
+  ],
 }));
 
 vi.mock("../../commands/onboard.js", () => ({

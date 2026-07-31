@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEnv } from "../runtime.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 
@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   promptModelAllowlist: vi.fn(),
   promptDefaultModel: vi.fn(),
   promptCustomApiConfig: vi.fn(),
+  promptModelFallbacks: vi.fn(),
 }));
 
 vi.mock("../agents/auth-profiles.js", () => ({
@@ -33,6 +34,7 @@ vi.mock("./model-picker.js", async (importActual) => {
     ...actual,
     promptModelAllowlist: mocks.promptModelAllowlist,
     promptDefaultModel: mocks.promptDefaultModel,
+    promptModelFallbacks: mocks.promptModelFallbacks,
   };
 });
 
@@ -53,6 +55,11 @@ function makeRuntime(): RuntimeEnv {
 const noopPrompter = {} as WizardPrompter;
 
 describe("promptAuthConfig", () => {
+  beforeEach(() => {
+    // Default: keep existing fallbacks so tests don't need to set this up.
+    mocks.promptModelFallbacks.mockResolvedValue({ mode: "keep" });
+  });
+
   it("keeps Kilo provider models while applying allowlist defaults", async () => {
     mocks.promptAuthChoiceGrouped.mockResolvedValue("kilocode-api-key");
     mocks.applyAuthChoice.mockResolvedValue({

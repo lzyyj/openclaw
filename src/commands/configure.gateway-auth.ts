@@ -1,19 +1,21 @@
 import { ensureAuthProfileStore } from "../agents/auth-profiles.js";
 import type { OpenClawConfig, GatewayAuthConfig } from "../config/config.js";
+import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import type { RuntimeEnv } from "../runtime.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { promptAuthChoiceGrouped, resolveInitialGroupFromConfig } from "./auth-choice-prompt.js";
 import { applyAuthChoice, resolvePreferredProviderForAuthChoice } from "./auth-choice.js";
 import {
   applyModelAllowlist,
+  applyModelFallbacks,
   applyModelFallbacksFromSelection,
   applyPrimaryModel,
   promptDefaultModel,
   promptModelAllowlist,
+  promptModelFallbacks,
 } from "./model-picker.js";
 import { promptCustomApiConfig } from "./onboard-custom.js";
 import { randomToken } from "./onboard-helpers.js";
-import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 
 type GatewayAuthChoice = "token" | "password" | "trusted-proxy";
 
@@ -141,6 +143,18 @@ export async function promptAuthConfig(
       const chosenDefaultModel = next.models?.primary;
       if (chosenDefaultModel) {
         next = applyModelAllowlist(next, [chosenDefaultModel]);
+      }
+      // Fallback (backup) models share the same model pool as the primary — only
+      // priority differs. Let the user manage them here so stale/hand-edited
+      // fallbacks (e.g. providers without a configured key) get cleaned up.
+      const fallbackSelection = await promptModelFallbacks({
+        config: next,
+        prompter,
+      });
+      if (fallbackSelection.mode === "set") {
+        next = applyModelFallbacks(next, fallbackSelection.fallbacks);
+      } else if (fallbackSelection.mode === "clear") {
+        next = applyModelFallbacks(next, []);
       }
     }
   }

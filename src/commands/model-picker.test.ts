@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
 import {
   applyModelAllowlist,
+  applyModelFallbacks,
   applyModelFallbacksFromSelection,
   promptDefaultModel,
   promptModelAllowlist,
+  promptModelFallbacks,
 } from "./model-picker.js";
 import { makePrompter } from "./onboarding/__tests__/test-utils.js";
 
@@ -247,5 +249,127 @@ describe("applyModelFallbacksFromSelection", () => {
       primary: "anthropic/claude-opus-4-5",
       fallbacks: ["openai/gpt-5.2"],
     });
+  });
+});
+
+describe("applyModelFallbacks", () => {
+  it("replaces fallbacks while preserving primary", () => {
+    const config = {
+      agents: {
+        defaults: {
+          model: { primary: "qwen-portal/coder-model", fallbacks: ["bad/kimi-k2.5"] },
+        },
+      },
+    } as OpenClawConfig;
+
+    const next = applyModelFallbacks(config, ["moonshot/kimi-k2.5", "deepseek/deepseek-chat"]);
+    expect(next.agents?.defaults?.model).toEqual({
+      primary: "qwen-portal/coder-model",
+      fallbacks: ["moonshot/kimi-k2.5", "deepseek/deepseek-chat"],
+    });
+  });
+
+  it("clears fallbacks when given an empty array", () => {
+    const config = {
+      agents: {
+        defaults: {
+          model: { primary: "qwen-portal/coder-model", fallbacks: ["stale/gpt"] },
+        },
+      },
+    } as OpenClawConfig;
+
+    const next = applyModelFallbacks(config, []);
+    expect(next.agents?.defaults?.model).toEqual({
+      primary: "qwen-portal/coder-model",
+      fallbacks: [],
+    });
+  });
+
+  it("normalizes duplicate and blank fallback entries", () => {
+    const config = {
+      agents: {
+        defaults: { model: { primary: "anthropic/claude-opus-4-5" } },
+      },
+    } as OpenClawConfig;
+
+    const next = applyModelFallbacks(config, [
+      " anthropic/claude-sonnet-4-5 ",
+      "anthropic/claude-sonnet-4-5",
+      "",
+    ]);
+    expect(
+      (next.agents?.defaults?.model as { fallbacks?: string[] } | undefined)?.fallbacks,
+    ).toEqual(["anthropic/claude-sonnet-4-5"]);
+  });
+
+  it("writes fallbacks when model was previously a plain string", () => {
+    const config = {
+      agents: {
+        defaults: { model: "deepseek/deepseek-chat" },
+      },
+    } as OpenClawConfig;
+
+    const next = applyModelFallbacks(config, ["moonshot/kimi-k2.5"]);
+    expect(next.agents?.defaults?.model).toEqual({
+      primary: "deepseek/deepseek-chat",
+      fallbacks: ["moonshot/kimi-k2.5"],
+    });
+  });
+});
+
+describe("promptModelFallbacks", () => {
+  it("keeps current fallbacks when keep is chosen", async () => {
+    loadModelCatalog.mockResolvedValue([
+      { provider: "moonshot", id: "kimi-k2.5", name: "Kimi K2.5" },
+      { provider: "deepseek", id: "deepseek-chat", name: "DeepSeek Chat" },
+    ]);
+    const select = vi.fn(async () => "keep" as never);
+    const prompter = makePrompter({ select });
+    const config = {
+      agents: { defaults: { model: { primary: "qwen-portal/coder-model" } } },
+    } as OpenClawConfig;
+
+    const result = await promptModelFallbacks({ config, prompter });
+    expect(result).toEqual({ mode: "keep" });
+  });
+
+  it("clears fallbacks when clear is chosen", async () => {
+    loadModelCatalog.mockResolvedValue([
+      { provider: "moonshot", id: "kimi-k2.5", name: "Kimi K2.5" },
+    ]);
+    const select = vi.fn(async () => "clear" as never);
+    const prompter = makePrompter({ select });
+    const config = {
+      agents: { defaults: { model: { primary: "qwen-portal/coder-model" } } },
+    } as OpenClawConfig;
+
+    const result = await promptModelFallbacks({ config, prompter });
+    expect(result).toEqual({ mode: "clear" });
+  });
+
+  it("returns selected fallbacks in display order when multiselect is chosen", async () => {
+    loadModelCatalog.mockResolvedValue([
+      { provider: "moonshot", id: "kimi-k2.5", name: "Kimi K2.5" },
+      { provider: "deepseek", id: "deepseek-chat", name: "DeepSeek Chat" },
+      { provider: "qwen-portal", id: "coder-model", name: "Qwen Coder" },
+    ]);
+    const multiselect = vi.fn(async (params) =>
+      params.options
+        .filter((opt: { value: string }) => opt.value !== "qwen-portal/coder-model")
+        .map((opt: { value: string }) => opt.value),
+    );
+    const prompter = makePrompter({
+      select: vi.fn(async () => "multiselect" as never),
+      multiselect,
+    });
+    const config = {
+      agents: { defaults: { model: { primary: "qwen-portal/coder-model" } } },
+    } as OpenClawConfig;
+
+    const result = await promptModelFallbacks({ config, prompter });
+    expect(result.mode).toBe("set");
+    if (result.mode === "set") {
+      expect(result.fallbacks).toEqual(["moonshot/kimi-k2.5", "deepseek/deepseek-chat"]);
+    }
   });
 });

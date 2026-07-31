@@ -1,4 +1,3 @@
-import { getText } from "../cli/i18n.js";
 import { ensureAuthProfileStore, listProfilesForProvider } from "../agents/auth-profiles.js";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "../agents/defaults.js";
 import { getCustomProviderApiKey, resolveEnvApiKey } from "../agents/model-auth.js";
@@ -10,8 +9,12 @@ import {
   normalizeProviderId,
   resolveConfiguredModelRef,
 } from "../agents/model-selection.js";
+import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig } from "../config/config.js";
-import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
+import {
+  resolveAgentModelFallbackValues,
+  resolveAgentModelPrimaryValue,
+} from "../config/model-input.js";
 import type { WizardPrompter, WizardSelectOption } from "../wizard/prompts.js";
 import { formatTokenK } from "./models/shared.js";
 import { OPENAI_CODEX_DEFAULT_MODEL } from "./openai-codex-model-default.js";
@@ -438,7 +441,9 @@ export async function promptModelAllowlist(params: {
   }
 
   const selection = await params.prompter.multiselect({
-    message: params.message ?? getText("configure.model.multiselect", "Models in /model picker (multi-select)"),
+    message:
+      params.message ??
+      getText("configure.model.multiselect", "Models in /model picker (multi-select)"),
     options,
     initialValues: initialKeys.length > 0 ? initialKeys : undefined,
     searchable: true,
@@ -458,6 +463,125 @@ export async function promptModelAllowlist(params: {
     return {};
   }
   return { models: [] };
+}
+
+export type PromptModelFallbacksResult =
+  | { mode: "keep" }
+  | { mode: "clear" }
+  | { mode: "set"; fallbacks: string[] };
+
+/**
+ * Interactive management of the agent's fallback (backup) model list.
+ *
+ * The primary model and the fallbacks are the same pool of models — the only
+ * difference is priority order (primary first, then fallbacks in order). This
+ * prompt lets the user choose which models to keep as backups after the primary
+ * is set, and whether to keep/clear/replace the existing fallback list.
+ *
+ * NOTE: the underlying multiselect returns selections in display order (clack
+ * filters the options array in order), so fallback priority follows the order
+ * models are listed rather than click order.
+ */
+export async function promptModelFallbacks(params: {
+  config: OpenClawConfig;
+  prompter: WizardPrompter;
+  agentDir?: string;
+  initialSelections?: string[];
+}): Promise<PromptModelFallbacksResult> {
+  const cfg = params.config;
+
+  // Decide the action up front so users can clear/keep without a full multiselect.
+  const action = await params.prompter.select({
+    message: "Fallback models (used when the primary model fails)",
+    options: [
+      { value: "keep", label: "Keep current fallbacks" },
+      { value: "multiselect", label: "Choose fallback models (multi-select)" },
+      { value: "clear", label: "Clear all fallbacks" },
+    ],
+  });
+  if (action === "keep") {
+    return { mode: "keep" };
+  }
+  if (action === "clear") {
+    return { mode: "clear" };
+  }
+
+  // Build the candidate list: configured fallbacks + allowlist + default model.
+  const existingFallbacks = resolveAgentModelFallbackValues(cfg.agents?.defaults?.model);
+  const existingKeys = resolveConfiguredModelKeys(cfg);
+  const resolved = resolveConfiguredModelRef({
+    cfg,
+    defaultProvider: DEFAULT_PROVIDER,
+    defaultModel: DEFAULT_MODEL,
+  });
+  const resolvedKey = modelKey(resolved.provider, resolved.model);
+  const initialSeeds = normalizeModelKeys([
+    ...existingFallbacks,
+    ...existingKeys,
+    resolvedKey,
+    ...(params.initialSelections ?? []),
+  ]);
+
+  const catalog = await loadModelCatalog({ config: cfg, useCache: false });
+  const aliasIndex = buildModelAliasIndex({ cfg, defaultProvider: DEFAULT_PROVIDER });
+  const hasAuth = createProviderAuthChecker({ cfg, agentDir: params.agentDir });
+
+  const options: WizardSelectOption[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of catalog) {
+    addModelSelectOption({ entry, options, seen, aliasIndex, hasAuth });
+  }
+  for (const key of initialSeeds) {
+    if (seen.has(key)) {
+      continue;
+    }
+    options.push({ value: key, label: key, hint: "configured (not in catalog)" });
+    seen.add(key);
+  }
+
+  if (options.length === 0) {
+    // Nothing to pick from — should not normally happen when a catalog exists.
+    return { mode: "keep" };
+  }
+
+  const currentFallbacks = normalizeModelKeys(existingFallbacks);
+  const selection = await params.prompter.multiselect({
+    message: "Select fallback models (priority = list order)",
+    options,
+    initialValues: currentFallbacks.length > 0 ? currentFallbacks : undefined,
+    searchable: true,
+  });
+  const fallbacks = normalizeModelKeys(selection.map((value) => String(value)));
+  if (fallbacks.length === 0) {
+    return { mode: "clear" };
+  }
+  return { mode: "set", fallbacks };
+}
+
+export function applyModelFallbacks(cfg: OpenClawConfig, fallbacks: string[]): OpenClawConfig {
+  const defaults = cfg.agents?.defaults;
+  const existingModel = defaults?.model;
+  const normalized = normalizeModelKeys(fallbacks);
+  const modelObject =
+    typeof existingModel === "object" && existingModel !== null ? existingModel : undefined;
+  const primary =
+    (typeof existingModel === "string" ? existingModel : modelObject?.primary) ??
+    resolveAgentModelPrimaryValue(existingModel);
+  return {
+    ...cfg,
+    agents: {
+      ...cfg.agents,
+      defaults: {
+        ...defaults,
+        model: {
+          ...modelObject,
+          primary,
+          fallbacks: normalized,
+        },
+      },
+    },
+  };
 }
 
 export function applyPrimaryModel(cfg: OpenClawConfig, model: string): OpenClawConfig {

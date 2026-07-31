@@ -1,6 +1,7 @@
 export { AUTH_REGISTRY_FILENAME, resolveAuthRegistryPath } from "./constants.js";
 export { AUTH_REGISTRY_SEED, AUTH_REGISTRY_VERSION } from "./seed.js";
 export { authRegistryFileExists, loadAuthRegistry, saveAuthRegistry } from "./store.js";
+export { mirrorAuthChannelResult } from "./channel-mirror.js";
 export type {
   AuthMethod,
   AuthMethodType,

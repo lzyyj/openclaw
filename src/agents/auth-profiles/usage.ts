@@ -1,3 +1,4 @@
+import { mirrorAuthChannelResult } from "../../commands/auth-registry/index.js";
 import type { OpenClawConfig } from "../../config/config.js";
 import { normalizeProviderId } from "../model-selection.js";
 import { saveAuthProfileStore, updateAuthProfileStoreWithLock } from "./store.js";
@@ -425,6 +426,10 @@ export async function markAuthProfileFailure(params: {
   agentDir?: string;
 }): Promise<void> {
   const { store, profileId, reason, agentDir, cfg } = params;
+  // 预取凭据类型 + provider，供注册表通道状态镜像使用
+  const profileRef = store.profiles[profileId];
+  const provider = profileRef?.provider;
+  const credentialType = profileRef?.type;
   const updated = await updateAuthProfileStoreWithLock({
     agentDir,
     updater: (freshStore) => {
@@ -453,28 +458,42 @@ export async function markAuthProfileFailure(params: {
   });
   if (updated) {
     store.usageStats = updated.usageStats;
-    return;
-  }
-  if (!store.profiles[profileId]) {
-    return;
+  } else {
+    if (!store.profiles[profileId]) {
+      return;
+    }
+
+    store.usageStats = store.usageStats ?? {};
+    const existing = store.usageStats[profileId] ?? {};
+    const now = Date.now();
+    const providerKey = normalizeProviderId(store.profiles[profileId]?.provider ?? "");
+    const cfgResolved = resolveAuthCooldownConfig({
+      cfg,
+      providerId: providerKey,
+    });
+
+    store.usageStats[profileId] = computeNextProfileUsageStats({
+      existing,
+      now,
+      reason,
+      cfgResolved,
+    });
+    saveAuthProfileStore(store, agentDir);
   }
 
-  store.usageStats = store.usageStats ?? {};
-  const existing = store.usageStats[profileId] ?? {};
-  const now = Date.now();
-  const providerKey = normalizeProviderId(store.profiles[profileId]?.provider ?? "");
-  const cfgResolved = resolveAuthCooldownConfig({
-    cfg,
-    providerId: providerKey,
-  });
-
-  store.usageStats[profileId] = computeNextProfileUsageStats({
-    existing,
-    now,
-    reason,
-    cfgResolved,
-  });
-  saveAuthProfileStore(store, agentDir);
+  // 异步镜像：认证失败 → 注册表通道状态（timeout→down，其余→suspect；静默）
+  if (provider) {
+    try {
+      mirrorAuthChannelResult({
+        provider,
+        credentialType,
+        success: false,
+        reason,
+      });
+    } catch {
+      // 静默
+    }
+  }
 }
 
 /**

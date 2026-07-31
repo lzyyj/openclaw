@@ -1,3 +1,4 @@
+import { mirrorAuthChannelResult } from "../../commands/auth-registry/index.js";
 import { normalizeSecretInput } from "../../utils/normalize-secret-input.js";
 import { normalizeProviderId } from "../model-selection.js";
 import {
@@ -92,6 +93,8 @@ export async function markAuthProfileGood(params: {
   agentDir?: string;
 }): Promise<void> {
   const { store, provider, profileId, agentDir } = params;
+  // 预取凭据类型，供注册表通道状态镜像使用
+  const credentialType = store.profiles[profileId]?.type;
   const updated = await updateAuthProfileStoreWithLock({
     agentDir,
     updater: (freshStore) => {
@@ -105,12 +108,23 @@ export async function markAuthProfileGood(params: {
   });
   if (updated) {
     store.lastGood = updated.lastGood;
-    return;
+  } else {
+    const profile = store.profiles[profileId];
+    if (!profile || profile.provider !== provider) {
+      return;
+    }
+    store.lastGood = { ...store.lastGood, [provider]: profileId };
+    saveAuthProfileStore(store, agentDir);
   }
-  const profile = store.profiles[profileId];
-  if (!profile || profile.provider !== provider) {
-    return;
+  // 异步镜像：认证成功 → 注册表通道状态升 ok（静默，不阻塞）
+  reflectAuthChannelSuccess(provider, credentialType);
+}
+
+/** 认证成功 → 镜像注册表通道状态为 ok（fire-and-forget，静默） */
+function reflectAuthChannelSuccess(provider: string, credentialType?: string): void {
+  try {
+    mirrorAuthChannelResult({ provider, credentialType, success: true });
+  } catch {
+    // 静默
   }
-  store.lastGood = { ...store.lastGood, [provider]: profileId };
-  saveAuthProfileStore(store, agentDir);
 }

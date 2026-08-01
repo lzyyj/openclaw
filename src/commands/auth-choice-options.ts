@@ -22,6 +22,20 @@ export type AuthChoiceGroup = {
   options: AuthChoiceOption[];
 };
 
+/**
+ * 厂商(provider) id → 分组(group) id 归一化映射。
+ * 分组 id 是 UI 里的组（如 "qwen"），而 config/models 里的 provider id 是规范名
+ * （如 "qwen-portal"）。两者不一致时在此登记，让"默认值跟随主模型"与验证流程一致。
+ */
+export const PROVIDER_TO_GROUP_ID: Record<string, AuthChoiceGroupId> = {
+  "qwen-portal": "qwen",
+};
+
+/** 反向映射：分组 id → provider id（group "qwen" -> provider "qwen-portal"）。 */
+export const PROVIDER_TO_GROUP_ID_REVERSE: Record<string, string> = Object.fromEntries(
+  Object.entries(PROVIDER_TO_GROUP_ID).map(([provider, group]) => [group, provider]),
+);
+
 const hintApiKey = getText("configure.provider.hint.api_key", "API key");
 
 const AUTH_CHOICE_GROUP_DEFS: {

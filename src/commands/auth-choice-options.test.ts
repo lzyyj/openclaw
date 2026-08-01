@@ -4,7 +4,10 @@ import {
   buildAuthChoiceGroups,
   buildAuthChoiceOptions,
   formatAuthChoiceChoicesForCli,
+  PROVIDER_TO_GROUP_ID,
+  PROVIDER_TO_GROUP_ID_REVERSE,
 } from "./auth-choice-options.js";
+import { resolveInitialGroupFromConfig } from "./auth-choice-prompt.js";
 
 const EMPTY_STORE: AuthProfileStore = { version: 1, profiles: {} };
 
@@ -79,5 +82,27 @@ describe("buildAuthChoiceOptions", () => {
 
     expect(chutesGroup).toBeDefined();
     expect(chutesGroup?.options.some((opt) => opt.value === "chutes")).toBe(true);
+  });
+});
+
+describe("PROVIDER_TO_GROUP_ID / group default normalization", () => {
+  it("maps canonical qwen-portal provider to the qwen group", () => {
+    expect(PROVIDER_TO_GROUP_ID["qwen-portal"]).toBe("qwen");
+    expect(PROVIDER_TO_GROUP_ID_REVERSE["qwen"]).toBe("qwen-portal");
+  });
+
+  it("resolveInitialGroupFromConfig maps qwen-portal model key to the qwen group", () => {
+    // 主模型 qwen-portal/coder-model → 分组 qwen（UI 里 Qwen 分组 id）
+    expect(resolveInitialGroupFromConfig("qwen-portal/coder-model")).toBe("qwen");
+  });
+
+  it("resolveInitialGroupFromConfig keeps plain provider groups unchanged", () => {
+    expect(resolveInitialGroupFromConfig("deepseek/deepseek-chat")).toBe("deepseek");
+    expect(resolveInitialGroupFromConfig("moonshot/kimi-k2.5")).toBe("moonshot");
+  });
+
+  it("resolveInitialGroupFromConfig handles malformed model keys", () => {
+    expect(resolveInitialGroupFromConfig("no-slash-model")).toBeUndefined();
+    expect(resolveInitialGroupFromConfig(undefined)).toBeUndefined();
   });
 });

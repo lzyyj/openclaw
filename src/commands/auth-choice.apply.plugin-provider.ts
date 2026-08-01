@@ -1,4 +1,3 @@
-import { getText } from "../cli/i18n.js";
 import { resolveOpenClawAgentDir } from "../agents/agent-paths.js";
 import {
   resolveDefaultAgentId,
@@ -7,9 +6,11 @@ import {
 } from "../agents/agent-scope.js";
 import { upsertAuthProfile } from "../agents/auth-profiles.js";
 import { resolveDefaultAgentWorkspaceDir } from "../agents/workspace.js";
+import { getText } from "../cli/i18n.js";
 import { enablePluginInConfig } from "../plugins/enable.js";
 import { resolvePluginProviders } from "../plugins/providers.js";
 import type { ApplyAuthChoiceParams, ApplyAuthChoiceResult } from "./auth-choice.apply.js";
+import { updateAuthMethodChannelStatus } from "./auth-registry/index.js";
 import { isRemoteEnvironment } from "./oauth-env.js";
 import { createVpsAwareOAuthHandlers } from "./oauth-flow.js";
 import { applyAuthProfileConfig } from "./onboard-auth.js";
@@ -72,20 +73,36 @@ export async function applyAuthChoicePluginProvider(
   }
 
   const isRemote = isRemoteEnvironment();
-  const result = await method.run({
-    config: nextConfig,
-    agentDir,
-    workspaceDir,
-    prompter: params.prompter,
-    runtime: params.runtime,
-    isRemote,
-    openUrl: async (url) => {
-      await openUrl(url);
-    },
-    oauth: {
-      createVpsAwareHandlers: (opts) => createVpsAwareOAuthHandlers(opts),
-    },
-  });
+  let result: Awaited<ReturnType<NonNullable<typeof method.run>>>;
+  try {
+    result = await method.run({
+      config: nextConfig,
+      agentDir,
+      workspaceDir,
+      prompter: params.prompter,
+      runtime: params.runtime,
+      isRemote,
+      openUrl: async (url) => {
+        await openUrl(url);
+      },
+      oauth: {
+        createVpsAwareHandlers: (opts) => createVpsAwareOAuthHandlers(opts),
+      },
+    });
+  } catch (err) {
+    // 认证流程抛错（如 OAuth 设备码超时/网关错误）不应让整个 configure 向导崩溃。
+    // 捕获后提示用户，并把该认证方式在注册表里标为 suspect（保留历史，不硬删）。
+    await params.prompter.note(
+      `${options.label} 认证失败：${err instanceof Error ? err.message : String(err)}`,
+      options.label,
+    );
+    updateAuthMethodChannelStatus({
+      methodId: options.authChoice,
+      status: "suspect",
+      note: `auth failed: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    return { config: nextConfig };
+  }
 
   if (result.configPatch) {
     nextConfig = mergeConfigPatch(nextConfig, result.configPatch);
@@ -113,13 +130,19 @@ export async function applyAuthChoicePluginProvider(
     if (params.setDefaultModel) {
       nextConfig = applyDefaultModel(nextConfig, result.defaultModel);
       await params.prompter.note(
-        getText("configure.model.default_set", `Default model set to ${result.defaultModel}`, { model: result.defaultModel }),
+        getText("configure.model.default_set", `Default model set to ${result.defaultModel}`, {
+          model: result.defaultModel,
+        }),
         getText("configure.model.configured", "Model configured"),
       );
     } else if (params.agentId) {
       agentModelOverride = result.defaultModel;
       await params.prompter.note(
-        getText("configure.model.default_set_agent", `Default model set to ${result.defaultModel} for agent "${params.agentId}".`, { model: result.defaultModel, agentId: params.agentId }),
+        getText(
+          "configure.model.default_set_agent",
+          `Default model set to ${result.defaultModel} for agent "${params.agentId}".`,
+          { model: result.defaultModel, agentId: params.agentId },
+        ),
         getText("configure.model.configured", "Model configured"),
       );
     }

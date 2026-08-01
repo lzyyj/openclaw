@@ -1,7 +1,7 @@
 import type { AuthProfileStore } from "../agents/auth-profiles.js";
 import { getText } from "../cli/i18n.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
-import { buildAuthChoiceGroupsFromRegistry } from "./auth-choice-options.js";
+import { buildAuthChoiceGroupsFromRegistry, PROVIDER_TO_GROUP_ID } from "./auth-choice-options.js";
 import { addAuthMethod } from "./auth-registry/index.js";
 import type { AuthMethodType } from "./auth-registry/types.js";
 import type { AuthChoice } from "./onboard-types.js";
@@ -16,7 +16,9 @@ function resolveGroupFromModel(modelKey: string): string | undefined {
   if (slashIdx === -1) {
     return undefined;
   }
-  return modelKey.slice(0, slashIdx);
+  const providerId = modelKey.slice(0, slashIdx);
+  // 归一化：provider id 与分组 id 不一致时，映射到 UI 分组（如 "qwen-portal" -> group "qwen"）。
+  return PROVIDER_TO_GROUP_ID[providerId] ?? providerId;
 }
 
 /** Resolve the initial group value for the provider selection based on existing config model. */

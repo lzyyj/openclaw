@@ -182,7 +182,11 @@ export const AUTH_REGISTRY_SEED: AuthRegistry = {
           vendor: "qwen",
           label: "Qwen OAuth",
           hint: "Device code login",
-          channelStatus: "unknown",
+          // 2026-08-01: Qwen 免费 OAuth 设备码流程已停用（token endpoint 504 Gateway Time-out）。
+          // 该模式已废弃，置为 down 置灰不可选；改用 qwen-portal-api-key（网页验证）路径。
+          channelStatus: "down",
+          channelNote:
+            "废弃：Qwen 免费 OAuth 已停用（token endpoint 504 Gateway Time-out），请改用 Portal API Key",
         },
       ],
     },

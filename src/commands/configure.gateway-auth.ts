@@ -3,6 +3,7 @@ import type { OpenClawConfig, GatewayAuthConfig } from "../config/config.js";
 import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import type { RuntimeEnv } from "../runtime.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
+import { PROVIDER_TO_GROUP_ID_REVERSE } from "./auth-choice-options.js";
 import { promptAuthChoiceGrouped, resolveInitialGroupFromConfig } from "./auth-choice-prompt.js";
 import { applyAuthChoice, resolvePreferredProviderForAuthChoice } from "./auth-choice.js";
 import {
@@ -46,7 +47,9 @@ const ANTHROPIC_OAUTH_MODEL_KEYS = [
  * - "deepseek-api-key" -> "deepseek"
  * - "moonshot-api-key" -> "moonshot"
  * - "openrouter-api-key" -> "openrouter"
- * 若无法可靠推导（如 custom-api-key），返回 undefined（跳过验证）。
+ * - "qwen-portal-api-key" -> "qwen-portal"（strip 后缀即可，已是规范 provider id）
+ * - "qwen"（分组 id）       -> "qwen-portal"（经归一化映射）
+ * 若无法可靠推导（如 custom-api-key / qwen-portal OAuth），返回 undefined（跳过验证）。
  */
 function providerIdFromAuthChoice(authChoice: string): string | undefined {
   if (authChoice.endsWith("-api-key")) {
@@ -60,7 +63,10 @@ function providerIdFromAuthChoice(authChoice: string): string | undefined {
   if (special[authChoice]) {
     return special[authChoice];
   }
-  return undefined;
+  // 分组 id → provider id 归一化（group "qwen" -> provider "qwen-portal"）。
+  // 与 auth-choice-prompt 的 provider→group 映射保持一致，确保 authChoice 以分组名出现时
+  // 也能解析到规范 provider id。
+  return PROVIDER_TO_GROUP_ID_REVERSE[authChoice];
 }
 
 export function buildGatewayAuthConfig(params: {

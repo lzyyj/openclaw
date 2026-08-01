@@ -579,6 +579,17 @@ export function sanitizeUserFacingText(text: string, opts?: { errorContext?: boo
       return BILLING_ERROR_USER_MESSAGE;
     }
 
+    // 认证类错误（OAuth 刷新失败 / key 无效 / token 过期）——给用户可操作的提示，
+    // 而不是把原始 504/401 HTML 错误页直接甩给前端。
+    if (isAuthErrorMessage(trimmed)) {
+      return (
+        "⚠️ 认证失败：模型提供商的登录凭证已失效或过期（可能是 OAuth token 过期、" +
+        "API key 无效、或厂商网关变更）。\n" +
+        "请运行 `openclaw configure`（或 `/auth`）重新配置认证；" +
+        "若厂商迁移了端点，验证时会提示重新核实 baseUrl。"
+      );
+    }
+
     if (isRawApiErrorPayload(trimmed) || isLikelyHttpErrorText(trimmed)) {
       return formatRawAssistantErrorForUi(trimmed);
     }
@@ -652,6 +663,8 @@ const ERROR_PATTERNS = {
     "authentication",
     "re-authenticate",
     "oauth token refresh failed",
+    /oauth[^\n]{0,40}refresh (?:failed|error)/i,
+    /refresh (?:failed|error)[^\n]{0,20}(?:token|session|oauth)/i,
     "unauthorized",
     "forbidden",
     "access denied",

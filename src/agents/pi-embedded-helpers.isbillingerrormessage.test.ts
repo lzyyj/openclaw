@@ -14,6 +14,7 @@ import {
   isTransientHttpError,
   parseImageDimensionError,
   parseImageSizeError,
+  sanitizeUserFacingText,
 } from "./pi-embedded-helpers.js";
 
 describe("isAuthErrorMessage", () => {
@@ -446,5 +447,26 @@ describe("classifyFailoverReason", () => {
         '{"type":"error","error":{"type":"api_error","message":"Internal server error"}}',
       ),
     ).toBe("timeout");
+  });
+});
+
+describe("sanitizeUserFacingText auth rewrite (前端认证失败反馈)", () => {
+  it("rewrites OAuth refresh failure into an actionable message instead of raw 504 page", () => {
+    const msg =
+      "OAuth token refresh failed for qwen-portal: <html><head><title>504 Gateway Time-out</title></head>" +
+      "<center>alibaba-ga</center> Please try again or re-authenticate.";
+    const out = sanitizeUserFacingText(msg, { errorContext: true });
+    expect(out).toContain("认证失败");
+    expect(out).toContain("重新配置认证");
+    // 不应把原始 504 HTML 直接甩给用户
+    expect(out).not.toContain("504 Gateway Time-out");
+    expect(out).not.toContain("<html>");
+  });
+
+  it("rewrites invalid api key errors to the actionable auth hint", () => {
+    const out = sanitizeUserFacingText("invalid api key or token expired", {
+      errorContext: true,
+    });
+    expect(out).toContain("认证失败");
   });
 });

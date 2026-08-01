@@ -1,9 +1,13 @@
 import path from "node:path";
 import { resolveApiKeyForProvider } from "../agents/model-auth.js";
 import { loadConfig } from "../config/config.js";
+import { writeConfigFile } from "../config/io.js";
+import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import { resolveStateDir } from "../config/paths.js";
 import { loadJsonFile, saveJsonFile } from "../infra/json-file.js";
+import type { WizardPrompter } from "../wizard/prompts.js";
 import { updateAuthMethodChannelStatus } from "./auth-registry/index.js";
+import { applyDefaultModel } from "./provider-auth-helpers.js";
 
 /**
  * 厂商模型列表验证 + 动态同步（"拿到 key 后立即验证"）
@@ -178,11 +182,185 @@ export async function verifyProviderAndRecord(params: {
 }
 
 /**
- * 已验证模型文件（存放于 StateDir，如 ~/.openclaw/models-verified.json）。
- * 结构：{ providers: { [providerId]: string[] } } —— 纯字符串模型 id 列表。
- * 与 openclaw.json / models.json 解耦：不塞完整 ModelDefinitionConfig（避免假 cost 等兜底参数污染配置）。
- * 引擎层 provider models 必须是完整对象，故真实列表单独存，运行时按需补全对象。
+ * 交互式验证：baseUrl 验证失败时展示当前值，供用户现场修改后重试。
+ *
+ * 背景：厂商 baseUrl 硬编码在插件里，若厂商迁移/更换网关（如 Qwen sk-ws key 实际指向
+ * DashScope 而非 portal.qwen.ai），验证 404/401 会让用户一头雾水。这里把 baseUrl 暴露出来，
+ * 让 URL 变更或 key 类型不匹配时能就地维护，而不是写死在代码里。
+ *
+ * 流程（仅 baseurl 类错误触发改 URL；auth 类错误提示改 key 或保持）：
+ *   baseurl 错（404/超时/网络）→ 展示当前 baseUrl，用户可选：改 baseUrl / 保持继续 / 跳过
+ *   auth 错（401/403）        → baseUrl 对、key 无效：提示改 key 或保持
+ *   ok                        → 标 ok + 合并真实模型
+ *
+ * 无论结果如何都不抛错（让 configure 向导继续）。
  */
+export type InteractiveVerifyOutcome =
+  | { kind: "ok"; modelCount: number; modelCorrected: boolean }
+  | { kind: "skipped" }
+  | { kind: "failed"; error: "auth" | "baseurl"; status: number; detail: string };
+
+export async function verifyProviderInteractive(params: {
+  providerId: string;
+  methodId: string;
+  prompter: WizardPrompter;
+  cfg?: ReturnType<typeof loadConfig>;
+  /** 是否可让用户修改 baseUrl（默认 true） */
+  allowBaseUrlEdit?: boolean;
+}): Promise<InteractiveVerifyOutcome> {
+  const { providerId, methodId, prompter, cfg } = params;
+  const allowBaseUrlEdit = params.allowBaseUrlEdit ?? true;
+
+  const initialInputs = await readProviderVerifyInputs(providerId, cfg);
+  if (!initialInputs) {
+    await prompter.note(
+      `无法验证 ${providerId}：缺少 baseUrl 或 apiKey（未写入配置）。`,
+      "Provider verify",
+    );
+    return { kind: "skipped" };
+  }
+
+  let baseUrl = initialInputs.baseUrl;
+  let apiKey = initialInputs.apiKey;
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const spinner = prompter.progress(`Verifying ${providerId}…`);
+    const result = await verifyProviderWithModels({ baseUrl, apiKey });
+    spinner.stop(
+      result.ok ? "Verification OK." : `Verification failed (${result.status ?? result.detail}).`,
+    );
+
+    // 成功 → 标 ok + 合并真实模型
+    if (result.ok) {
+      updateAuthMethodChannelStatus({
+        methodId,
+        status: "ok",
+        success: true,
+        note: `verified via GET ${baseUrl}/models (${result.models.length} models)`,
+      });
+      await mergeVerifiedModelsIntoFile(providerId, result.models);
+
+      // 若配置里当前主模型不在真实模型列表（如插件硬编码模型名已失效 / 厂商换网关），
+      // 让用户从真实列表里挑一个纠正，避免运行时拿到不存在的模型 id。
+      const fixed = await maybeCorrectDefaultModel({
+        providerId,
+        baseUrl,
+        realModels: result.models,
+        prompter,
+        cfg,
+      });
+
+      return { kind: "ok", modelCount: result.models.length, modelCorrected: fixed };
+    }
+
+    // 认证问题（key 无效但 baseUrl 对）→ 提示改 key 或保持
+    if (result.error === "auth") {
+      updateAuthMethodChannelStatus({
+        methodId,
+        status: "suspect",
+        note: `auth failed: invalid api key (${result.detail})`,
+      });
+      const choice = await prompter.select<"change-key" | "keep">({
+        message: `baseUrl 正确但 apiKey 无效（HTTP ${result.status}）。`,
+        options: [
+          { value: "change-key", label: "重新输入 API key" },
+          { value: "keep", label: "保持现状（标记 suspect）" },
+        ],
+      });
+      if (choice === "change-key") {
+        const newKey = await prompter.text({
+          message: "Enter API key",
+          initialValue: apiKey,
+          validate: (v) => (String(v ?? "").trim() ? undefined : "Required"),
+        });
+        apiKey = String(newKey ?? "").trim();
+        continue;
+      }
+      return { kind: "failed", error: "auth", status: result.status, detail: result.detail };
+    }
+
+    // baseUrl 问题（404/5xx/超时/网络）→ 展示当前值让用户改
+    updateAuthMethodChannelStatus({
+      methodId,
+      status: "suspect",
+      note: `config error: verify baseUrl & access params (${result.detail})`,
+    });
+
+    if (!allowBaseUrlEdit) {
+      return { kind: "failed", error: "baseurl", status: result.status, detail: result.detail };
+    }
+
+    // 严重错误：5xx/网关超时/网络不可达 → 强烈提示可能是"硬编码 baseUrl 已过时"，
+    // 引导用户优先重新核实当前 baseUrl，而不是继续盲目重试。
+    const severeStatus = result.status >= 500 || result.status === 0;
+    const msg = severeStatus
+      ? `baseUrl 出现严重错误（HTTP ${result.status ?? "网络/超时"}）：${result.detail}。` +
+        `\n这通常意味着配置的 baseUrl（当前：${baseUrl}）已过时或厂商更换了网关 —— ` +
+        `请重新核实当前厂商最新的 API 端点，而不是沿用历史硬编码值。`
+      : `baseUrl 验证失败（HTTP ${result.status ?? "?"}）：${result.detail}`;
+
+    const choice = await prompter.select<"edit-url" | "retry" | "skip">({
+      message: msg,
+      options: [
+        { value: "edit-url", label: "重新核实并修改 baseUrl", hint: `当前：${baseUrl}` },
+        { value: "retry", label: "重新验证（保持当前 baseUrl）" },
+        { value: "skip", label: "跳过（标记 suspect，稍后再调）" },
+      ],
+      initialValue: severeStatus ? "edit-url" : undefined,
+    });
+
+    if (choice === "edit-url") {
+      const newUrl = (
+        await prompter.text({
+          message: "baseUrl（OpenAI 兼容端点，含 /v1；请填核实后的最新地址）",
+          initialValue: baseUrl,
+          placeholder: "https://api.example.com/v1",
+          validate: (v) => (String(v ?? "").trim() ? undefined : "Required"),
+        })
+      ).trim();
+      if (newUrl && newUrl !== baseUrl) {
+        baseUrl = newUrl;
+        // 同步写回 config，确保后续运行用到新 baseUrl
+        await persistProviderBaseUrl(providerId, baseUrl, cfg);
+      }
+      continue;
+    }
+
+    if (choice === "retry") {
+      continue;
+    }
+
+    return { kind: "failed", error: "baseurl", status: result.status, detail: result.detail };
+  }
+
+  return { kind: "skipped" };
+}
+
+/**
+ * 把修正后的 baseUrl 持久化到 openclaw.json（models.providers[providerId].baseUrl）。
+ * 若 provider 尚不存在则跳过（读取源可能来自 models.json 等其它位置）。
+ */
+async function persistProviderBaseUrl(
+  providerId: string,
+  baseUrl: string,
+  cfg?: ReturnType<typeof loadConfig>,
+): Promise<void> {
+  const config = cfg ?? loadConfig();
+  const providers = config.models?.providers;
+  if (!providers || typeof providers !== "object" || !providers[providerId]) {
+    return;
+  }
+  const existing = providers[providerId] as { baseUrl?: unknown };
+  if (existing.baseUrl === baseUrl) {
+    return;
+  }
+  try {
+    (providers[providerId] as Record<string, unknown>).baseUrl = baseUrl;
+    await writeConfigFile(config);
+  } catch {
+    // 静默：写回失败不阻断交互流程
+  }
+}
 export const MODELS_VERIFIED_FILENAME = "models-verified.json";
 
 type ModelsVerifiedFile = {
@@ -215,7 +393,7 @@ export function loadModelsVerified(): ModelsVerifiedFile {
  * 合并策略：保留已有 id，追加真实新增的（去重），不整体覆盖。
  * 静默执行：失败不中断主流程。
  */
-async function mergeVerifiedModelsIntoFile(
+export async function mergeVerifiedModelsIntoFile(
   providerId: string,
   realModelIds: string[],
 ): Promise<void> {
@@ -231,5 +409,66 @@ async function mergeVerifiedModelsIntoFile(
     saveJsonFile(resolveModelsVerifiedPath(), file);
   } catch {
     // 静默：写回失败不应影响验证主流程
+  }
+}
+
+/**
+ * 主模型与真实模型列表不一致时，让用户纠正默认模型。
+ * - 读取 agents.defaults.model.primary（如 "qwen-portal/coder-model"）
+ * - 若其 model 段不在 realModels 里（硬编码模型名失效 / 厂商换网关），从真实列表挑一个
+ * - 返回是否做了纠正
+ */
+async function maybeCorrectDefaultModel(params: {
+  providerId: string;
+  baseUrl: string;
+  realModels: string[];
+  prompter: WizardPrompter;
+  cfg?: ReturnType<typeof loadConfig>;
+}): Promise<boolean> {
+  const { providerId, realModels, prompter, cfg } = params;
+  const config = cfg ?? loadConfig();
+  const current = resolveAgentModelPrimaryValue(config.agents?.defaults?.model);
+  if (!current) {
+    return false;
+  }
+  // primary 形如 "providerId/modelId"，取 model 段比对
+  const slashIdx = current.indexOf("/");
+  const currentModelId = slashIdx === -1 ? current : current.slice(slashIdx + 1);
+  if (realModels.includes(currentModelId)) {
+    return false;
+  }
+
+  const candidates = realModels
+    .filter((id) => id.toLowerCase().includes("coder") || id.toLowerCase().includes("qwen"))
+    .slice(0, 40);
+  const pool = candidates.length > 0 ? candidates : realModels.slice(0, 40);
+
+  const choice = await prompter.select<"pick" | "keep">({
+    message: `当前默认模型 "${current}" 不在 ${providerId} 返回的真实列表里（可能模型名已变更 / 网关切换）。`,
+    options: [
+      { value: "pick", label: "从真实模型里选一个", hint: `共 ${realModels.length} 个` },
+      { value: "keep", label: "保持现状" },
+    ],
+  });
+  if (choice !== "pick") {
+    return false;
+  }
+
+  const picked = await prompter.select<string>({
+    message: "选择默认模型",
+    options: pool.map((id) => ({ value: id, label: id })),
+  });
+  if (!picked) {
+    return false;
+  }
+
+  const newPrimary = `${providerId}/${picked}`;
+  try {
+    applyDefaultModel(config, newPrimary);
+    await writeConfigFile(config);
+    await prompter.note(`默认模型已改为 ${newPrimary}`, "Default model");
+    return true;
+  } catch {
+    return false;
   }
 }

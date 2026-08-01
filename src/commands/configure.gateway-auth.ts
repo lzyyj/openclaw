@@ -17,7 +17,7 @@ import {
 } from "./model-picker.js";
 import { promptCustomApiConfig } from "./onboard-custom.js";
 import { randomToken } from "./onboard-helpers.js";
-import { verifyProviderAndRecord } from "./provider-verify.js";
+import { verifyProviderInteractive } from "./provider-verify.js";
 
 type GatewayAuthChoice = "token" | "password" | "trusted-proxy";
 
@@ -188,13 +188,15 @@ export async function promptAuthConfig(
         next = applyModelFallbacks(next, []);
       }
 
-      // 拿到 key 后，并行验证厂商配置（GET /models）：验证成功升 ok、动态取模型写回；
-      // 失败标 suspect（认证错不改配置 / baseUrl 错提示核实）。不阻塞主流程。
+      // 拿到 key 后，交互式验证厂商配置（GET /models）：成功升 ok、动态取模型写回；
+      // baseUrl 错（404/超时）会展示当前 baseUrl 供用户现场修改后重试；认证错提示改 key。
+      // 相比静默后台验证，让 baseUrl 变更/厂商换网关时能就地维护，不硬编码。
       const providerId = providerIdFromAuthChoice(authChoice);
       if (providerId) {
-        void verifyProviderAndRecord({
+        await verifyProviderInteractive({
           providerId,
           methodId: authChoice,
+          prompter,
         });
       }
     }

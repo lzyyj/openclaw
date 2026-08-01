@@ -1,7 +1,6 @@
 import path from "node:path";
 import { resolveApiKeyForProvider } from "../agents/model-auth.js";
 import { loadConfig } from "../config/config.js";
-import { writeConfigFile } from "../config/io.js";
 import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import { resolveStateDir } from "../config/paths.js";
 import { loadJsonFile, saveJsonFile } from "../infra/json-file.js";
@@ -320,8 +319,8 @@ export async function verifyProviderInteractive(params: {
       ).trim();
       if (newUrl && newUrl !== baseUrl) {
         baseUrl = newUrl;
-        // 同步写回 config，确保后续运行用到新 baseUrl
-        await persistProviderBaseUrl(providerId, baseUrl, cfg);
+        // 同步修正传入的 wizard config（外层向导最终统一保存，避免双写互相覆盖）
+        mutateProviderBaseUrl(providerId, baseUrl, cfg);
       }
       continue;
     }
@@ -337,30 +336,26 @@ export async function verifyProviderInteractive(params: {
 }
 
 /**
- * 把修正后的 baseUrl 持久化到 openclaw.json（models.providers[providerId].baseUrl）。
- * 若 provider 尚不存在则跳过（读取源可能来自 models.json 等其它位置）。
+ * 就地修正 wizard config 里 models.providers[providerId].baseUrl。
+ * 注意：这里只改内存中的 config 对象（即 promptAuthConfig 正在构建的 next 快照），
+ * 由外层向导统一保存。绝不能再单独 writeConfigFile，否则会造成"保存的模型与启动读取
+ * 不一致"（内层写入被外层旧快照覆盖回去）。
  */
-async function persistProviderBaseUrl(
+function mutateProviderBaseUrl(
   providerId: string,
   baseUrl: string,
   cfg?: ReturnType<typeof loadConfig>,
-): Promise<void> {
-  const config = cfg ?? loadConfig();
-  const providers = config.models?.providers;
+): void {
+  if (!cfg) {
+    return;
+  }
+  const providers = cfg.models?.providers;
   if (!providers || typeof providers !== "object" || !providers[providerId]) {
     return;
   }
-  const existing = providers[providerId] as { baseUrl?: unknown };
-  if (existing.baseUrl === baseUrl) {
-    return;
-  }
-  try {
-    (providers[providerId] as Record<string, unknown>).baseUrl = baseUrl;
-    await writeConfigFile(config);
-  } catch {
-    // 静默：写回失败不阻断交互流程
-  }
+  (providers[providerId] as Record<string, unknown>).baseUrl = baseUrl;
 }
+
 export const MODELS_VERIFIED_FILENAME = "models-verified.json";
 
 type ModelsVerifiedFile = {
@@ -464,8 +459,9 @@ async function maybeCorrectDefaultModel(params: {
 
   const newPrimary = `${providerId}/${picked}`;
   try {
+    // 只就地修改传入的 wizard config（promptAuthConfig 的 next 快照），
+    // 由外层向导统一保存；不单独 writeConfigFile，避免被外层旧快照覆盖。
     applyDefaultModel(config, newPrimary);
-    await writeConfigFile(config);
     await prompter.note(`默认模型已改为 ${newPrimary}`, "Default model");
     return true;
   } catch {

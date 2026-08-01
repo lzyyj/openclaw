@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import {
@@ -37,6 +38,12 @@ vi.mock("../config/io.js", async (importOriginal) => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // 清理交互验证测试可能写入的 models-verified.json，避免污染 loadModelsVerified 的"空文件"断言
+  try {
+    fs.rmSync("/tmp/openclaw-test-provider-verify/models-verified.json", { force: true });
+  } catch {
+    // ignore
+  }
 });
 
 describe("normalizeBaseUrlForPath", () => {
@@ -208,8 +215,9 @@ describe("verifyProviderInteractive", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const prompter = makePrompter({
-      select: vi.fn(async () => "edit-url"),
-      text: vi.fn(async () => "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+      select: (async () => "edit-url") as WizardPrompter["select"],
+      text: (async () =>
+        "https://dashscope.aliyuncs.com/compatible-mode/v1") as WizardPrompter["text"],
     });
 
     const outcome = await verifyProviderInteractive({
@@ -231,7 +239,7 @@ describe("verifyProviderInteractive", () => {
       vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}) }),
     );
     const prompter = makePrompter({
-      select: vi.fn(async () => "keep"),
+      select: (async () => "keep") as WizardPrompter["select"],
     });
     const outcome = await verifyProviderInteractive({
       providerId: "qwen-portal",

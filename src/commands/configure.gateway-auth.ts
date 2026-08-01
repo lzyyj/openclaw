@@ -191,12 +191,16 @@ export async function promptAuthConfig(
       // 拿到 key 后，交互式验证厂商配置（GET /models）：成功升 ok、动态取模型写回；
       // baseUrl 错（404/超时）会展示当前 baseUrl 供用户现场修改后重试；认证错提示改 key。
       // 相比静默后台验证，让 baseUrl 变更/厂商换网关时能就地维护，不硬编码。
+      // 传入 next（向导正在构建的 config 快照），验证内对 baseUrl/默认模型的修正
+      // 直接作用于此快照，由外层向导统一保存 —— 避免内层另存被外层旧快照覆盖，
+      // 导致"保存的模型与启动读取不一致"。
       const providerId = providerIdFromAuthChoice(authChoice);
       if (providerId) {
         await verifyProviderInteractive({
           providerId,
           methodId: authChoice,
           prompter,
+          cfg: next,
         });
       }
     }

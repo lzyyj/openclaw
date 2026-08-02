@@ -133,6 +133,8 @@ export const zh_CN: TranslationMap = {
     stop: "停止",
     send: "发送",
     queue: "排队",
+    interrupt: "插话",
+    interruptTitle: "插话提醒：不等当前回复结束，直接注入给 AI",
     processing: "正在处理…",
     queued: "排队中（{count}）",
     removeQueued: "移除排队消息",

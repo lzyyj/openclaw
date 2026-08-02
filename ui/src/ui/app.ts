@@ -16,6 +16,7 @@ import {
 } from "./app-channels.ts";
 import {
   handleAbortChat as handleAbortChatInternal,
+  handleInterruptChat as handleInterruptChatInternal,
   handleSendChat as handleSendChatInternal,
   removeQueuedMessage as removeQueuedMessageInternal,
 } from "./app-chat.ts";
@@ -492,6 +493,17 @@ export class OpenClawApp extends LitElement {
   ) {
     await handleSendChatInternal(
       this as unknown as Parameters<typeof handleSendChatInternal>[0],
+      messageOverride,
+      opts,
+    );
+  }
+
+  async handleInterruptChat(
+    messageOverride?: string,
+    opts?: Parameters<typeof handleInterruptChatInternal>[2],
+  ) {
+    await handleInterruptChatInternal(
+      this as unknown as Parameters<typeof handleInterruptChatInternal>[0],
       messageOverride,
       opts,
     );

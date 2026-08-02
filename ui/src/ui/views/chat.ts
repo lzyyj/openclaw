@@ -87,6 +87,8 @@ export type ChatProps = {
   onToggleFocusMode: () => void;
   onDraftChange: (next: string) => void;
   onSend: () => void;
+  /** Insert/interrupt send: inject into the running AI turn (steer) instead of queueing. */
+  onInterrupt?: () => void;
   onAbort?: () => void;
   onQueueRemove: (id: string) => void;
   onNewSession: () => void;
@@ -520,13 +522,21 @@ export function renderChat(props: ChatProps) {
                 if (e.isComposing || e.keyCode === 229) {
                   return;
                 }
-                if (e.shiftKey) {
-                  return;
-                } // Allow Shift+Enter for line breaks
                 if (!props.connected) {
                   return;
                 }
                 e.preventDefault();
+                if (e.shiftKey) {
+                  // Shift+Enter = insert/interrupt: inject into the running AI
+                  // turn (steer) instead of queueing. Falls back to normal send
+                  // when idle or no interrupt handler is wired up.
+                  if (props.onInterrupt) {
+                    props.onInterrupt();
+                  } else if (canCompose) {
+                    props.onSend();
+                  }
+                  return;
+                }
                 if (canCompose) {
                   props.onSend();
                 }
@@ -548,6 +558,18 @@ export function renderChat(props: ChatProps) {
             >
               ${canAbort ? t("chat.stop") : t("chat.newSession")}
             </button>
+            ${
+              props.onInterrupt
+                ? html`<button
+                  class="btn"
+                  title=${t("chat.interruptTitle")}
+                  ?disabled=${!props.connected || !props.draft.trim()}
+                  @click=${props.onInterrupt}
+                >
+                  ${t("chat.interrupt")}<kbd class="btn-kbd">⇧↵</kbd>
+                </button>`
+                : ""
+            }
             <button
               class="btn primary"
               ?disabled=${!props.connected}

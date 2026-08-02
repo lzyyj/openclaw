@@ -134,6 +134,8 @@ export const en: TranslationMap = {
     stop: "Stop",
     send: "Send",
     queue: "Queue",
+    interrupt: "Interrupt",
+    interruptTitle: "Interrupt: inject into the running AI turn instead of queueing",
     processing: "Processing…",
     queued: "Queued ({count})",
     removeQueued: "Remove queued message",

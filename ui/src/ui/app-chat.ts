@@ -102,6 +102,8 @@ async function sendChatMessageNow(
     previousAttachments?: ChatAttachment[];
     restoreAttachments?: boolean;
     refreshSessions?: boolean;
+    /** Force a specific queue mode (e.g. "steer" for insert/interrupt). */
+    forceQueueMode?: string;
   },
 ) {
   resetToolStream(host as unknown as Parameters<typeof resetToolStream>[0]);
@@ -109,7 +111,7 @@ async function sendChatMessageNow(
     host as unknown as OpenClawApp,
     message,
     opts?.attachments,
-    host.chatQueueMode || undefined,
+    opts?.forceQueueMode ?? (host.chatQueueMode || undefined),
   );
   const ok = Boolean(runId);
   if (!ok && opts?.previousDraft != null) {
@@ -205,6 +207,49 @@ export async function handleSendChat(
     previousAttachments: messageOverride == null ? attachments : undefined,
     restoreAttachments: Boolean(messageOverride && opts?.restoreDraft),
     refreshSessions,
+  });
+}
+
+/**
+ * "Insert / interrupt" send: immediately inject the message into the currently
+ * running AI turn (steer) instead of queueing it until the turn finishes.
+ * This lets the user remind/correct the AI mid-output without waiting.
+ * If no run is active, it just sends normally.
+ */
+export async function handleInterruptChat(
+  host: ChatHost,
+  messageOverride?: string,
+  opts?: { restoreDraft?: boolean },
+) {
+  if (!host.connected) {
+    return;
+  }
+  const previousDraft = host.chatMessage;
+  const message = (messageOverride ?? host.chatMessage).trim();
+  const attachments = host.chatAttachments ?? [];
+  const attachmentsToSend = messageOverride == null ? attachments : [];
+  const hasAttachments = attachmentsToSend.length > 0;
+
+  if (!message && !hasAttachments) {
+    return;
+  }
+  if (isChatStopCommand(message)) {
+    await handleAbortChat(host);
+    return;
+  }
+  if (messageOverride == null) {
+    host.chatMessage = "";
+    host.chatAttachments = [];
+  }
+  // Force steer so the message is injected into the active run (or sent directly
+  // when idle) instead of being queued behind the current turn.
+  await sendChatMessageNow(host, message, {
+    previousDraft: messageOverride == null ? previousDraft : undefined,
+    restoreDraft: Boolean(messageOverride && opts?.restoreDraft),
+    attachments: hasAttachments ? attachmentsToSend : undefined,
+    previousAttachments: messageOverride == null ? attachments : undefined,
+    restoreAttachments: Boolean(messageOverride && opts?.restoreDraft),
+    forceQueueMode: "steer",
   });
 }
 

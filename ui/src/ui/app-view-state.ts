@@ -75,6 +75,8 @@ export type AppViewState = {
   chatAvatarUrl: string | null;
   chatThinkingLevel: string | null;
   chatQueue: ChatQueueItem[];
+  /** Per-message queue mode override (webchat UI selector). Empty = system default. */
+  chatQueueMode: string;
   chatManualRefreshInFlight: boolean;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;

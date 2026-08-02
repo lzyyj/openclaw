@@ -111,6 +111,7 @@ export async function sendChatMessage(
   state: ChatState,
   message: string,
   attachments?: ChatAttachment[],
+  queueMode?: string,
 ): Promise<string | null> {
   if (!state.client || !state.connected) {
     return null;
@@ -178,6 +179,7 @@ export async function sendChatMessage(
       deliver: false,
       idempotencyKey: runId,
       attachments: apiAttachments,
+      ...(queueMode ? { queueMode } : {}),
     });
     return runId;
   } catch (err) {

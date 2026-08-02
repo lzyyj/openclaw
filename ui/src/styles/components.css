@@ -2069,6 +2069,34 @@
   align-self: end;
 }
 
+.chat-compose__mode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-compose__mode-label {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chat-compose__mode-select {
+  font-size: var(--font-sm);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--input);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  max-width: 180px;
+}
+
+.chat-compose__mode-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 @media (max-width: 900px) {
   .chat-session {
     min-width: 180px;

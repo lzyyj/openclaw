@@ -40,6 +40,15 @@ export const ChatSendParamsSchema = Type.Object(
     attachments: Type.Optional(Type.Array(Type.Unknown())),
     timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
     idempotencyKey: NonEmptyString,
+    queueMode: Type.Optional(
+      Type.Union([
+        Type.Literal("steer"),
+        Type.Literal("interrupt"),
+        Type.Literal("followup"),
+        Type.Literal("collect"),
+        Type.Literal("steer-backlog"),
+      ]),
+    ),
   },
   { additionalProperties: false },
 );

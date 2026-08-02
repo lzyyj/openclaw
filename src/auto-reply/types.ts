@@ -53,6 +53,9 @@ export type GetReplyOptions = {
   hasRepliedRef?: { value: boolean };
   /** Override agent timeout in seconds (0 = no timeout). Threads through to resolveAgentTimeoutMs. */
   timeoutOverrideSeconds?: number;
+  /** Per-message queue mode override (e.g. from webchat UI). Injected as an
+   * inline queue mode for this message only, without changing the session default. */
+  queueMode?: import("./reply/queue/types.js").QueueMode;
 };
 
 export type ReplyPayload = {

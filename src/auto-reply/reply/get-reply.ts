@@ -351,7 +351,7 @@ export async function getReplyFromConfig(
     modelState,
     provider,
     model,
-    perMessageQueueMode,
+    perMessageQueueMode: perMessageQueueMode ?? resolvedOpts?.queueMode,
     perMessageQueueOptions,
     typing,
     opts: resolvedOpts,

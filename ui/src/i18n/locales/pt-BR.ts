@@ -123,6 +123,7 @@ export const pt_BR: TranslationMap = {
     stop: "Parar",
     send: "Enviar",
     queue: "Fila",
+    processing: "Processando…",
     queued: "Na fila ({count})",
     removeQueued: "Remover mensagem da fila",
     newMessages: "Novas mensagens",

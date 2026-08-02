@@ -261,7 +261,11 @@ function renderAttachmentPreview(props: ChatProps) {
 
 export function renderChat(props: ChatProps) {
   const canCompose = props.connected;
-  const isBusy = props.sending || props.stream !== null;
+  // "Busy" means the agent has an active (backend) run: either mid-stream
+  // (stream), still dispatching (sending), or processing with no text output
+  // yet (canAbort/chatRunId, e.g. during long tool calls). Including canAbort
+  // here is what keeps the UI marked as busy while tools run without streaming.
+  const isBusy = props.sending || props.stream !== null || Boolean(props.canAbort);
   const canAbort = Boolean(props.canAbort && props.onAbort);
   const activeSession = props.sessions?.sessions?.find((row) => row.key === props.sessionKey);
   const reasoningLevel = activeSession?.reasoningLevel ?? "off";
@@ -301,6 +305,16 @@ export function renderChat(props: ChatProps) {
         props.loading
           ? html`
               <div class="muted">${t("chat.loadingChat")}</div>
+            `
+          : nothing
+      }
+      ${
+        isBusy && !props.stream
+          ? html`
+              <div class="chat-busy-indicator" role="status" aria-live="polite">
+                <span class="chat-busy-indicator__dot" aria-hidden="true"></span>
+                <span>${t("chat.processing")}</span>
+              </div>
             `
           : nothing
       }

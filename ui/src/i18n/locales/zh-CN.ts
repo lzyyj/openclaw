@@ -133,6 +133,7 @@ export const zh_CN: TranslationMap = {
     stop: "停止",
     send: "发送",
     queue: "排队",
+    processing: "正在处理…",
     queued: "排队中（{count}）",
     removeQueued: "移除排队消息",
     newMessages: "新消息",

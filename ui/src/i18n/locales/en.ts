@@ -134,6 +134,7 @@ export const en: TranslationMap = {
     stop: "Stop",
     send: "Send",
     queue: "Queue",
+    processing: "Processing…",
     queued: "Queued ({count})",
     removeQueued: "Remove queued message",
     newMessages: "New messages",

@@ -120,6 +120,7 @@ export const zh_TW: TranslationMap = {
     stop: "停止",
     send: "發送",
     queue: "排隊",
+    processing: "處理中…",
     queued: "排隊中（{count}）",
     removeQueued: "移除排隊訊息",
     newMessages: "新訊息",

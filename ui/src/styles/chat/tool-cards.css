@@ -207,14 +207,20 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--muted);
+  color: var(--accent, #4f8cff);
   font-size: 13px;
-  padding: 8px 0;
+  font-weight: 600;
+  padding: 6px 12px;
+  margin: 4px 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #4f8cff) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #4f8cff) 35%, transparent);
+  width: fit-content;
 }
 
 .chat-busy-indicator__dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--accent, #4f8cff);
   flex-shrink: 0;
@@ -224,11 +230,11 @@
 @keyframes busy-pulse {
   0%,
   100% {
-    opacity: 0.35;
-    transform: scale(0.85);
+    opacity: 0.3;
+    transform: scale(0.8);
   }
   50% {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(1.15);
   }
 }

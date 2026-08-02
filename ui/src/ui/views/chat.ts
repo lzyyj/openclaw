@@ -308,16 +308,6 @@ export function renderChat(props: ChatProps) {
             `
           : nothing
       }
-      ${
-        isBusy && !props.stream
-          ? html`
-              <div class="chat-busy-indicator" role="status" aria-live="polite">
-                <span class="chat-busy-indicator__dot" aria-hidden="true"></span>
-                <span>${t("chat.processing")}</span>
-              </div>
-            `
-          : nothing
-      }
       ${repeat(
         chatItems,
         (item) => item.key,
@@ -466,6 +456,17 @@ export function renderChat(props: ChatProps) {
 
       ${renderFallbackIndicator(props.fallbackStatus)}
       ${renderCompactionIndicator(props.compactionStatus)}
+
+      ${
+        isBusy
+          ? html`
+              <div class="chat-busy-indicator" role="status" aria-live="polite">
+                <span class="chat-busy-indicator__dot" aria-hidden="true"></span>
+                <span>${t("chat.processing")}</span>
+              </div>
+            `
+          : nothing
+      }
 
       ${
         props.showNewMessages

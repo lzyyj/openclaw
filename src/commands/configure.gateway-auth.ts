@@ -135,12 +135,17 @@ export async function promptAuthConfig(
     });
     next = applied.config;
   } else {
+    // "Skip" = keep existing auth. Default the model picker to the currently
+    // configured provider (when present) so it follows the existing config
+    // instead of resetting to "All providers" / the hardcoded default.
+    const currentProvider = existingModel?.split("/")[0]?.trim();
     const modelSelection = await promptDefaultModel({
       config: next,
       prompter,
       allowKeep: true,
       ignoreAllowlist: true,
-      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
+      preferredProvider:
+        resolvePreferredProviderForAuthChoice(authChoice) ?? (currentProvider || undefined),
     });
     if (modelSelection.config) {
       next = modelSelection.config;

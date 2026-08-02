@@ -1008,8 +1008,6 @@ export function renderApp(state: AppViewState) {
                 streamStartedAt: state.chatStreamStartedAt,
                 draft: state.chatMessage,
                 queue: state.chatQueue,
-                queueMode: state.chatQueueMode,
-                onQueueModeChange: (mode) => (state.chatQueueMode = mode),
                 connected: state.connected,
                 canSend: state.connected,
                 disabledReason: chatDisabledReason,

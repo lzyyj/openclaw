@@ -15,7 +15,6 @@ export type ChatHost = {
   chatMessage: string;
   chatAttachments: ChatAttachment[];
   chatQueue: ChatQueueItem[];
-  chatQueueMode: string;
   chatRunId: string | null;
   chatSending: boolean;
   sessionKey: string;
@@ -111,7 +110,7 @@ async function sendChatMessageNow(
     host as unknown as OpenClawApp,
     message,
     opts?.attachments,
-    opts?.forceQueueMode ?? (host.chatQueueMode || undefined),
+    opts?.forceQueueMode,
   );
   const ok = Boolean(runId);
   if (!ok && opts?.previousDraft != null) {

@@ -55,9 +55,6 @@ export type ChatProps = {
   assistantAvatarUrl?: string | null;
   draft: string;
   queue: ChatQueueItem[];
-  /** Selected per-message busy/queue mode ("" = follow default). */
-  queueMode?: string;
-  onQueueModeChange?: (mode: string) => void;
   connected: boolean;
   canSend: boolean;
   disabledReason: string | null;
@@ -504,24 +501,6 @@ export function renderChat(props: ChatProps) {
 
       <div class="chat-compose">
         ${renderAttachmentPreview(props)}
-        <div class="chat-compose__mode-row">
-          <label class="chat-compose__mode-label" for="chat-queue-mode">${t("chat.queueModeLabel")}</label>
-          <select
-            id="chat-queue-mode"
-            class="chat-compose__mode-select"
-            .value=${props.queueMode ?? ""}
-            @change=${(e: Event) => {
-              const mode = (e.target as HTMLSelectElement).value;
-              props.onQueueModeChange?.(mode);
-            }}
-          >
-            <option value="">${t("chat.queueModes.default")}</option>
-            <option value="steer">${t("chat.queueModes.steer")}</option>
-            <option value="interrupt">${t("chat.queueModes.interrupt")}</option>
-            <option value="followup">${t("chat.queueModes.followup")}</option>
-            <option value="collect">${t("chat.queueModes.collect")}</option>
-          </select>
-        </div>
         <div class="chat-compose__row">
           <label class="field chat-compose__field">
             <span>${t("chat.messageLabel")}</span>
@@ -574,7 +553,7 @@ export function renderChat(props: ChatProps) {
               ${canAbort ? t("chat.stop") : t("chat.newSession")}
             </button>
             ${
-              props.onInterrupt
+              isBusy && props.onInterrupt
                 ? html`<button
                   class="btn"
                   title=${t("chat.interruptTitle")}

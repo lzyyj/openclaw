@@ -1038,6 +1038,7 @@ export function renderApp(state: AppViewState) {
                 canAbort: Boolean(state.chatRunId),
                 onAbort: () => void state.handleAbortChat(),
                 onQueueRemove: (id) => state.removeQueuedMessage(id),
+                onQueueInterrupt: (id) => state.handleQueueInterrupt(id),
                 onNewSession: () => state.handleSendChat("/new", { restoreDraft: true }),
                 showNewMessages: state.chatNewMessagesBelow && !state.chatManualRefreshInFlight,
                 onScrollToBottom: () => state.scrollToBottom(),

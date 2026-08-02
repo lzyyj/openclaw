@@ -1660,7 +1660,7 @@
 
 .chat-queue__item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: start;
   gap: 12px;
   padding: 10px 12px;
@@ -1681,11 +1681,17 @@
   -webkit-box-orient: vertical;
 }
 
-.chat-queue__remove {
+.chat-queue__remove,
+.chat-queue__interrupt {
   align-self: start;
   padding: 4px 10px;
   font-size: 12px;
   line-height: 1;
+}
+
+.chat-queue__interrupt {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* New messages indicator */

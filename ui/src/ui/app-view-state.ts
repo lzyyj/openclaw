@@ -318,6 +318,7 @@ export type AppViewState = {
     messageOverride?: string,
     opts?: { restoreDraft?: boolean },
   ) => Promise<void>;
+  handleQueueInterrupt: (id: string) => Promise<void>;
   handleAbortChat: () => Promise<void>;
   removeQueuedMessage: (id: string) => void;
   handleChatScroll: (event: Event) => void;

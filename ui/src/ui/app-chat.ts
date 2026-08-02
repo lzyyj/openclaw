@@ -164,6 +164,23 @@ export function removeQueuedMessage(host: ChatHost, id: string) {
   host.chatQueue = host.chatQueue.filter((item) => item.id !== id);
 }
 
+/**
+ * Convert a queued message into an immediate interrupt (steer): pull it out of
+ * the queue and inject it into the running AI turn right away. Lets the user
+ * rescue a message that was mistakenly queued.
+ */
+export async function handleQueueInterrupt(host: ChatHost, id: string) {
+  const item = host.chatQueue.find((entry) => entry.id === id);
+  if (!item) {
+    return;
+  }
+  host.chatQueue = host.chatQueue.filter((entry) => entry.id !== id);
+  await sendChatMessageNow(host, item.text, {
+    attachments: item.attachments,
+    forceQueueMode: "steer",
+  });
+}
+
 export async function handleSendChat(
   host: ChatHost,
   messageOverride?: string,

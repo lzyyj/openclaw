@@ -91,6 +91,8 @@ export type ChatProps = {
   onInterrupt?: () => void;
   onAbort?: () => void;
   onQueueRemove: (id: string) => void;
+  /** Convert a queued message into an immediate interrupt (steer). */
+  onQueueInterrupt?: (id: string) => void;
   onNewSession: () => void;
   onOpenSidebar?: (content: string) => void;
   onCloseSidebar?: () => void;
@@ -442,6 +444,19 @@ export function renderChat(props: ChatProps) {
                             : "")
                         }
                       </div>
+                      ${
+                        props.onQueueInterrupt
+                          ? html`<button
+                              class="btn chat-queue__interrupt"
+                              type="button"
+                              aria-label=${t("chat.interruptTitle")}
+                              title=${t("chat.interruptTitle")}
+                              @click=${() => props.onQueueInterrupt?.(item.id)}
+                            >
+                              ${t("chat.interrupt")}
+                            </button>`
+                          : ""
+                      }
                       <button
                         class="btn chat-queue__remove"
                         type="button"

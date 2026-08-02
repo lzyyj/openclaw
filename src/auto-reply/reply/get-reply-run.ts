@@ -41,6 +41,7 @@ import { buildGroupChatContext, buildGroupIntro } from "./groups.js";
 import { buildInboundMetaSystemPrompt, buildInboundUserContextPrefix } from "./inbound-meta.js";
 import type { createModelSelectionState } from "./model-selection.js";
 import { resolveQueueSettings } from "./queue.js";
+import { inferQueueModeFromMessage } from "./queue/infer.js";
 import { routeReply } from "./route-reply.js";
 import { BARE_SESSION_RESET_PROMPT } from "./session-reset-prompt.js";
 import { ensureSkillSnapshot, prependSystemEvents } from "./session-updates.js";
@@ -411,11 +412,16 @@ export async function runPreparedReply(
   const queuedBody = mediaNote
     ? [mediaNote, mediaReplyHint, queueBodyBase].filter(Boolean).join("\n").trim()
     : queueBodyBase;
+  // When the user hasn't explicitly chosen a mode (no UI selector, no /queue
+  // directive), infer a sensible one from the message text so busy handling is
+  // more human-like (urgent → interrupt, short correction → steer, else default).
+  const inferredQueueMode =
+    perMessageQueueMode === undefined ? inferQueueModeFromMessage(effectiveBaseBody) : undefined;
   const resolvedQueue = resolveQueueSettings({
     cfg,
     channel: sessionCtx.Provider,
     sessionEntry,
-    inlineMode: perMessageQueueMode,
+    inlineMode: perMessageQueueMode ?? inferredQueueMode,
     inlineOptions: perMessageQueueOptions,
   });
   const sessionLaneKey = resolveEmbeddedSessionLane(sessionKey ?? sessionIdFinal);

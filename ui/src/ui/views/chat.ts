@@ -560,14 +560,24 @@ export function renderChat(props: ChatProps) {
                 }
                 e.preventDefault();
                 if (e.shiftKey) {
-                  // Shift+Enter = insert/interrupt: inject into the running AI
-                  // turn (steer) instead of queueing. Falls back to normal send
-                  // when idle or no interrupt handler is wired up.
-                  if (props.onInterrupt) {
-                    props.onInterrupt();
-                  } else if (canCompose) {
-                    props.onSend();
+                  // Shift+Enter = newline (do not send).
+                  if (props.draft != null) {
+                    const el = e.target as HTMLTextAreaElement;
+                    const start = el.selectionStart ?? props.draft.length;
+                    const end = el.selectionEnd ?? props.draft.length;
+                    const next = props.draft.slice(0, start) + "\n" + props.draft.slice(end);
+                    props.onDraftChange(next);
+                    requestAnimationFrame(() => {
+                      el.selectionStart = el.selectionEnd = start + 1;
+                      adjustTextareaHeight(el);
+                    });
                   }
+                  return;
+                }
+                if (e.altKey && props.onInterrupt) {
+                  // Alt+Enter = insert/interrupt: inject into the running AI turn
+                  // (steer) instead of queueing.
+                  props.onInterrupt();
                   return;
                 }
                 if (canCompose) {
@@ -599,7 +609,7 @@ export function renderChat(props: ChatProps) {
                   ?disabled=${!props.connected || !props.draft.trim()}
                   @click=${props.onInterrupt}
                 >
-                  ${t("chat.interrupt")}<kbd class="btn-kbd">⇧↵</kbd>
+                  ${t("chat.interrupt")}<kbd class="btn-kbd">Alt+↵</kbd>
                 </button>`
                 : ""
             }

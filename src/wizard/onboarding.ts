@@ -19,6 +19,31 @@ import { resolveUserPath } from "../utils.js";
 import type { QuickstartGatewayDefaults, WizardFlow } from "./onboarding.types.js";
 import { WizardCancelledError, type WizardPrompter } from "./prompts.js";
 
+/**
+ * 从 authChoice 推导规范 provider id（用于验证）。
+ * - "deepseek-api-key"         -> "deepseek"
+ * - "openrouter-api-key"       -> "openrouter"
+ * - "kimi-code-api-key"        -> "kimi-coding"（特殊映射）
+ * - "ai-gateway-api-key"       -> "vercel-ai-gateway"（特殊映射）
+ * 无法可靠推导（custom-api-key / OAuth 等）返回 undefined（跳过验证）。
+ */
+function resolveAuthChoiceProviderId(authChoice: string): string | undefined {
+  if (!authChoice || authChoice === "custom-api-key") {
+    return undefined;
+  }
+  if (authChoice.endsWith("-api-key")) {
+    return authChoice.slice(0, -"-api-key".length);
+  }
+  const special: Record<string, string> = {
+    "ai-gateway-api-key": "vercel-ai-gateway",
+    "kimi-code-api-key": "kimi-coding",
+  };
+  if (special[authChoice]) {
+    return special[authChoice];
+  }
+  return undefined;
+}
+
 async function requireRiskAcknowledgement(params: {
   opts: OnboardOptions;
   prompter: WizardPrompter;
@@ -28,33 +53,37 @@ async function requireRiskAcknowledgement(params: {
   }
 
   const riskBodyEn = [
-      "Security warning — please read.",
-      "",
-      "OpenClaw is a hobby project and still in beta. Expect sharp edges.",
-      "This bot can read files and run actions if tools are enabled.",
-      "A bad prompt can trick it into doing unsafe things.",
-      "",
-      "If you’re not comfortable with basic security and access control, don’t run OpenClaw.",
-      "Ask someone experienced to help before enabling tools or exposing it to the internet.",
-      "",
-      "Recommended baseline:",
-      "- Pairing/allowlists + mention gating.",
-      "- Sandbox + least-privilege tools.",
-      "- Keep secrets out of the agent’s reachable filesystem.",
-      "- Use the strongest available model for any bot with tools or untrusted inboxes.",
-      "",
-      "Run regularly:",
-      "openclaw security audit --deep",
-      "openclaw security audit --fix",
-      "",
-      "Must read: https://docs.openclaw.ai/gateway/security",
+    "Security warning — please read.",
+    "",
+    "OpenClaw is a hobby project and still in beta. Expect sharp edges.",
+    "This bot can read files and run actions if tools are enabled.",
+    "A bad prompt can trick it into doing unsafe things.",
+    "",
+    "If you’re not comfortable with basic security and access control, don’t run OpenClaw.",
+    "Ask someone experienced to help before enabling tools or exposing it to the internet.",
+    "",
+    "Recommended baseline:",
+    "- Pairing/allowlists + mention gating.",
+    "- Sandbox + least-privilege tools.",
+    "- Keep secrets out of the agent’s reachable filesystem.",
+    "- Use the strongest available model for any bot with tools or untrusted inboxes.",
+    "",
+    "Run regularly:",
+    "openclaw security audit --deep",
+    "openclaw security audit --fix",
+    "",
+    "Must read: https://docs.openclaw.ai/gateway/security",
   ].join("\n");
-  await params.prompter.note(getText("onboarding.risk.body", riskBodyEn),
+  await params.prompter.note(
+    getText("onboarding.risk.body", riskBodyEn),
     getText("onboarding.risk.title", "Security"),
   );
 
   const ok = await params.prompter.confirm({
-    message: getText("onboarding.risk.continue", "I understand this is powerful and inherently risky. Continue?"),
+    message: getText(
+      "onboarding.risk.continue",
+      "I understand this is powerful and inherently risky. Continue?",
+    ),
     initialValue: false,
   });
   if (!ok) {
@@ -91,19 +120,30 @@ export async function runOnboardingWizard(
       );
     }
     await prompter.outro(
-      getText("onboarding.config.outro", "Config invalid. Run `{command}` to repair it, then re-run onboarding.", {
-        command: formatCliCommand("openclaw doctor"),
-      }),
+      getText(
+        "onboarding.config.outro",
+        "Config invalid. Run `{command}` to repair it, then re-run onboarding.",
+        {
+          command: formatCliCommand("openclaw doctor"),
+        },
+      ),
     );
     runtime.exit(1);
     return;
   }
 
   const configureCmd = formatCliCommand("openclaw configure");
-  const quickstartHint = getText("onboarding.flow.quickstart.hint", `Configure details later via ${configureCmd}.`, {
-    command: configureCmd,
-  });
-  const manualHint = getText("onboarding.flow.manual.hint", "Configure port, network, Tailscale, and auth options.");
+  const quickstartHint = getText(
+    "onboarding.flow.quickstart.hint",
+    `Configure details later via ${configureCmd}.`,
+    {
+      command: configureCmd,
+    },
+  );
+  const manualHint = getText(
+    "onboarding.flow.manual.hint",
+    "Configure port, network, Tailscale, and auth options.",
+  );
   const explicitFlowRaw = opts.flow?.trim();
   const normalizedExplicitFlow = explicitFlowRaw === "manual" ? "advanced" : explicitFlowRaw;
   if (
@@ -111,7 +151,9 @@ export async function runOnboardingWizard(
     normalizedExplicitFlow !== "quickstart" &&
     normalizedExplicitFlow !== "advanced"
   ) {
-    runtime.error(getText("onboarding.flow.invalid", "Invalid --flow (use quickstart, manual, or advanced)."));
+    runtime.error(
+      getText("onboarding.flow.invalid", "Invalid --flow (use quickstart, manual, or advanced)."),
+    );
     runtime.exit(1);
     return;
   }
@@ -124,7 +166,11 @@ export async function runOnboardingWizard(
     (await prompter.select({
       message: getText("onboarding.flow.message", "Onboarding mode"),
       options: [
-        { value: "quickstart", label: getText("onboarding.flow.quickstart", "QuickStart"), hint: quickstartHint },
+        {
+          value: "quickstart",
+          label: getText("onboarding.flow.quickstart", "QuickStart"),
+          hint: quickstartHint,
+        },
         { value: "advanced", label: getText("onboarding.flow.manual", "Manual"), hint: manualHint },
       ],
       initialValue: "quickstart",
@@ -132,7 +178,10 @@ export async function runOnboardingWizard(
 
   if (opts.mode === "remote" && flow === "quickstart") {
     await prompter.note(
-      getText("onboarding.quickstart.remote_switch", "QuickStart only supports local gateways. Switching to Manual mode."),
+      getText(
+        "onboarding.quickstart.remote_switch",
+        "QuickStart only supports local gateways. Switching to Manual mode.",
+      ),
       getText("onboarding.flow.quickstart", "QuickStart"),
     );
     flow = "advanced";
@@ -162,11 +211,17 @@ export async function runOnboardingWizard(
           { value: "config", label: getText("onboarding.reset_scope.config", "Config only") },
           {
             value: "config+creds+sessions",
-            label: getText("onboarding.reset_scope.config_creds_sessions", "Config + creds + sessions"),
+            label: getText(
+              "onboarding.reset_scope.config_creds_sessions",
+              "Config + creds + sessions",
+            ),
           },
           {
             value: "full",
-            label: getText("onboarding.reset_scope.full", "Full reset (config + creds + sessions + workspace)"),
+            label: getText(
+              "onboarding.reset_scope.full",
+              "Full reset (config + creds + sessions + workspace)",
+            ),
           },
         ],
       })) as ResetScope;
@@ -263,7 +318,9 @@ export async function runOnboardingWizard(
           `${getText("onboarding.quickstart.gateway_port", "Gateway port")}: ${quickstartGateway.port}`,
           `${getText("onboarding.quickstart.gateway_bind", "Gateway bind")}: ${formatBind(quickstartGateway.bind)}`,
           ...(quickstartGateway.bind === "custom" && quickstartGateway.customBindHost
-            ? [`${getText("onboarding.quickstart.gateway_custom_ip", "Gateway custom IP")}: ${quickstartGateway.customBindHost}`]
+            ? [
+                `${getText("onboarding.quickstart.gateway_custom_ip", "Gateway custom IP")}: ${quickstartGateway.customBindHost}`,
+              ]
             : []),
           `${getText("onboarding.quickstart.gateway_auth", "Gateway auth")}: ${formatAuth(quickstartGateway.authMode)}`,
           `${getText("onboarding.quickstart.tailscale_exposure", "Tailscale exposure")}: ${formatTailscale(quickstartGateway.tailscaleMode)}`,
@@ -276,7 +333,10 @@ export async function runOnboardingWizard(
           `${getText("onboarding.quickstart.tailscale_exposure", "Tailscale exposure")}: ${getText("onboarding.quickstart.tailscale.off", "Off")}`,
           getText("onboarding.quickstart.direct_channels", "Direct to chat channels."),
         ];
-    await prompter.note(quickstartLines.join("\n"), getText("onboarding.flow.quickstart", "QuickStart"));
+    await prompter.note(
+      quickstartLines.join("\n"),
+      getText("onboarding.flow.quickstart", "QuickStart"),
+    );
   }
 
   const localPort = resolveGatewayPort(baseConfig);
@@ -305,8 +365,12 @@ export async function runOnboardingWizard(
               value: "local",
               label: getText("onboarding.mode.local", "Local gateway (this machine)"),
               hint: localProbe.ok
-                ? getText("onboarding.mode.gateway_reachable", "Gateway reachable ({url})", { url: localUrl })
-                : getText("onboarding.mode.no_gateway", "No gateway detected ({url})", { url: localUrl }),
+                ? getText("onboarding.mode.gateway_reachable", "Gateway reachable ({url})", {
+                    url: localUrl,
+                  })
+                : getText("onboarding.mode.no_gateway", "No gateway detected ({url})", {
+                    url: localUrl,
+                  }),
             },
             {
               value: "remote",
@@ -314,8 +378,14 @@ export async function runOnboardingWizard(
               hint: !remoteUrl
                 ? getText("onboarding.mode.no_remote_url", "No remote URL configured yet")
                 : remoteProbe?.ok
-                  ? getText("onboarding.mode.remote_reachable", "Gateway reachable ({url})", { url: remoteUrl })
-                  : getText("onboarding.mode.remote_unreachable", "Configured but unreachable ({url})", { url: remoteUrl }),
+                  ? getText("onboarding.mode.remote_reachable", "Gateway reachable ({url})", {
+                      url: remoteUrl,
+                    })
+                  : getText(
+                      "onboarding.mode.remote_unreachable",
+                      "Configured but unreachable ({url})",
+                      { url: remoteUrl },
+                    ),
             },
           ],
         })) as OnboardMode));
@@ -327,7 +397,9 @@ export async function runOnboardingWizard(
     nextConfig = onboardHelpers.applyWizardMetadata(nextConfig, { command: "onboard", mode });
     await writeConfigFile(nextConfig);
     logConfigUpdated(runtime);
-    await prompter.outro(getText("onboarding.mode.remote_configured", "Remote gateway configured."));
+    await prompter.outro(
+      getText("onboarding.mode.remote_configured", "Remote gateway configured."),
+    );
     return;
   }
 
@@ -384,6 +456,25 @@ export async function runOnboardingWizard(
       },
     });
     nextConfig = authResult.config;
+
+    // 拿到 key 且 provider 已配置（含 baseUrl）后，交互式验证 + 拉取真实模型：
+    // 发起 GET {baseUrl}/models 验证 key 有效性，并把真实模型合并进 models.json，
+    // 让随后的模型选择列表能显示厂商当前真实支持的模型（而非硬编码旧别名）。
+    // 失败不抛错（verifyProviderInteractive 内部处理重输 key/改 baseUrl/跳过），向导继续。
+    const verifyProviderId = resolveAuthChoiceProviderId(authChoice);
+    if (verifyProviderId) {
+      try {
+        const { verifyProviderInteractive } = await import("../commands/provider-verify.js");
+        await verifyProviderInteractive({
+          providerId: verifyProviderId,
+          methodId: authChoice,
+          prompter,
+          cfg: nextConfig,
+        });
+      } catch {
+        // 验证意外失败（网络异常等）不阻断 onbaord 向导
+      }
+    }
   }
 
   if (authChoiceFromPrompt && authChoice !== "custom-api-key") {
@@ -419,7 +510,10 @@ export async function runOnboardingWizard(
   const settings = gateway.settings;
 
   if (opts.skipChannels ?? opts.skipProviders) {
-    await prompter.note(getText("onboarding.skip.channels.body", "Skipping channel setup."), getText("onboarding.skip.channels.title", "Channels"));
+    await prompter.note(
+      getText("onboarding.skip.channels.body", "Skipping channel setup."),
+      getText("onboarding.skip.channels.title", "Channels"),
+    );
   } else {
     const { listChannelPlugins } = await import("../channels/plugins/index.js");
     const { setupChannels } = await import("../commands/onboard-channels.js");
@@ -446,7 +540,10 @@ export async function runOnboardingWizard(
   });
 
   if (opts.skipSkills) {
-    await prompter.note(getText("onboarding.skip.skills.body", "Skipping skills setup."), getText("onboarding.skip.skills.title", "Skills"));
+    await prompter.note(
+      getText("onboarding.skip.skills.body", "Skipping skills setup."),
+      getText("onboarding.skip.skills.title", "Skills"),
+    );
   } else {
     const { setupSkills } = await import("../commands/onboard-skills.js");
     nextConfig = await setupSkills(nextConfig, workspaceDir, runtime, prompter);

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { resolveOpenClawAgentDir } from "../agents/agent-paths.js";
 import { resolveApiKeyForProvider } from "../agents/model-auth.js";
 import { loadConfig } from "../config/config.js";
 import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
@@ -384,27 +385,77 @@ export function loadModelsVerified(): ModelsVerifiedFile {
 }
 
 /**
- * 把 GET /models 拿到的真实模型 id（纯字符串列表）合并进独立文件 models-verified.json。
- * 合并策略：保留已有 id，追加真实新增的（去重），不整体覆盖。
- * 静默执行：失败不中断主流程。
+ * 把 GET /models 拿到的真实模型 id（纯字符串列表）合并进本地 models.json
+ * （agentDir/models.json，runner 注册表 + webUI 模型目录的共同数据源）。
+ *
+ * 目的（方案 A）：让"动态取模型"真正生效——verify 拉到的真实模型（如
+ * deepseek-v4-pro）写入 models.json 后，loadModelCatalog 即可读到，onboard /
+ * models list 的可用模型列表随之更新，脱离硬编码 seed 的旧别名。
+ *
+ * 合并策略：
+ * - 保留 models.json 该 provider 已有条目，只为**新增**的 id 追加基础条目
+ *   （id/name/reasoning/input），不整体覆盖，避免误删用户显式配置。
+ * - 同时保留 models-verified.json 作为"已验证模型"记录（向后兼容）。
+ * - 静默执行：写回失败不中断验证主流程。
  */
 export async function mergeVerifiedModelsIntoFile(
   providerId: string,
   realModelIds: string[],
 ): Promise<void> {
   try {
+    // 1) 保留已验证模型记录文件（向后兼容 / 审计）。
     const file = loadModelsVerified();
     const existing = file.providers[providerId] ?? [];
     const seen = new Set(existing);
     const added = realModelIds.filter((id) => !seen.has(id));
-    if (added.length === 0) {
-      return;
+    if (added.length > 0) {
+      file.providers[providerId] = [...existing, ...added];
+      saveJsonFile(resolveModelsVerifiedPath(), file);
     }
-    file.providers[providerId] = [...existing, ...added];
-    saveJsonFile(resolveModelsVerifiedPath(), file);
+
+    // 2) 方案 A：合并进 models.json，让模型目录/onboard 列表读到真实模型。
+    await mergeRealModelsIntoCatalogJson(providerId, realModelIds);
   } catch {
     // 静默：写回失败不应影响验证主流程
   }
+}
+
+/**
+ * 把真实模型 id 追加进 agentDir/models.json 对应 provider 的 models 数组。
+ * 仅追加不在已有列表里的新 id；构造最小基础条目（运行时字段用默认值，
+ * 具体 name/cost 等信息由用户后续在配置里细化或被 ensure 合并补齐）。
+ */
+async function mergeRealModelsIntoCatalogJson(
+  providerId: string,
+  realModelIds: string[],
+): Promise<void> {
+  const modelsPath = path.join(resolveOpenClawAgentDir(), "models.json");
+  const raw = loadJsonFile(modelsPath) as
+    | { providers?: Record<string, { models?: Array<{ id: string }> }> }
+    | undefined;
+  if (!raw || typeof raw !== "object" || !raw.providers) {
+    // models.json 尚未生成（全新安装可能还没有），等待 ensureOpenClawModelsJson 生成即可；
+    // verify 拉到的模型仍记录在 models-verified.json，后续合并。
+    return;
+  }
+  const provider = raw.providers[providerId];
+  if (!provider || typeof provider !== "object") {
+    return;
+  }
+  const existingModels = Array.isArray(provider.models) ? provider.models : [];
+  const existingIds = new Set(existingModels.map((m) => m?.id));
+  const toAdd = realModelIds.filter((id) => id && !existingIds.has(id));
+  if (toAdd.length === 0) {
+    return;
+  }
+  const newEntries = toAdd.map((id) => ({
+    id,
+    name: id,
+    reasoning: false,
+    input: ["text"] as string[],
+  }));
+  provider.models = [...existingModels, ...newEntries];
+  saveJsonFile(modelsPath, raw);
 }
 
 /**

@@ -1,8 +1,10 @@
 import fs from "node:fs";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resolveOpenClawAgentDir } from "../agents/agent-paths.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import {
   loadModelsVerified,
+  mergeVerifiedModelsIntoFile,
   MODELS_VERIFIED_FILENAME,
   normalizeBaseUrlForPath,
   verifyProviderInteractive,
@@ -251,5 +253,68 @@ describe("verifyProviderInteractive", () => {
     if (outcome.kind === "failed") {
       expect(outcome.error).toBe("auth");
     }
+  });
+});
+
+describe("mergeVerifiedModelsIntoFile (方案 A: 合并进 models.json)", () => {
+  const agentDir = resolveOpenClawAgentDir();
+
+  beforeEach(() => {
+    fs.mkdirSync(agentDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(agentDir, { recursive: true, force: true });
+  });
+
+  it("追加真实模型 id 到 models.json 对应 provider（不覆盖已有条目）", async () => {
+    fs.writeFileSync(
+      `${agentDir}/models.json`,
+      JSON.stringify({
+        providers: {
+          deepseek: {
+            baseUrl: "https://api.deepseek.com",
+            models: [{ id: "deepseek-chat", name: "DeepSeek V3.2 (Chat)", reasoning: false }],
+          },
+        },
+      }),
+    );
+
+    await mergeVerifiedModelsIntoFile("deepseek", [
+      "deepseek-v4-pro",
+      "deepseek-v4-flash",
+      "deepseek-chat", // 已存在，不应重复
+    ]);
+
+    const raw = JSON.parse(fs.readFileSync(`${agentDir}/models.json`, "utf8")) as {
+      providers: Record<
+        string,
+        { models: Array<{ id: string; name: string; reasoning: boolean }> }
+      >;
+    };
+    const ids = raw.providers.deepseek.models.map((m) => m.id);
+    expect(ids).toEqual(["deepseek-chat", "deepseek-v4-pro", "deepseek-v4-flash"]);
+    // 新条目是基础结构（含 name/reasoning/input）
+    const v4Pro = raw.providers.deepseek.models.find((m) => m.id === "deepseek-v4-pro");
+    expect(v4Pro).toBeDefined();
+    expect(v4Pro?.name).toBe("deepseek-v4-pro");
+    expect(v4Pro?.reasoning).toBe(false);
+  });
+
+  it("models.json 不存在时静默跳过（不报错），但仍记录到 models-verified.json", async () => {
+    // 不写 models.json
+    await mergeVerifiedModelsIntoFile("deepseek", ["deepseek-v4-pro"]);
+    const verified = loadModelsVerified();
+    expect(verified.providers.deepseek).toContain("deepseek-v4-pro");
+  });
+
+  it("models.json 无该 provider 时静默跳过，不报错", async () => {
+    fs.writeFileSync(
+      `${agentDir}/models.json`,
+      JSON.stringify({ providers: { qwen: { models: [] } } }),
+    );
+    await expect(
+      mergeVerifiedModelsIntoFile("deepseek", ["deepseek-v4-pro"]),
+    ).resolves.toBeUndefined();
   });
 });

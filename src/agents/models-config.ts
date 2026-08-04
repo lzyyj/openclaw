@@ -10,6 +10,7 @@ import {
   resolveImplicitCopilotProvider,
   resolveImplicitProviders,
 } from "./models-config.providers.js";
+import { applyProviderMetaRemovals } from "./provider-meta.js";
 
 type ModelsConfig = NonNullable<OpenClawConfig["models"]>;
 
@@ -142,8 +143,12 @@ export async function ensureOpenClawModelsJson(
     }
   }
 
+  // Apply local vendor metadata: drop models marked for removal in
+  // provider-meta.json so stale aliases no longer appear in models.json
+  // (and therefore in the runner model registry + webUI catalog).
+  const filteredProviders = await applyProviderMetaRemovals(mergedProviders, agentDir);
   const normalizedProviders = normalizeProviders({
-    providers: mergedProviders,
+    providers: filteredProviders,
     agentDir,
   });
   const next = `${JSON.stringify({ providers: normalizedProviders }, null, 2)}\n`;

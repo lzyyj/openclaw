@@ -421,9 +421,40 @@ export async function mergeVerifiedModelsIntoFile(
 }
 
 /**
+ * 归一化模型 id：剥掉可能已带的厂商前缀，只保留裸模型 id。
+ *
+ * 背景：OpenAI 兼容 GET /models 返回的 data[].id 形态不统一——多数厂商返回裸 id
+ * （如 "deepseek-chat"），但部分厂商/网关会返回带前缀的完整引用
+ * （如 "deepseek/deepseek-chat" 或 "deepseek::deepseek-chat"）。
+ * models.json 里模型条目的 provider 身份来自**顶层 provider key**（ModelRegistry
+ * 读取时用顶层 key 作为 entry.provider），条目 id 必须是**裸 id**，否则组合出的
+ * 完整引用会变成 "deepseek/deepseek/deepseek-chat"（前缀重复）。
+ *
+ * 因此这里统一剥离 "providerId/" 或 "providerId::" 前缀，保证最终完整引用
+ * = "providerId/裸id"，与硬编码 seed（如 deepseek/deepseek-chat）结构一致。
+ */
+export function normalizeModelIdForCatalog(providerId: string, rawId: string): string {
+  const id = String(rawId ?? "").trim();
+  if (!id) {
+    return id;
+  }
+  const prefixes = [`${providerId}::`, `${providerId}/`];
+  for (const prefix of prefixes) {
+    if (id.startsWith(prefix)) {
+      return id.slice(prefix.length).trim();
+    }
+  }
+  return id;
+}
+
+/**
  * 把真实模型 id 追加进 agentDir/models.json 对应 provider 的 models 数组。
  * 仅追加不在已有列表里的新 id；构造最小基础条目（运行时字段用默认值，
  * 具体 name/cost 等信息由用户后续在配置里细化或被 ensure 合并补齐）。
+ *
+ * 写入前先 normalizeModelIdForCatalog 剥掉 id 可能带有的厂商前缀，
+ * 保证条目 id 为裸 id，与顶层 provider key 组合后得到
+ * "providerId/裸id" 的一致完整引用。
  */
 async function mergeRealModelsIntoCatalogJson(
   providerId: string,
@@ -444,7 +475,9 @@ async function mergeRealModelsIntoCatalogJson(
   }
   const existingModels = Array.isArray(provider.models) ? provider.models : [];
   const existingIds = new Set(existingModels.map((m) => m?.id));
-  const toAdd = realModelIds.filter((id) => id && !existingIds.has(id));
+  const toAdd = realModelIds
+    .map((id) => normalizeModelIdForCatalog(providerId, id))
+    .filter((id) => id && !existingIds.has(id));
   if (toAdd.length === 0) {
     return;
   }

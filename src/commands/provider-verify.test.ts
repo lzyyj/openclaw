@@ -7,6 +7,7 @@ import {
   mergeVerifiedModelsIntoFile,
   MODELS_VERIFIED_FILENAME,
   normalizeBaseUrlForPath,
+  normalizeModelIdForCatalog,
   verifyProviderInteractive,
   verifyProviderWithModels,
 } from "./provider-verify.js";
@@ -316,5 +317,46 @@ describe("mergeVerifiedModelsIntoFile (方案 A: 合并进 models.json)", () => 
     await expect(
       mergeVerifiedModelsIntoFile("deepseek", ["deepseek-v4-pro"]),
     ).resolves.toBeUndefined();
+  });
+
+  it("剥掉已带厂商前缀的模型 id，只存裸 id（避免 deepseek/deepseek/deepseek-x 重复）", async () => {
+    fs.writeFileSync(
+      `${agentDir}/models.json`,
+      JSON.stringify({
+        providers: {
+          deepseek: {
+            baseUrl: "https://api.deepseek.com",
+            models: [{ id: "deepseek-chat", name: "DeepSeek V3.2 (Chat)", reasoning: false }],
+          },
+        },
+      }),
+    );
+
+    // API 返回带前缀的完整引用（deepseek/ 与 deepseek:: 两种形态都测）
+    await mergeVerifiedModelsIntoFile("deepseek", [
+      "deepseek/deepseek-v4-pro",
+      "deepseek::deepseek-v4-flash",
+    ]);
+
+    const raw = JSON.parse(fs.readFileSync(`${agentDir}/models.json`, "utf8")) as {
+      providers: Record<string, { models: Array<{ id: string }> }>;
+    };
+    const ids = raw.providers.deepseek.models.map((m) => m.id);
+    // 只存裸 id，不重复前缀
+    expect(ids).toContain("deepseek-v4-pro");
+    expect(ids).toContain("deepseek-v4-flash");
+    expect(ids).not.toContain("deepseek/deepseek-v4-pro");
+    expect(ids).not.toContain("deepseek::deepseek-v4-flash");
+  });
+
+  it("normalizeModelIdForCatalog 单独正确剥离前缀，无前缀时原样返回", () => {
+    expect(normalizeModelIdForCatalog("deepseek", "deepseek/deepseek-v4-pro")).toBe(
+      "deepseek-v4-pro",
+    );
+    expect(normalizeModelIdForCatalog("deepseek", "deepseek::deepseek-v4-flash")).toBe(
+      "deepseek-v4-flash",
+    );
+    expect(normalizeModelIdForCatalog("deepseek", "deepseek-chat")).toBe("deepseek-chat");
+    expect(normalizeModelIdForCatalog("deepseek", "  deepseek-v4-pro  ")).toBe("deepseek-v4-pro");
   });
 });

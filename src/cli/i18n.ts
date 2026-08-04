@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CLI i18n: resolve locale from OPENCLAW_LANG or LANG or system UI language.
  * Use getText(key, fallbackEn, params?) so upstream can stay English-only;
  * zh-CN bundle is maintained separately for easy merge.
@@ -65,7 +65,7 @@ function interpolate(template: string, params?: Record<string, string>): string 
 /** zh-CN CLI strings (onboarding, wizard, help, banner, etc.). */
 const ZH_CN: Record<string, string> = {
   // ---- Banner ----
-  "banner.tagline": "一个 CLI 统治一切，" + "再重启一次因为改了端口。",
+  "banner.tagline": "一个 CLI 统治一切，再重启一次因为改了端口。",
 
   // ---- Help ----
   "help.usage": "用法：",
@@ -80,7 +80,8 @@ const ZH_CN: Record<string, string> = {
 
   // ---- Update ----
   "update.available": "有可用更新{suffix}。运行：{cmd}",
-  "update.startup.notify": "有可用更新（{tag}）：{version}（当前 {currentVersion}）。运行：{command}",
+  "update.startup.notify":
+    "有可用更新（{tag}）：{version}（当前 {currentVersion}）。运行：{command}",
   "help.profile":
     "使用指定配置文件（将 OPENCLAW_STATE_DIR/OPENCLAW_CONFIG_PATH 隔离至 ~/.openclaw-<name>）",
   "help.log_level": "文件和控制台的全局日志级别覆盖（{levels}）",
@@ -165,7 +166,7 @@ const ZH_CN: Record<string, string> = {
   "onboarding.quickstart.gateway_custom_ip": "网关自定义 IP",
   "onboarding.quickstart.gateway_auth": "网关认证",
   "onboarding.quickstart.tailscale_exposure": "Tailscale 暴露",
-  "onboarding.quickstart.direct_channels": "直连聊天信道。",
+  "onboarding.quickstart.direct_channels": "直连聊天渠道。",
 
   // ---- Onboarding mode selection ----
   "onboarding.mode.message": "你想设置什么？",
@@ -182,8 +183,8 @@ const ZH_CN: Record<string, string> = {
   "onboarding.workspace.message": "工作目录",
 
   // ---- Onboarding skip notes ----
-  "onboarding.skip.channels.body": "跳过信道设置。",
-  "onboarding.skip.channels.title": "信道",
+  "onboarding.skip.channels.body": "跳过渠道设置。",
+  "onboarding.skip.channels.title": "渠道",
   "onboarding.skip.skills.body": "跳过技能设置。",
   "onboarding.skip.skills.title": "技能",
 
@@ -197,13 +198,14 @@ const ZH_CN: Record<string, string> = {
   "daemon.install.reinstall_hint": "如需重新安装：{cmd}",
   "daemon.install.invalid_port": "无效端口",
   "daemon.install.nix_detected": "检测到 Nix 模式；服务安装已禁用。",
-  "daemon.install.invalid_runtime": "无效的 --runtime（使用 \"node\" 或 \"bun\"）",
+  "daemon.install.invalid_runtime": '无效的 --runtime（使用 "node" 或 "bun"）',
   "daemon.install.no_token_warn": "未找到网关令牌。已自动生成并保存到配置。",
   "daemon.install.config_invalid_skip": "警告：配置文件存在但无效；跳过令牌持久化。",
   "daemon.install.persist_token_failed": "警告：无法将令牌持久化到配置：{error}",
 
   // ---- Daemon install error hint ----
-  "daemon.install.hint.win32": "提示：请以管理员身份重新运行 PowerShell（开始 → 输入 PowerShell → 右键 → 以管理员身份运行），或跳过服务安装。",
+  "daemon.install.hint.win32":
+    "提示：请以管理员身份重新运行 PowerShell（开始 → 输入 PowerShell → 右键 → 以管理员身份运行），或跳过服务安装。",
   "daemon.install.hint.other": "提示：修复错误后重新运行 {cmd}。",
 
   // ---- Doctor UI ----
@@ -221,20 +223,23 @@ const ZH_CN: Record<string, string> = {
   "doctor.ui.rebuild_failed": "UI 重新构建失败（退出码 {code}）。",
 
   // ---- Gateway control-ui ----
-  "gateway.control_ui.not_found_at": "在 {path} 未找到控制界面资源。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖），或更新 gateway.controlUi.root。",
-  "gateway.control_ui.not_found": "未找到控制界面资源。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖），或在开发时运行 `pnpm ui:dev`。",
+  "gateway.control_ui.not_found_at":
+    "在 {path} 未找到控制界面资源。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖），或更新 gateway.controlUi.root。",
+  "gateway.control_ui.not_found":
+    "未找到控制界面资源。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖），或在开发时运行 `pnpm ui:dev`。",
 
   // ---- Skills CLI ----
   "skills.list.tip": "提示：使用 `npx clawhub` 搜索、安装和同步技能。",
 
   // ---- Configure channels ----
-  "configure.channels.tip": "提示：运行 {cmd} 查看已配置和已启用的信道。",
+  "configure.channels.tip": "提示：运行 {cmd} 查看已配置和已启用的渠道。",
 
   // ---- Doctor state integrity ----
   "doctor.state.backup_tip": "- 提示：将工作区备份到私有 git 仓库（GitHub 或 GitLab）。",
 
   // ---- Gateway status ----
-  "gateway.status.mdns_tip": "提示：如果网关在远程，mDNS 无法跨网络工作；请使用 Wide-Area Bonjour（拆分 DNS）或 SSH 隧道。",
+  "gateway.status.mdns_tip":
+    "提示：如果网关在远程，mDNS 无法跨网络工作；请使用 Wide-Area Bonjour（拆分 DNS）或 SSH 隧道。",
 
   // ---- Message format ----
   "message.format.json_tip": "提示：使用 --json 获取完整输出。",
@@ -246,7 +251,8 @@ const ZH_CN: Record<string, string> = {
   "uninstall.workspace_preserved": "提示：工作区已保留。如需删除请重新运行 --workspace。",
 
   // ---- Tailscale ----
-  "tailscale.funnel_tip": "提示：Funnel 对于 OpenClaw 是可选的。您可以在没有 Funnel 的情况下继续运行 Web 网关：{cmd}",
+  "tailscale.funnel_tip":
+    "提示：Funnel 对于 OpenClaw 是可选的。您可以在没有 Funnel 的情况下继续运行 Web 网关：{cmd}",
 
   // ---- Configure wizard ----
   "configure.intro": "OpenClaw 配置向导",
@@ -258,16 +264,18 @@ const ZH_CN: Record<string, string> = {
   "configure.section.continue": "继续",
   "configure.section.continue_done": "已完成",
   "configure.section.continue_skip": "暂不配置",
-  "configure.channels.message": "信道",
+  "configure.channels.message": "渠道",
   "configure.channels.configure.label": "配置/关联",
-  "configure.channels.configure.hint": "添加/更新信道；禁用未选择的账号",
-  "configure.channels.remove.label": "移除信道配置",
+  "configure.channels.configure.hint": "添加/更新渠道；禁用未选择的账号",
+  "configure.channels.remove.label": "移除渠道配置",
   "configure.channels.remove.hint": "从配置中删除令牌 + 设置（凭据仍保留在磁盘上）",
   "configure.web_search.note_title": "Web 搜索",
-  "configure.web_search.note_body": "Web 搜索让代理可以使用 `web_search` 工具在线查询信息。\n需要 Brave Search API 密钥（可存入配置或设置 BRAVE_API_KEY 环境变量）。\n文档：https://docs.openclaw.ai/tools/web",
+  "configure.web_search.note_body":
+    "Web 搜索让代理可以使用 `web_search` 工具在线查询信息。\n需要 Brave Search API 密钥（可存入配置或设置 BRAVE_API_KEY 环境变量）。\n文档：https://docs.openclaw.ai/tools/web",
   "configure.web_search.enable.message": "启用 web_search（Brave Search）？",
   "configure.web_search.no_key.title": "Web 搜索",
-  "configure.web_search.no_key.body": "未存储密钥，web_search 将保持不可用。\n在此存储密钥或设置 BRAVE_API_KEY 环境变量。\n文档：https://docs.openclaw.ai/tools/web",
+  "configure.web_search.no_key.body":
+    "未存储密钥，web_search 将保持不可用。\n在此存储密钥或设置 BRAVE_API_KEY 环境变量。\n文档：https://docs.openclaw.ai/tools/web",
   "configure.web_fetch.enable.message": "启用 web_fetch（无密钥 HTTP 抓取）？",
   "configure.mode_select.message": "网关运行位置",
   "configure.mode.local.label": "本地（本机）",
@@ -295,16 +303,19 @@ const ZH_CN: Record<string, string> = {
   "configure.gateway.auth.trusted_proxy.hint": "位于反向代理之后（Pomerium、Caddy、Traefik 等）",
   "configure.gateway.tailscale.message": "Tailscale 暴露方式",
   "configure.gateway.tailscale.reset.message": "退出时重置 Tailscale serve/funnel？",
-  "configure.gateway.tailscale.conflict_auth": "受信代理认证与 Tailscale serve/funnel 不兼容，已禁用 Tailscale。",
+  "configure.gateway.tailscale.conflict_auth":
+    "受信代理认证与 Tailscale serve/funnel 不兼容，已禁用 Tailscale。",
   "configure.gateway.token.message": "网关令牌（留空自动生成）",
   "configure.gateway.password.message": "网关密码",
   "configure.gateway.trusted_proxy.note_title": "受信代理认证",
-  "configure.gateway.trusted_proxy.note_body": "受信代理模式：OpenClaw 信任来自反向代理的用户身份。\n代理必须认证用户并通过请求头传递身份信息。\n仅来自指定代理 IP 的请求会被信任。\n\n常见用途：Pomerium、Caddy + OAuth、Traefik + forward auth\n文档：https://docs.openclaw.ai/gateway/trusted-proxy-auth",
+  "configure.gateway.trusted_proxy.note_body":
+    "受信代理模式：OpenClaw 信任来自反向代理的用户身份。\n代理必须认证用户并通过请求头传递身份信息。\n仅来自指定代理 IP 的请求会被信任。\n\n常见用途：Pomerium、Caddy + OAuth、Traefik + forward auth\n文档：https://docs.openclaw.ai/gateway/trusted-proxy-auth",
   "configure.gateway.trusted_proxy.header.message": "用户身份标识请求头",
   "configure.gateway.trusted_proxy.headers.message": "必需请求头（逗号分隔，可选）",
   "configure.gateway.trusted_proxy.users.message": "允许的用户（逗号分隔，留空=所有认证用户）",
   "configure.gateway.trusted_proxy.ips.message": "受信代理 IP（逗号分隔）",
-  "configure.gateway.tailscale.conflict_bind": "Tailscale 要求 bind=loopback。已将绑定模式调整为回环。",
+  "configure.gateway.tailscale.conflict_bind":
+    "Tailscale 要求 bind=loopback。已将绑定模式调整为回环。",
   "configure.gateway.tailscale.funnel_password": "Tailscale funnel 需使用密码认证。",
   "configure.gateway.tailscale.missing_bin_title": "Tailscale 警告",
   "configure.gateway.tailscale.docs_title": "Tailscale",
@@ -314,8 +325,10 @@ const ZH_CN: Record<string, string> = {
 
   // ---- configure.wizard.ts ----
   "configure.update_intro": "OpenClaw 更新向导",
-  "configure.web_search.key.keep_message": "Brave 搜索 API 密钥（留空则保留当前值或使用 BRAVE_API_KEY）",
-  "configure.web_search.key.paste_message": "Brave 搜索 API 密钥（粘贴到此处；留空则使用 BRAVE_API_KEY）",
+  "configure.web_search.key.keep_message":
+    "Brave 搜索 API 密钥（留空则保留当前值或使用 BRAVE_API_KEY）",
+  "configure.web_search.key.paste_message":
+    "Brave 搜索 API 密钥（粘贴到此处；留空则使用 BRAVE_API_KEY）",
   "configure.web_search.key.keep_placeholder": "留空以保留当前值",
   "configure.gateway_port.invalid": "无效端口",
 
@@ -336,7 +349,8 @@ const ZH_CN: Record<string, string> = {
   "configure.daemon.progress.install_failed": "网关服务安装失败。",
   "configure.daemon.install_failed.body": "网关服务安装失败：",
   "configure.daemon.title": "网关",
-  "configure.daemon.linger.reason": "Linux 安装使用 systemd 用户服务。若未启用 lingering，systemd 会在注销/空闲时停止用户会话并杀死网关。",
+  "configure.daemon.linger.reason":
+    "Linux 安装使用 systemd 用户服务。若未启用 lingering，systemd 会在注销/空闲时停止用户会话并杀死网关。",
 
   // ---- configure.channels.ts ----
   "configure.channels.none_found": "在 openclaw.json 中未找到频道配置。",
@@ -358,9 +372,11 @@ const ZH_CN: Record<string, string> = {
   // ---- onboarding.finalize.ts ----
   "onboarding.finalize.systemd_unavailable": "Systemd 用户服务不可用。跳过滞留检查和服务安装。",
   "onboarding.finalize.systemd_title": "Systemd",
-  "onboarding.finalize.linger_reason": "Linux 安装默认使用 systemd 用户服务。如果不启用滞留（linger），systemd 会在注销/闲置时停止用户会话并杀掉 Gateway。",
+  "onboarding.finalize.linger_reason":
+    "Linux 安装默认使用 systemd 用户服务。如果不启用滞留（linger），systemd 会在注销/闲置时停止用户会话并杀掉 Gateway。",
   "onboarding.finalize.install_service": "安装 Gateway 服务（推荐）",
-  "onboarding.finalize.systemd_skip_service": "Systemd 用户服务不可用；跳过服务安装。请使用你的容器管理器或 `docker compose up -d`。",
+  "onboarding.finalize.systemd_skip_service":
+    "Systemd 用户服务不可用；跳过服务安装。请使用你的容器管理器或 `docker compose up -d`。",
   "onboarding.finalize.service_title": "Gateway 服务",
   "onboarding.finalize.service_runtime": "Gateway 服务运行时",
   "onboarding.finalize.runtime_quickstart": "快速开始使用 Node 作为 Gateway 服务（稳定且受支持）。",
@@ -392,12 +408,15 @@ const ZH_CN: Record<string, string> = {
   "onboarding.finalize.tui.title": "启动 TUI（最佳选择！）",
   "onboarding.finalize.tui.wake_message": "醒醒，我的朋友！",
   "onboarding.finalize.token.shared_auth": "Gateway 令牌：Gateway 与控制界面的共享认证。",
-  "onboarding.finalize.token.stored": "存储位置：~/.openclaw/openclaw.json (gateway.auth.token) 或 OPENCLAW_GATEWAY_TOKEN。",
+  "onboarding.finalize.token.stored":
+    "存储位置：~/.openclaw/openclaw.json (gateway.auth.token) 或 OPENCLAW_GATEWAY_TOKEN。",
   "onboarding.finalize.token.view": "查看令牌：{command}",
   "onboarding.finalize.token.generate": "生成令牌：{command}",
-  "onboarding.finalize.token.webui_copy": "Web UI 会在此浏览器的 localStorage（openclaw.control.settings.v1）中保存一份副本。",
+  "onboarding.finalize.token.webui_copy":
+    "Web UI 会在此浏览器的 localStorage（openclaw.control.settings.v1）中保存一份副本。",
   "onboarding.finalize.token.open_dashboard": "随时打开仪表板：{command}",
-  "onboarding.finalize.token.paste": "如果提示：将令牌粘贴到控制界面设置中（或使用带令牌的仪表板 URL）。",
+  "onboarding.finalize.token.paste":
+    "如果提示：将令牌粘贴到控制界面设置中（或使用带令牌的仪表板 URL）。",
   "onboarding.finalize.token.title": "令牌",
   "onboarding.finalize.hatch.message": "你想如何孵化你的机器人？",
   "onboarding.finalize.hatch.tui": "在 TUI 中孵化（推荐）",
@@ -413,22 +432,31 @@ const ZH_CN: Record<string, string> = {
   "onboarding.finalize.control_ui_title": "控制界面",
   "onboarding.finalize.workspace_backup.body": "备份你的智能体工作区。",
   "onboarding.finalize.workspace_backup.title": "工作区备份",
-  "onboarding.finalize.security.body": "在电脑上运行智能体有风险——请加固你的配置：https://docs.openclaw.ai/security",
+  "onboarding.finalize.security.body":
+    "在电脑上运行智能体有风险——请加固你的配置：https://docs.openclaw.ai/security",
   "onboarding.finalize.security.title": "安全",
-  "onboarding.finalize.web_search.enabled": "已启用 Web 搜索，因此你的智能体可以在需要时在线查找信息。",
-  "onboarding.finalize.web_search.key_config": "API 密钥：已存储在配置中（tools.web.search.apiKey）。",
-  "onboarding.finalize.web_search.key_env": "API 密钥：通过 BRAVE_API_KEY 环境变量（Gateway 环境）提供。",
+  "onboarding.finalize.web_search.enabled":
+    "已启用 Web 搜索，因此你的智能体可以在需要时在线查找信息。",
+  "onboarding.finalize.web_search.key_config":
+    "API 密钥：已存储在配置中（tools.web.search.apiKey）。",
+  "onboarding.finalize.web_search.key_env":
+    "API 密钥：通过 BRAVE_API_KEY 环境变量（Gateway 环境）提供。",
   "onboarding.finalize.web_search.need_key": "如果你希望智能体能够搜索网络，就需要一个 API 密钥。",
-  "onboarding.finalize.web_search.brave": "OpenClaw 使用 Brave Search 作为 `web_search` 工具。没有 Brave Search API 密钥，Web 搜索将无法工作。",
+  "onboarding.finalize.web_search.brave":
+    "OpenClaw 使用 Brave Search 作为 `web_search` 工具。没有 Brave Search API 密钥，Web 搜索将无法工作。",
   "onboarding.finalize.web_search.setup_interactive": "以交互方式设置：",
   "onboarding.finalize.web_search.run": "- 运行：{command}",
-  "onboarding.finalize.web_search.enable_paste": "- 启用 web_search 并粘贴你的 Brave Search API 密钥",
-  "onboarding.finalize.web_search.alternative": "替代方案：在 Gateway 环境中设置 BRAVE_API_KEY（无需修改配置）。",
+  "onboarding.finalize.web_search.enable_paste":
+    "- 启用 web_search 并粘贴你的 Brave Search API 密钥",
+  "onboarding.finalize.web_search.alternative":
+    "替代方案：在 Gateway 环境中设置 BRAVE_API_KEY（无需修改配置）。",
   "onboarding.finalize.web_search.title": "Web 搜索（可选）",
-  "onboarding.finalize.what_now.body": "接下来做什么：https://openclaw.ai/showcase （“大家都在构建什么”）。",
+  "onboarding.finalize.what_now.body":
+    "接下来做什么：https://openclaw.ai/showcase （“大家都在构建什么”）。",
   "onboarding.finalize.what_now.title": "接下来做什么",
   "onboarding.finalize.outro.opened": "初始化完成。仪表板已打开；保留该标签页以控制 OpenClaw。",
-  "onboarding.finalize.outro.seeded": "初始化完成。Web UI 已在后台预载；随时可通过上面的仪表板链接打开。",
+  "onboarding.finalize.outro.seeded":
+    "初始化完成。Web UI 已在后台预载；随时可通过上面的仪表板链接打开。",
   "onboarding.finalize.outro.done": "初始化完成。使用上面的仪表板链接来控制 OpenClaw。",
 
   // ---- onboarding.gateway-config.ts ----
@@ -450,7 +478,8 @@ const ZH_CN: Record<string, string> = {
   "onboarding.gateway.tailscale.warning_title": "Tailscale 警告",
   "onboarding.gateway.tailscale.title": "Tailscale",
   "onboarding.gateway.tailscale.reset.message": "退出时重置 Tailscale serve/funnel？",
-  "onboarding.gateway.tailscale.conflict_bind": "Tailscale 要求 bind=loopback。正在将绑定调整为回环。",
+  "onboarding.gateway.tailscale.conflict_bind":
+    "Tailscale 要求 bind=loopback。正在将绑定调整为回环。",
   "onboarding.gateway.tailscale.funnel_password": "Tailscale funnel 需要使用密码认证。",
   "onboarding.gateway.note_title": "提示",
   "onboarding.gateway.token.message": "网关令牌（留空自动生成）",
@@ -461,7 +490,8 @@ const ZH_CN: Record<string, string> = {
   "onboarding.completion.reload.powershell": "重启你的 shell（或重新加载 PowerShell 配置文件）。",
   "onboarding.completion.reload.profile": "重启你的 shell 或运行：source {profileHint}",
   "onboarding.completion.enable": "为 {cliName} 启用 {shell} shell 自动补全？",
-  "onboarding.completion.cache_failed": "生成自动补全缓存失败。之后可运行 `{cliName} completion --install`。",
+  "onboarding.completion.cache_failed":
+    "生成自动补全缓存失败。之后可运行 `{cliName} completion --install`。",
   "onboarding.completion.title": "Shell 自动补全",
   "onboarding.completion.installed": "Shell 自动补全已安装。{hint}",
 
@@ -500,7 +530,7 @@ const ZH_CN: Record<string, string> = {
   "onboarding.model.fallbacks.configured_not_catalog": "已配置（不在目录中）",
   "onboarding.model.fallbacks.select": "选择备用模型（优先级 = 列表顺序）",
   "onboarding.helpers.required": "必填",
-  "onboarding.helpers.password_literal": "不能是字面字符串 \"undefined\" 或 \"null\"",
+  "onboarding.helpers.password_literal": '不能是字面字符串 "undefined" 或 "null"',
   "onboarding.helpers.ssh.no_gui": "未检测到图形界面。请从您的电脑打开：",
   "onboarding.helpers.ssh.then_open": "然后打开：",
   "onboarding.helpers.ssh.docs": "文档：",
@@ -522,35 +552,37 @@ const ZH_CN: Record<string, string> = {
   "onboarding.channels.status.notConfiguredHint": "未配置",
   "onboarding.channels.status.installToEnable": "安装插件以启用",
   "onboarding.channels.status.pluginInstall": "插件 · 安装",
-  "onboarding.channels.status.title": "信道状态",
-  "onboarding.channels.primer.body": "DM 安全：默认为配对模式；未知 DM 会收到配对码。\n批准操作：openclaw pairing approve <channel> <code>\n公开 DM 需要 dmPolicy=\"open\" + allowFrom=[\"*\"]。\n多用户 DM：运行 openclaw config set session.dmScope \"per-channel-peer\"（或对多账户信道用 \"per-account-channel-peer\"）以隔离会话。\n文档：channels/pairing\n\n<拼接的信道列表行>",
-  "onboarding.channels.primer.title": "信道如何工作",
+  "onboarding.channels.status.title": "渠道状态",
+  "onboarding.channels.primer.body":
+    'DM 安全：默认为配对模式；未知 DM 会收到配对码。\n批准操作：openclaw pairing approve <channel> <code>\n公开 DM 需要 dmPolicy="open" + allowFrom=["*"]。\n多用户 DM：运行 openclaw config set session.dmScope "per-channel-peer"（或对多账户渠道用 "per-account-channel-peer"）以隔离会话。\n文档：channels/pairing\n\n<拼接的渠道列表行>',
+  "onboarding.channels.primer.title": "渠道如何工作",
   "onboarding.channels.dm.confirm": "现在配置 DM 访问策略？（默认：配对）",
-  "onboarding.channels.dm.policyBody": "默认：配对（未知 DM 会收到配对码）。\n批准：openclaw pairing approve <channel> <code>\n白名单 DM：policy.policyKey=\"allowlist\" + policy.allowFromKey 条目。\n公开 DM：policy.policyKey=\"open\" + policy.allowFromKey 包含 \"*\"。\n多用户 DM：运行 openclaw config set session.dmScope \"per-channel-peer\"（或对多账户信道用 \"per-account-channel-peer\"）以隔离会话。\n文档：channels/pairing",
+  "onboarding.channels.dm.policyBody":
+    '默认：配对（未知 DM 会收到配对码）。\n批准：openclaw pairing approve <channel> <code>\n白名单 DM：policy.policyKey="allowlist" + policy.allowFromKey 条目。\n公开 DM：policy.policyKey="open" + policy.allowFromKey 包含 "*"。\n多用户 DM：运行 openclaw config set session.dmScope "per-channel-peer"（或对多账户渠道用 "per-account-channel-peer"）以隔离会话。\n文档：channels/pairing',
   "onboarding.channels.dm.policyTitle": "{label} DM 访问",
   "onboarding.channels.dm.policyMessage": "{label} DM 策略",
   "onboarding.channels.dm.pairing": "配对（推荐）",
   "onboarding.channels.dm.allowlist": "白名单（仅限特定用户）",
   "onboarding.channels.dm.open": "公开（公开的入站 DM）",
   "onboarding.channels.dm.disabled": "禁用（忽略 DM）",
-  "onboarding.channels.configurePrompt": "现在配置聊天信道？",
+  "onboarding.channels.configurePrompt": "现在配置聊天渠道？",
   "onboarding.channels.hint.pluginDisabled": "插件已禁用",
   "onboarding.channels.hint.pluginsDisabled": "插件已禁用",
   "onboarding.channels.hint.disabled": "已禁用",
   "onboarding.channels.setup.cannotEnable": "无法启用 {channel}：{reason}。",
-  "onboarding.channels.setup.title": "信道设置",
+  "onboarding.channels.setup.title": "渠道设置",
   "onboarding.channels.setup.pluginNotAvailable": "{channel} 插件不可用。",
   "onboarding.channels.setup.noOnboarding": "{channel} 尚不支持引导设置。",
   "onboarding.channels.remove.noDelete": "{label} 不支持删除配置条目。",
-  "onboarding.channels.remove.title": "移除信道",
-  "onboarding.channels.remove.confirm": "删除 {label} 账户 \"{accountLabel}\"？",
-  "onboarding.channels.select.quickstart": "选择信道（快速开始）",
+  "onboarding.channels.remove.title": "移除渠道",
+  "onboarding.channels.remove.confirm": '删除 {label} 账户 "{accountLabel}"？',
+  "onboarding.channels.select.quickstart": "选择渠道（快速开始）",
   "onboarding.channels.skipNow": "暂时跳过",
-  "onboarding.channels.quickstart.skipHint": "稍后可通过 `{command}` 添加信道",
-  "onboarding.channels.select.message": "选择一个信道",
+  "onboarding.channels.quickstart.skipHint": "稍后可通过 `{command}` 添加渠道",
+  "onboarding.channels.select.message": "选择一个渠道",
   "onboarding.channels.finished": "已完成",
   "onboarding.channels.doneHint": "完成",
-  "onboarding.channels.selected.title": "已选信道",
+  "onboarding.channels.selected.title": "已选渠道",
   "onboarding.skills.hint.install": "安装",
   "onboarding.skills.status.eligible": "可安装：{count}",
   "onboarding.skills.status.missing": "缺少依赖：{count}",
@@ -576,13 +608,15 @@ const ZH_CN: Record<string, string> = {
   "onboarding.skills.env.setPrompt": "为 {name} 设置 {env}？",
   "onboarding.skills.env.enter": "输入 {env}",
   "onboarding.skills.env.required": "必填",
-  "onboarding.hooks.intro.body": "触发事件让你在发出代理命令时自动化操作。\n示例：当你发出 /new 或 /reset 时将会话上下文保存到记忆。\n\n了解更多：https://docs.openclaw.ai/automation/hooks",
+  "onboarding.hooks.intro.body":
+    "触发事件让你在发出代理命令时自动化操作。\n示例：当你发出 /new 或 /reset 时将会话上下文保存到记忆。\n\n了解更多：https://docs.openclaw.ai/automation/hooks",
   "onboarding.hooks.intro.title": "触发事件",
   "onboarding.hooks.none.body": "未找到符合条件的触发事件。稍后可在配置中配置触发事件。",
   "onboarding.hooks.none.title": "没有可用的触发事件",
   "onboarding.hooks.enablePrompt": "启用触发事件？",
   "onboarding.hooks.skipNow": "暂时跳过",
-  "onboarding.hooks.configured.body": "已启用 {count} 个触发事件{s}：{names}\n\n稍后可通过以下命令管理触发事件：\n  {listCmd}\n  {enableCmd}\n  {disableCmd}",
+  "onboarding.hooks.configured.body":
+    "已启用 {count} 个触发事件{s}：{names}\n\n稍后可通过以下命令管理触发事件：\n  {listCmd}\n  {enableCmd}\n  {disableCmd}",
   "onboarding.hooks.configured.title": "触发事件已配置",
 
   // ---- Mode select hints ----
@@ -603,12 +637,12 @@ const ZH_CN: Record<string, string> = {
   "configure.section.gateway.hint": "端口、绑定、认证、Tailscale",
   "configure.section.daemon.label": "后台服务",
   "configure.section.daemon.hint": "安装/管理后台服务",
-  "configure.section.channels.label": "信道",
+  "configure.section.channels.label": "渠道",
   "configure.section.channels.hint": "关联 WhatsApp/Telegram 等并设置默认值",
   "configure.section.skills.label": "技能",
   "configure.section.skills.hint": "安装/启用工作区技能",
   "configure.section.health.label": "健康检查",
-  "configure.section.health.hint": "运行网关 + 信道检查",
+  "configure.section.health.hint": "运行网关 + 渠道检查",
 
   // ---- Onboard summary labels ----
   "onboarding.summary.workspace": "工作区",
@@ -654,7 +688,8 @@ const ZH_CN: Record<string, string> = {
   "configure.provider.moonshot_api_key_cn.prompt": "输入 Moonshot API 密钥（.cn）",
   "configure.provider.kimi_code_api_key.prompt": "输入 Kimi Coding API 密钥",
   "configure.provider.kimi_code.title": "Kimi Coding",
-  "configure.provider.kimi_code.note": "Kimi Coding 使用独立端点和 API 密钥。\n获取 API 密钥：https://www.kimi.com/code/en",
+  "configure.provider.kimi_code.note":
+    "Kimi Coding 使用独立端点和 API 密钥。\n获取 API 密钥：https://www.kimi.com/code/en",
 
   // ---- Provider auth group hints (auth-choice-options.ts) ----
   "configure.provider.openai.hint": "Codex OAuth + API 密钥",
@@ -712,12 +747,18 @@ const ZH_CN: Record<string, string> = {
   "configure.provider.cloudflare_ai_gateway.title": "Cloudflare AI Gateway",
 
   // ---- Provider auth noteMessages ----
-  "configure.provider.deepseek.note": "DeepSeek API 提供 deepseek-chat（V3.2）和 deepseek-reasoner（思考模式）。\n获取 API 密钥：https://platform.deepseek.com\n定价说明：https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
-  "configure.provider.venice.note": "Venice AI 提供隐私优先的推理服务，支持无审查模型。\n获取 API 密钥：https://venice.ai/settings/api\n支持「私有」（完全私密）和「匿名」（代理）模式。",
-  "configure.provider.opencode_zen.note": "OpenCode Zen 提供对 Claude、GPT、Gemini 等模型的访问。\n获取 API 密钥：https://opencode.ai/auth\nOpenCode Zen 按请求计费。详情请查看 OpenCode 控制台。",
-  "configure.provider.together.note": "Together AI 提供对 Llama、DeepSeek、Qwen 等领先开源模型的访问。\n获取 API 密钥：https://api.together.xyz/settings/api-keys",
-  "configure.provider.qianfan.note": "获取 API 密钥：https://console.bce.baidu.com/qianfan/ais/console/apiKey\nAPI 密钥格式：bce-v3/ALTAK-...",
-  "configure.provider.litellm.note": "LiteLLM 提供统一 API 接入 100+ LLM 提供商。\n从你的 LiteLLM 代理或 https://litellm.ai 获取 API 密钥。\n默认代理运行在 http://localhost:4000",
+  "configure.provider.deepseek.note":
+    "DeepSeek API 提供 deepseek-chat（V3.2）和 deepseek-reasoner（思考模式）。\n获取 API 密钥：https://platform.deepseek.com\n定价说明：https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+  "configure.provider.venice.note":
+    "Venice AI 提供隐私优先的推理服务，支持无审查模型。\n获取 API 密钥：https://venice.ai/settings/api\n支持「私有」（完全私密）和「匿名」（代理）模式。",
+  "configure.provider.opencode_zen.note":
+    "OpenCode Zen 提供对 Claude、GPT、Gemini 等模型的访问。\n获取 API 密钥：https://opencode.ai/auth\nOpenCode Zen 按请求计费。详情请查看 OpenCode 控制台。",
+  "configure.provider.together.note":
+    "Together AI 提供对 Llama、DeepSeek、Qwen 等领先开源模型的访问。\n获取 API 密钥：https://api.together.xyz/settings/api-keys",
+  "configure.provider.qianfan.note":
+    "获取 API 密钥：https://console.bce.baidu.com/qianfan/ais/console/apiKey\nAPI 密钥格式：bce-v3/ALTAK-...",
+  "configure.provider.litellm.note":
+    "LiteLLM 提供统一 API 接入 100+ LLM 提供商。\n从你的 LiteLLM 代理或 https://litellm.ai 获取 API 密钥。\n默认代理运行在 http://localhost:4000",
 
   // ---- Cloudflare AI Gateway prompts ----
   "configure.provider.cloudflare_account_id.prompt": "输入 Cloudflare 账户 ID",
@@ -735,7 +776,8 @@ const ZH_CN: Record<string, string> = {
   "configure.config.updated": "已更新 {path}",
   "configure.complete": "配置完成",
   "configure.complete.outro": "配置完成。",
-  "config.io.overwrite": "配置覆盖：{path}（sha256 {previousHash} -> {nextHash}，backup={backup}{changeSummary}）",
+  "config.io.overwrite":
+    "配置覆盖：{path}（sha256 {previousHash} -> {nextHash}，backup={backup}{changeSummary}）",
   "config.logging.updated": "已更新 {path}{suffix}",
 
   // ---- Gateway status ----

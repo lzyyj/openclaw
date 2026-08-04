@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CLI i18n: resolve locale from OPENCLAW_LANG or LANG or system UI language.
  * Use getText(key, fallbackEn, params?) so upstream can stay English-only;
  * zh-CN bundle is maintained separately for easy merge.
@@ -165,7 +165,7 @@ const ZH_CN: Record<string, string> = {
   "onboarding.quickstart.gateway_custom_ip": "网关自定义 IP",
   "onboarding.quickstart.gateway_auth": "网关认证",
   "onboarding.quickstart.tailscale_exposure": "Tailscale 暴露",
-  "onboarding.quickstart.direct_channels": "直连聊天通道。",
+  "onboarding.quickstart.direct_channels": "直连聊天信道。",
 
   // ---- Onboarding mode selection ----
   "onboarding.mode.message": "你想设置什么？",
@@ -182,8 +182,8 @@ const ZH_CN: Record<string, string> = {
   "onboarding.workspace.message": "工作目录",
 
   // ---- Onboarding skip notes ----
-  "onboarding.skip.channels.body": "跳过通道设置。",
-  "onboarding.skip.channels.title": "通道",
+  "onboarding.skip.channels.body": "跳过信道设置。",
+  "onboarding.skip.channels.title": "信道",
   "onboarding.skip.skills.body": "跳过技能设置。",
   "onboarding.skip.skills.title": "技能",
 
@@ -522,35 +522,35 @@ const ZH_CN: Record<string, string> = {
   "onboarding.channels.status.notConfiguredHint": "未配置",
   "onboarding.channels.status.installToEnable": "安装插件以启用",
   "onboarding.channels.status.pluginInstall": "插件 · 安装",
-  "onboarding.channels.status.title": "通道状态",
-  "onboarding.channels.primer.body": "DM 安全：默认为配对模式；未知 DM 会收到配对码。\n批准操作：openclaw pairing approve <channel> <code>\n公开 DM 需要 dmPolicy=\"open\" + allowFrom=[\"*\"]。\n多用户 DM：运行 openclaw config set session.dmScope \"per-channel-peer\"（或对多账户通道用 \"per-account-channel-peer\"）以隔离会话。\n文档：channels/pairing\n\n<拼接的通道列表行>",
-  "onboarding.channels.primer.title": "通道如何工作",
+  "onboarding.channels.status.title": "信道状态",
+  "onboarding.channels.primer.body": "DM 安全：默认为配对模式；未知 DM 会收到配对码。\n批准操作：openclaw pairing approve <channel> <code>\n公开 DM 需要 dmPolicy=\"open\" + allowFrom=[\"*\"]。\n多用户 DM：运行 openclaw config set session.dmScope \"per-channel-peer\"（或对多账户信道用 \"per-account-channel-peer\"）以隔离会话。\n文档：channels/pairing\n\n<拼接的信道列表行>",
+  "onboarding.channels.primer.title": "信道如何工作",
   "onboarding.channels.dm.confirm": "现在配置 DM 访问策略？（默认：配对）",
-  "onboarding.channels.dm.policyBody": "默认：配对（未知 DM 会收到配对码）。\n批准：openclaw pairing approve <channel> <code>\n白名单 DM：policy.policyKey=\"allowlist\" + policy.allowFromKey 条目。\n公开 DM：policy.policyKey=\"open\" + policy.allowFromKey 包含 \"*\"。\n多用户 DM：运行 openclaw config set session.dmScope \"per-channel-peer\"（或对多账户通道用 \"per-account-channel-peer\"）以隔离会话。\n文档：channels/pairing",
+  "onboarding.channels.dm.policyBody": "默认：配对（未知 DM 会收到配对码）。\n批准：openclaw pairing approve <channel> <code>\n白名单 DM：policy.policyKey=\"allowlist\" + policy.allowFromKey 条目。\n公开 DM：policy.policyKey=\"open\" + policy.allowFromKey 包含 \"*\"。\n多用户 DM：运行 openclaw config set session.dmScope \"per-channel-peer\"（或对多账户信道用 \"per-account-channel-peer\"）以隔离会话。\n文档：channels/pairing",
   "onboarding.channels.dm.policyTitle": "{label} DM 访问",
   "onboarding.channels.dm.policyMessage": "{label} DM 策略",
   "onboarding.channels.dm.pairing": "配对（推荐）",
   "onboarding.channels.dm.allowlist": "白名单（仅限特定用户）",
   "onboarding.channels.dm.open": "公开（公开的入站 DM）",
   "onboarding.channels.dm.disabled": "禁用（忽略 DM）",
-  "onboarding.channels.configurePrompt": "现在配置聊天通道？",
+  "onboarding.channels.configurePrompt": "现在配置聊天信道？",
   "onboarding.channels.hint.pluginDisabled": "插件已禁用",
   "onboarding.channels.hint.pluginsDisabled": "插件已禁用",
   "onboarding.channels.hint.disabled": "已禁用",
   "onboarding.channels.setup.cannotEnable": "无法启用 {channel}：{reason}。",
-  "onboarding.channels.setup.title": "通道设置",
+  "onboarding.channels.setup.title": "信道设置",
   "onboarding.channels.setup.pluginNotAvailable": "{channel} 插件不可用。",
   "onboarding.channels.setup.noOnboarding": "{channel} 尚不支持引导设置。",
   "onboarding.channels.remove.noDelete": "{label} 不支持删除配置条目。",
-  "onboarding.channels.remove.title": "移除通道",
+  "onboarding.channels.remove.title": "移除信道",
   "onboarding.channels.remove.confirm": "删除 {label} 账户 \"{accountLabel}\"？",
-  "onboarding.channels.select.quickstart": "选择通道（快速开始）",
+  "onboarding.channels.select.quickstart": "选择信道（快速开始）",
   "onboarding.channels.skipNow": "暂时跳过",
-  "onboarding.channels.quickstart.skipHint": "稍后可通过 `{command}` 添加通道",
-  "onboarding.channels.select.message": "选择一个通道",
+  "onboarding.channels.quickstart.skipHint": "稍后可通过 `{command}` 添加信道",
+  "onboarding.channels.select.message": "选择一个信道",
   "onboarding.channels.finished": "已完成",
   "onboarding.channels.doneHint": "完成",
-  "onboarding.channels.selected.title": "已选通道",
+  "onboarding.channels.selected.title": "已选信道",
   "onboarding.skills.hint.install": "安装",
   "onboarding.skills.status.eligible": "可安装：{count}",
   "onboarding.skills.status.missing": "缺少依赖：{count}",

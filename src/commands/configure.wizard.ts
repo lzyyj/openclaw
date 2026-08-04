@@ -166,9 +166,9 @@ async function promptWebToolsConfig(
     const keyInput = guardCancel(
       await text({
         message: hasSearchKey
-          ? "Brave Search API key (leave blank to keep current or use BRAVE_API_KEY)"
-          : "Brave Search API key (paste it here; leave blank to use BRAVE_API_KEY)",
-        placeholder: hasSearchKey ? "Leave blank to keep current" : "BSA...",
+          ? getText("configure.web_search.key.keep_message", "Brave Search API key (leave blank to keep current or use BRAVE_API_KEY)")
+          : getText("configure.web_search.key.paste_message", "Brave Search API key (paste it here; leave blank to use BRAVE_API_KEY)"),
+        placeholder: hasSearchKey ? getText("configure.web_search.key.keep_placeholder", "Leave blank to keep current") : "BSA...",
       }),
       runtime,
     );
@@ -222,7 +222,7 @@ export async function runConfigureWizard(
 ) {
   try {
     printWizardHeader(runtime);
-    intro(opts.command === "update" ? "OpenClaw update wizard" : getText("configure.intro", "OpenClaw configure"));
+    intro(opts.command === "update" ? getText("configure.update_intro", "OpenClaw update wizard") : getText("configure.intro", "OpenClaw configure"));
     const prompter = createClackPrompter();
 
     const snapshot = await readConfigFileSnapshot();
@@ -379,7 +379,7 @@ export async function runConfigureWizard(
         await text({
           message: getText("configure.gateway_port.message", "Gateway port for service install"),
           initialValue: String(gatewayPort),
-          validate: (value) => (Number.isFinite(Number(value)) ? undefined : "Invalid port"),
+          validate: (value) => (Number.isFinite(Number(value)) ? undefined : getText("configure.gateway_port.invalid", "Invalid port")),
         }),
         runtime,
       );
@@ -389,7 +389,7 @@ export async function runConfigureWizard(
     if (opts.sections) {
       const selected = opts.sections;
       if (!selected || selected.length === 0) {
-        outro("No changes selected.");
+        outro(getText("configure.no_changes_selected", "No changes selected."));
         return;
       }
 

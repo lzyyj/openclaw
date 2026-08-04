@@ -25,24 +25,24 @@ export async function removeChannelConfigWizard(
     if (configured.length === 0) {
       note(
         [
-          "No channel config found in openclaw.json.",
+          getText("configure.channels.none_found", "No channel config found in openclaw.json."),
           getText("configure.channels.tip", `Tip: \`${formatCliCommand("openclaw channels status")}\` shows what is configured and enabled.`, { cmd: formatCliCommand("openclaw channels status") }),
         ].join("\n"),
-        "Remove channel",
+        getText("configure.channels.remove.title", "Remove channel"),
       );
       return next;
     }
 
     const channel = guardCancel(
       await select({
-        message: "Remove which channel config?",
+        message: getText("configure.channels.remove_which.message", "Remove which channel config?"),
         options: [
           ...configured.map((meta) => ({
             value: meta.id,
             label: meta.label,
-            hint: "Deletes tokens + settings from config (credentials stay on disk)",
+            hint: getText("configure.channels.remove.hint", "Deletes tokens + settings from config (credentials stay on disk)"),
           })),
-          { value: "done", label: "Done" },
+          { value: "done", label: getText("configure.channels.done", "Done") },
         ],
       }),
       runtime,
@@ -55,7 +55,10 @@ export async function removeChannelConfigWizard(
     const label = getChannelPlugin(channel)?.meta.label ?? channel;
     const confirmed = guardCancel(
       await confirm({
-        message: `Delete ${label} configuration from ${shortenHomePath(CONFIG_PATH)}?`,
+        message: getText("configure.channels.confirm_delete.message", "Delete {label} configuration from {path}?", {
+          label,
+          path: shortenHomePath(CONFIG_PATH),
+        }),
         initialValue: false,
       }),
       runtime,
@@ -74,10 +77,11 @@ export async function removeChannelConfigWizard(
     };
 
     note(
-      [`${label} removed from config.`, "Note: credentials/sessions on disk are unchanged."].join(
-        "\n",
-      ),
-      "Channel removed",
+      [
+        getText("configure.channels.removed.body", "{label} removed from config.", { label }),
+        getText("configure.channels.removed.note", "Note: credentials/sessions on disk are unchanged."),
+      ].join("\n"),
+      getText("configure.channels.removed.title", "Channel removed"),
     );
   }
 }

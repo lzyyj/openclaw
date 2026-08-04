@@ -3,6 +3,7 @@ import JSON5 from "json5";
 import { DEFAULT_AGENT_WORKSPACE_DIR, ensureAgentWorkspace } from "../agents/workspace.js";
 import { type OpenClawConfig, createConfigIO, writeConfigFile } from "../config/config.js";
 import { formatConfigPath, logConfigUpdated } from "../config/logging.js";
+import { getText } from "../cli/i18n.js";
 import { resolveSessionTranscriptsDir } from "../config/sessions.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { defaultRuntime } from "../runtime.js";
@@ -55,21 +56,24 @@ export async function setupCommand(
   if (!existingRaw.exists || defaults.workspace !== workspace) {
     await writeConfigFile(next);
     if (!existingRaw.exists) {
-      runtime.log(`Wrote ${formatConfigPath(configPath)}`);
+      runtime.log(getText("setup.wrote_config", "Wrote {path}", { path: formatConfigPath(configPath) }));
     } else {
-      logConfigUpdated(runtime, { path: configPath, suffix: "(set agents.defaults.workspace)" });
+      logConfigUpdated(runtime, {
+        path: configPath,
+        suffix: getText("setup.workspace_suffix", "(set agents.defaults.workspace)"),
+      });
     }
   } else {
-    runtime.log(`Config OK: ${formatConfigPath(configPath)}`);
+    runtime.log(getText("setup.config_ok", "Config OK: {path}", { path: formatConfigPath(configPath) }));
   }
 
   const ws = await ensureAgentWorkspace({
     dir: workspace,
     ensureBootstrapFiles: !next.agents?.defaults?.skipBootstrap,
   });
-  runtime.log(`Workspace OK: ${shortenHomePath(ws.dir)}`);
+  runtime.log(getText("setup.workspace_ok", "Workspace OK: {path}", { path: shortenHomePath(ws.dir) }));
 
   const sessionsDir = resolveSessionTranscriptsDir();
   await fs.mkdir(sessionsDir, { recursive: true });
-  runtime.log(`Sessions OK: ${shortenHomePath(sessionsDir)}`);
+  runtime.log(getText("setup.sessions_ok", "Sessions OK: {path}", { path: shortenHomePath(sessionsDir) }));
 }

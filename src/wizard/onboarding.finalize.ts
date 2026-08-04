@@ -67,8 +67,11 @@ export async function finalizeOnboardingWizard(
     process.platform === "linux" ? await isSystemdUserServiceAvailable() : true;
   if (process.platform === "linux" && !systemdAvailable) {
     await prompter.note(
-      "Systemd user services are unavailable. Skipping lingering checks and service install.",
-      "Systemd",
+      getText(
+        "onboarding.finalize.systemd_unavailable",
+        "Systemd user services are unavailable. Skipping lingering checks and service install.",
+      ),
+      getText("onboarding.finalize.systemd_title", "Systemd"),
     );
   }
 
@@ -80,8 +83,10 @@ export async function finalizeOnboardingWizard(
         confirm: prompter.confirm,
         note: prompter.note,
       },
-      reason:
+      reason: getText(
+        "onboarding.finalize.linger_reason",
         "Linux installs use a systemd user service by default. Without lingering, systemd stops the user session on logout/idle and kills the Gateway.",
+      ),
       requireConfirm: false,
     });
   }
@@ -97,15 +102,18 @@ export async function finalizeOnboardingWizard(
     installDaemon = true;
   } else {
     installDaemon = await prompter.confirm({
-      message: "Install Gateway service (recommended)",
+      message: getText("onboarding.finalize.install_service", "Install Gateway service (recommended)"),
       initialValue: true,
     });
   }
 
   if (process.platform === "linux" && !systemdAvailable && installDaemon) {
     await prompter.note(
-      "Systemd user services are unavailable; skipping service install. Use your container supervisor or `docker compose up -d`.",
-      "Gateway service",
+      getText(
+        "onboarding.finalize.systemd_skip_service",
+        "Systemd user services are unavailable; skipping service install. Use your container supervisor or `docker compose up -d`.",
+      ),
+      getText("onboarding.finalize.service_title", "Gateway service"),
     );
     installDaemon = false;
   }
@@ -115,33 +123,36 @@ export async function finalizeOnboardingWizard(
       flow === "quickstart"
         ? DEFAULT_GATEWAY_DAEMON_RUNTIME
         : await prompter.select({
-            message: "Gateway service runtime",
+            message: getText("onboarding.finalize.service_runtime", "Gateway service runtime"),
             options: GATEWAY_DAEMON_RUNTIME_OPTIONS,
             initialValue: opts.daemonRuntime ?? DEFAULT_GATEWAY_DAEMON_RUNTIME,
           });
     if (flow === "quickstart") {
       await prompter.note(
-        "QuickStart uses Node for the Gateway service (stable + supported).",
-        "Gateway service runtime",
+        getText(
+          "onboarding.finalize.runtime_quickstart",
+          "QuickStart uses Node for the Gateway service (stable + supported).",
+        ),
+        getText("onboarding.finalize.service_runtime", "Gateway service runtime"),
       );
     }
     const service = resolveGatewayService();
     const loaded = await service.isLoaded({ env: process.env });
     if (loaded) {
       const action = await prompter.select({
-        message: "Gateway service already installed",
+        message: getText("onboarding.finalize.service_installed", "Gateway service already installed"),
         options: [
-          { value: "restart", label: "Restart" },
-          { value: "reinstall", label: "Reinstall" },
-          { value: "skip", label: "Skip" },
+          { value: "restart", label: getText("onboarding.finalize.service.restart", "Restart") },
+          { value: "reinstall", label: getText("onboarding.finalize.service.reinstall", "Reinstall") },
+          { value: "skip", label: getText("onboarding.finalize.service.skip", "Skip") },
         ],
       });
       if (action === "restart") {
         await withWizardProgress(
-          "Gateway service",
-          { doneMessage: "Gateway service restarted." },
+          getText("onboarding.finalize.service_title", "Gateway service"),
+          { doneMessage: getText("onboarding.finalize.service.restarted", "Gateway service restarted.") },
           async (progress) => {
-            progress.update("Restarting Gateway service…");
+            progress.update(getText("onboarding.finalize.service.restarting", "Restarting Gateway service…"));
             await service.restart({
               env: process.env,
               stdout: process.stdout,
@@ -150,10 +161,10 @@ export async function finalizeOnboardingWizard(
         );
       } else if (action === "reinstall") {
         await withWizardProgress(
-          "Gateway service",
-          { doneMessage: "Gateway service uninstalled." },
+          getText("onboarding.finalize.service_title", "Gateway service"),
+          { doneMessage: getText("onboarding.finalize.service.uninstalled", "Gateway service uninstalled.") },
           async (progress) => {
-            progress.update("Uninstalling Gateway service…");
+            progress.update(getText("onboarding.finalize.service.uninstalling", "Uninstalling Gateway service…"));
             await service.uninstall({ env: process.env, stdout: process.stdout });
           },
         );
@@ -161,10 +172,10 @@ export async function finalizeOnboardingWizard(
     }
 
     if (!loaded || (loaded && !(await service.isLoaded({ env: process.env })))) {
-      const progress = prompter.progress("Gateway service");
+      const progress = prompter.progress(getText("onboarding.finalize.service_title", "Gateway service"));
       let installError: string | null = null;
       try {
-        progress.update("Preparing Gateway service…");
+        progress.update(getText("onboarding.finalize.service.preparing", "Preparing Gateway service…"));
         const { programArguments, workingDirectory, environment } = await buildGatewayInstallPlan({
           env: process.env,
           port: settings.port,
@@ -174,7 +185,7 @@ export async function finalizeOnboardingWizard(
           config: nextConfig,
         });
 
-        progress.update("Installing Gateway service…");
+        progress.update(getText("onboarding.finalize.service.installing", "Installing Gateway service…"));
         await service.install({
           env: process.env,
           stdout: process.stdout,
@@ -186,12 +197,21 @@ export async function finalizeOnboardingWizard(
         installError = err instanceof Error ? err.message : String(err);
       } finally {
         progress.stop(
-          installError ? "Gateway service install failed." : "Gateway service installed.",
+          installError
+            ? getText("onboarding.finalize.service.install_failed", "Gateway service install failed.")
+            : getText("onboarding.finalize.service.installed", "Gateway service installed."),
         );
       }
       if (installError) {
-        await prompter.note(`Gateway service install failed: ${installError}`, "Gateway");
-        await prompter.note(gatewayInstallErrorHint(), "Gateway");
+        await prompter.note(
+          getText(
+            "onboarding.finalize.service.install_failed_detail",
+            "Gateway service install failed: {error}",
+            { error: installError },
+          ),
+          getText("onboarding.finalize.gateway_title", "Gateway"),
+        );
+        await prompter.note(gatewayInstallErrorHint(), getText("onboarding.finalize.gateway_title", "Gateway"));
       }
     }
   }
@@ -215,11 +235,11 @@ export async function finalizeOnboardingWizard(
       runtime.error(formatHealthCheckFailure(err));
       await prompter.note(
         [
-          "Docs:",
+          getText("onboarding.finalize.docs_label", "Docs:"),
           "https://docs.openclaw.ai/gateway/health",
           "https://docs.openclaw.ai/gateway/troubleshooting",
         ].join("\n"),
-        "Health check help",
+        getText("onboarding.finalize.health_check_help", "Health check help"),
       );
     }
   }
@@ -235,12 +255,12 @@ export async function finalizeOnboardingWizard(
 
   await prompter.note(
     [
-      "Add nodes for extra features:",
-      "- macOS app (system + notifications)",
-      "- iOS app (camera/canvas)",
-      "- Android app (camera/canvas)",
+      getText("onboarding.finalize.optional_apps.header", "Add nodes for extra features:"),
+      getText("onboarding.finalize.optional_apps.macos", "- macOS app (system + notifications)"),
+      getText("onboarding.finalize.optional_apps.ios", "- iOS app (camera/canvas)"),
+      getText("onboarding.finalize.optional_apps.android", "- Android app (camera/canvas)"),
     ].join("\n"),
-    "Optional apps",
+    getText("onboarding.finalize.optional_apps.title", "Optional apps"),
   );
 
   const controlUiBasePath =
@@ -297,34 +317,49 @@ export async function finalizeOnboardingWizard(
     if (hasBootstrap) {
       await prompter.note(
         [
-          "This is the defining action that makes your agent you.",
-          "Please take your time.",
-          "The more you tell it, the better the experience will be.",
-          'We will send: "Wake up, my friend!"',
+          getText("onboarding.finalize.tui.defining", "This is the defining action that makes your agent you."),
+          getText("onboarding.finalize.tui.take_time", "Please take your time."),
+          getText("onboarding.finalize.tui.more_tell", "The more you tell it, the better the experience will be."),
+          getText("onboarding.finalize.tui.wake", 'We will send: "Wake up, my friend!"'),
         ].join("\n"),
-        "Start TUI (best option!)",
+        getText("onboarding.finalize.tui.title", "Start TUI (best option!)"),
       );
     }
 
     await prompter.note(
       [
-        "Gateway token: shared auth for the Gateway + Control UI.",
-        "Stored in: ~/.openclaw/openclaw.json (gateway.auth.token) or OPENCLAW_GATEWAY_TOKEN.",
-        `View token: ${formatCliCommand("openclaw config get gateway.auth.token")}`,
-        `Generate token: ${formatCliCommand("openclaw doctor --generate-gateway-token")}`,
-        "Web UI stores a copy in this browser's localStorage (openclaw.control.settings.v1).",
-        `Open the dashboard anytime: ${formatCliCommand("openclaw dashboard --no-open")}`,
-        "If prompted: paste the token into Control UI settings (or use the tokenized dashboard URL).",
+        getText("onboarding.finalize.token.shared_auth", "Gateway token: shared auth for the Gateway + Control UI."),
+        getText(
+          "onboarding.finalize.token.stored",
+          "Stored in: ~/.openclaw/openclaw.json (gateway.auth.token) or OPENCLAW_GATEWAY_TOKEN.",
+        ),
+        getText("onboarding.finalize.token.view", "View token: {command}", {
+          command: formatCliCommand("openclaw config get gateway.auth.token"),
+        }),
+        getText("onboarding.finalize.token.generate", "Generate token: {command}", {
+          command: formatCliCommand("openclaw doctor --generate-gateway-token"),
+        }),
+        getText(
+          "onboarding.finalize.token.webui_copy",
+          "Web UI stores a copy in this browser's localStorage (openclaw.control.settings.v1).",
+        ),
+        getText("onboarding.finalize.token.open_dashboard", "Open the dashboard anytime: {command}", {
+          command: formatCliCommand("openclaw dashboard --no-open"),
+        }),
+        getText(
+          "onboarding.finalize.token.paste",
+          "If prompted: paste the token into Control UI settings (or use the tokenized dashboard URL).",
+        ),
       ].join("\n"),
-      "Token",
+      getText("onboarding.finalize.token.title", "Token"),
     );
 
     hatchChoice = await prompter.select({
-      message: "How do you want to hatch your bot?",
+      message: getText("onboarding.finalize.hatch.message", "How do you want to hatch your bot?"),
       options: [
-        { value: "tui", label: "Hatch in TUI (recommended)" },
-        { value: "web", label: "Open the Web UI" },
-        { value: "later", label: "Do this later" },
+        { value: "tui", label: getText("onboarding.finalize.hatch.tui", "Hatch in TUI (recommended)") },
+        { value: "web", label: getText("onboarding.finalize.hatch.web", "Open the Web UI") },
+        { value: "later", label: getText("onboarding.finalize.hatch.later", "Do this later") },
       ],
       initialValue: "tui",
     });
@@ -337,7 +372,7 @@ export async function finalizeOnboardingWizard(
         password: settings.authMode === "password" ? nextConfig.gateway?.auth?.password : "",
         // Safety: onboarding TUI should not auto-deliver to lastProvider/lastTo.
         deliver: false,
-        message: hasBootstrap ? "Wake up, my friend!" : undefined,
+        message: hasBootstrap ? getText("onboarding.finalize.tui.wake_message", "Wake up, my friend!") : undefined,
       });
       launchedTui = true;
     } else if (hatchChoice === "web") {
@@ -360,37 +395,48 @@ export async function finalizeOnboardingWizard(
       }
       await prompter.note(
         [
-          `Dashboard link (with token): ${authedUrl}`,
+          getText("onboarding.finalize.dashboard.link", "Dashboard link (with token): {url}", { url: authedUrl }),
           controlUiOpened
-            ? "Opened in your browser. Keep that tab to control OpenClaw."
-            : "Copy/paste this URL in a browser on this machine to control OpenClaw.",
+            ? getText("onboarding.finalize.dashboard.opened", "Opened in your browser. Keep that tab to control OpenClaw.")
+            : getText(
+                "onboarding.finalize.dashboard.copy",
+                "Copy/paste this URL in a browser on this machine to control OpenClaw.",
+              ),
           controlUiOpenHint,
         ]
           .filter(Boolean)
           .join("\n"),
-        "Dashboard ready",
+        getText("onboarding.finalize.dashboard.title", "Dashboard ready"),
       );
     } else {
       await prompter.note(
-        `When you're ready: ${formatCliCommand("openclaw dashboard --no-open")}`,
-        "Later",
+        getText("onboarding.finalize.later.when_ready", "When you're ready: {command}", {
+          command: formatCliCommand("openclaw dashboard --no-open"),
+        }),
+        getText("onboarding.finalize.later.title", "Later"),
       );
     }
   } else if (opts.skipUi) {
-    await prompter.note("Skipping Control UI/TUI prompts.", "Control UI");
+    await prompter.note(
+      getText("onboarding.finalize.skip_ui", "Skipping Control UI/TUI prompts."),
+      getText("onboarding.finalize.control_ui_title", "Control UI"),
+    );
   }
 
   await prompter.note(
     [
-      "Back up your agent workspace.",
+      getText("onboarding.finalize.workspace_backup.body", "Back up your agent workspace."),
       "Docs: https://docs.openclaw.ai/concepts/agent-workspace",
     ].join("\n"),
-    "Workspace backup",
+    getText("onboarding.finalize.workspace_backup.title", "Workspace backup"),
   );
 
   await prompter.note(
-    "Running agents on your computer is risky — harden your setup: https://docs.openclaw.ai/security",
-    "Security",
+    getText(
+      "onboarding.finalize.security.body",
+      "Running agents on your computer is risky — harden your setup: https://docs.openclaw.ai/security",
+    ),
+    getText("onboarding.finalize.security.title", "Security"),
   );
 
   await setupOnboardingShellCompletion({ flow, prompter });
@@ -421,15 +467,18 @@ export async function finalizeOnboardingWizard(
 
     await prompter.note(
       [
-        `Dashboard link (with token): ${authedUrl}`,
+        getText("onboarding.finalize.dashboard.link", "Dashboard link (with token): {url}", { url: authedUrl }),
         controlUiOpened
-          ? "Opened in your browser. Keep that tab to control OpenClaw."
-          : "Copy/paste this URL in a browser on this machine to control OpenClaw.",
+          ? getText("onboarding.finalize.dashboard.opened", "Opened in your browser. Keep that tab to control OpenClaw.")
+          : getText(
+              "onboarding.finalize.dashboard.copy",
+              "Copy/paste this URL in a browser on this machine to control OpenClaw.",
+            ),
         controlUiOpenHint,
       ]
         .filter(Boolean)
         .join("\n"),
-      "Dashboard ready",
+      getText("onboarding.finalize.dashboard.title", "Dashboard ready"),
     );
   }
 
@@ -439,39 +488,74 @@ export async function finalizeOnboardingWizard(
   await prompter.note(
     hasWebSearchKey
       ? [
-          "Web search is enabled, so your agent can look things up online when needed.",
+          getText(
+            "onboarding.finalize.web_search.enabled",
+            "Web search is enabled, so your agent can look things up online when needed.",
+          ),
           "",
           webSearchKey
-            ? "API key: stored in config (tools.web.search.apiKey)."
-            : "API key: provided via BRAVE_API_KEY env var (Gateway environment).",
+            ? getText(
+                "onboarding.finalize.web_search.key_config",
+                "API key: stored in config (tools.web.search.apiKey).",
+              )
+            : getText(
+                "onboarding.finalize.web_search.key_env",
+                "API key: provided via BRAVE_API_KEY env var (Gateway environment).",
+              ),
           "Docs: https://docs.openclaw.ai/tools/web",
         ].join("\n")
       : [
-          "If you want your agent to be able to search the web, you’ll need an API key.",
+          getText(
+            "onboarding.finalize.web_search.need_key",
+            "If you want your agent to be able to search the web, you’ll need an API key.",
+          ),
           "",
-          "OpenClaw uses Brave Search for the `web_search` tool. Without a Brave Search API key, web search won’t work.",
+          getText(
+            "onboarding.finalize.web_search.brave",
+            "OpenClaw uses Brave Search for the `web_search` tool. Without a Brave Search API key, web search won’t work.",
+          ),
           "",
-          "Set it up interactively:",
-          `- Run: ${formatCliCommand("openclaw configure --section web")}`,
-          "- Enable web_search and paste your Brave Search API key",
+          getText("onboarding.finalize.web_search.setup_interactive", "Set it up interactively:"),
+          getText("onboarding.finalize.web_search.run", "- Run: {command}", {
+            command: formatCliCommand("openclaw configure --section web"),
+          }),
+          getText(
+            "onboarding.finalize.web_search.enable_paste",
+            "- Enable web_search and paste your Brave Search API key",
+          ),
           "",
-          "Alternative: set BRAVE_API_KEY in the Gateway environment (no config changes).",
+          getText(
+            "onboarding.finalize.web_search.alternative",
+            "Alternative: set BRAVE_API_KEY in the Gateway environment (no config changes).",
+          ),
           "Docs: https://docs.openclaw.ai/tools/web",
         ].join("\n"),
-    "Web search (optional)",
+    getText("onboarding.finalize.web_search.title", "Web search (optional)"),
   );
 
   await prompter.note(
-    'What now: https://openclaw.ai/showcase ("What People Are Building").',
-    "What now",
+    getText(
+      "onboarding.finalize.what_now.body",
+      'What now: https://openclaw.ai/showcase ("What People Are Building").',
+    ),
+    getText("onboarding.finalize.what_now.title", "What now"),
   );
 
   await prompter.outro(
     controlUiOpened
-      ? "Onboarding complete. Dashboard opened; keep that tab to control OpenClaw."
+      ? getText(
+          "onboarding.finalize.outro.opened",
+          "Onboarding complete. Dashboard opened; keep that tab to control OpenClaw.",
+        )
       : seededInBackground
-        ? "Onboarding complete. Web UI seeded in the background; open it anytime with the dashboard link above."
-        : "Onboarding complete. Use the dashboard link above to control OpenClaw.",
+        ? getText(
+            "onboarding.finalize.outro.seeded",
+            "Onboarding complete. Web UI seeded in the background; open it anytime with the dashboard link above.",
+          )
+        : getText(
+            "onboarding.finalize.outro.done",
+            "Onboarding complete. Use the dashboard link above to control OpenClaw.",
+          ),
   );
 
   return { launchedTui };

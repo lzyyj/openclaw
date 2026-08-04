@@ -1,4 +1,5 @@
 import { ensureAuthProfileStore } from "../agents/auth-profiles.js";
+import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig, GatewayAuthConfig } from "../config/config.js";
 import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import type { RuntimeEnv } from "../runtime.js";
@@ -166,7 +167,7 @@ export async function promptAuthConfig(
         prompter,
         allowedKeys: ANTHROPIC_OAUTH_MODEL_KEYS,
         initialSelections: ["anthropic/claude-sonnet-4-6"],
-        message: "Anthropic OAuth models",
+        message: getText("configure.gateway-auth.anthropic_oauth_models", "Anthropic OAuth models"),
       });
       if (allowlistSelection.models) {
         next = applyModelAllowlist(next, allowlistSelection.models);

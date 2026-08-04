@@ -115,13 +115,19 @@ export async function promptGatewayConfig(
   if (tailscaleMode !== "off") {
     const tailscaleBin = await findTailscaleBinary();
     if (!tailscaleBin) {
-      note(TAILSCALE_MISSING_BIN_NOTE_LINES.join("\n"), "Tailscale Warning");
+      note(
+        TAILSCALE_MISSING_BIN_NOTE_LINES.join("\n"),
+        getText("configure.gateway.tailscale.missing_bin_title", "Tailscale Warning"),
+      );
     }
   }
 
   let tailscaleResetOnExit = false;
   if (tailscaleMode !== "off") {
-    note(TAILSCALE_DOCS_LINES.join("\n"), "Tailscale");
+    note(
+      TAILSCALE_DOCS_LINES.join("\n"),
+      getText("configure.gateway.tailscale.docs_title", "Tailscale"),
+    );
     tailscaleResetOnExit = Boolean(
       guardCancel(
         await confirm({
@@ -205,7 +211,10 @@ export async function promptGatewayConfig(
         message: getText("configure.gateway.trusted_proxy.header.message", "Header containing user identity"),
         placeholder: "x-forwarded-user",
         initialValue: "x-forwarded-user",
-        validate: (value) => (value?.trim() ? undefined : "User header is required"),
+        validate: (value) =>
+          value?.trim()
+            ? undefined
+            : getText("configure.gateway.trusted_proxy.header.required", "User header is required"),
       }),
       runtime,
     );
@@ -244,7 +253,10 @@ export async function promptGatewayConfig(
         placeholder: "10.0.1.10,192.168.1.5",
         validate: (value) => {
           if (!value || String(value).trim() === "") {
-            return "At least one trusted proxy IP is required";
+            return getText(
+              "configure.gateway.trusted_proxy.ips.required",
+              "At least one trusted proxy IP is required",
+            );
           }
           return undefined;
         },

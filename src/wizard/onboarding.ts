@@ -229,54 +229,54 @@ export async function runOnboardingWizard(
   if (flow === "quickstart") {
     const formatBind = (value: "loopback" | "lan" | "auto" | "custom" | "tailnet") => {
       if (value === "loopback") {
-        return "Loopback (127.0.0.1)";
+        return getText("onboarding.quickstart.bind.loopback", "Loopback (127.0.0.1)");
       }
       if (value === "lan") {
-        return "LAN";
+        return getText("onboarding.quickstart.bind.lan", "LAN");
       }
       if (value === "custom") {
-        return "Custom IP";
+        return getText("onboarding.quickstart.bind.custom", "Custom IP");
       }
       if (value === "tailnet") {
-        return "Tailnet (Tailscale IP)";
+        return getText("onboarding.quickstart.bind.tailnet", "Tailnet (Tailscale IP)");
       }
-      return "Auto";
+      return getText("onboarding.quickstart.bind.auto", "Auto");
     };
     const formatAuth = (value: GatewayAuthChoice) => {
       if (value === "token") {
-        return "Token (default)";
+        return getText("onboarding.quickstart.auth.token", "Token (default)");
       }
-      return "Password";
+      return getText("onboarding.quickstart.auth.password", "Password");
     };
     const formatTailscale = (value: "off" | "serve" | "funnel") => {
       if (value === "off") {
-        return "Off";
+        return getText("onboarding.quickstart.tailscale.off", "Off");
       }
       if (value === "serve") {
-        return "Serve";
+        return getText("onboarding.quickstart.tailscale.serve", "Serve");
       }
-      return "Funnel";
+      return getText("onboarding.quickstart.tailscale.funnel", "Funnel");
     };
     const quickstartLines = quickstartGateway.hasExisting
       ? [
-          "Keeping your current gateway settings:",
-          `Gateway port: ${quickstartGateway.port}`,
-          `Gateway bind: ${formatBind(quickstartGateway.bind)}`,
+          getText("onboarding.quickstart.keep", "Keeping your current gateway settings:"),
+          `${getText("onboarding.quickstart.gateway_port", "Gateway port")}: ${quickstartGateway.port}`,
+          `${getText("onboarding.quickstart.gateway_bind", "Gateway bind")}: ${formatBind(quickstartGateway.bind)}`,
           ...(quickstartGateway.bind === "custom" && quickstartGateway.customBindHost
-            ? [`Gateway custom IP: ${quickstartGateway.customBindHost}`]
+            ? [`${getText("onboarding.quickstart.gateway_custom_ip", "Gateway custom IP")}: ${quickstartGateway.customBindHost}`]
             : []),
-          `Gateway auth: ${formatAuth(quickstartGateway.authMode)}`,
-          `Tailscale exposure: ${formatTailscale(quickstartGateway.tailscaleMode)}`,
-          "Direct to chat channels.",
+          `${getText("onboarding.quickstart.gateway_auth", "Gateway auth")}: ${formatAuth(quickstartGateway.authMode)}`,
+          `${getText("onboarding.quickstart.tailscale_exposure", "Tailscale exposure")}: ${formatTailscale(quickstartGateway.tailscaleMode)}`,
+          getText("onboarding.quickstart.direct_channels", "Direct to chat channels."),
         ]
       : [
-          `Gateway port: ${DEFAULT_GATEWAY_PORT}`,
-          "Gateway bind: Loopback (127.0.0.1)",
-          "Gateway auth: Token (default)",
-          "Tailscale exposure: Off",
-          "Direct to chat channels.",
+          `${getText("onboarding.quickstart.gateway_port", "Gateway port")}: ${DEFAULT_GATEWAY_PORT}`,
+          `${getText("onboarding.quickstart.gateway_bind", "Gateway bind")}: ${getText("onboarding.quickstart.bind.loopback", "Loopback (127.0.0.1)")}`,
+          `${getText("onboarding.quickstart.gateway_auth", "Gateway auth")}: ${getText("onboarding.quickstart.auth.token", "Token (default)")}`,
+          `${getText("onboarding.quickstart.tailscale_exposure", "Tailscale exposure")}: ${getText("onboarding.quickstart.tailscale.off", "Off")}`,
+          getText("onboarding.quickstart.direct_channels", "Direct to chat channels."),
         ];
-    await prompter.note(quickstartLines.join("\n"), "QuickStart");
+    await prompter.note(quickstartLines.join("\n"), getText("onboarding.flow.quickstart", "QuickStart"));
   }
 
   const localPort = resolveGatewayPort(baseConfig);
@@ -299,23 +299,23 @@ export async function runOnboardingWizard(
     (flow === "quickstart"
       ? "local"
       : ((await prompter.select({
-          message: "What do you want to set up?",
+          message: getText("onboarding.mode.message", "What do you want to set up?"),
           options: [
             {
               value: "local",
-              label: "Local gateway (this machine)",
+              label: getText("onboarding.mode.local", "Local gateway (this machine)"),
               hint: localProbe.ok
-                ? `Gateway reachable (${localUrl})`
-                : `No gateway detected (${localUrl})`,
+                ? getText("onboarding.mode.gateway_reachable", "Gateway reachable ({url})", { url: localUrl })
+                : getText("onboarding.mode.no_gateway", "No gateway detected ({url})", { url: localUrl }),
             },
             {
               value: "remote",
-              label: "Remote gateway (info-only)",
+              label: getText("onboarding.mode.remote", "Remote gateway (info-only)"),
               hint: !remoteUrl
-                ? "No remote URL configured yet"
+                ? getText("onboarding.mode.no_remote_url", "No remote URL configured yet")
                 : remoteProbe?.ok
-                  ? `Gateway reachable (${remoteUrl})`
-                  : `Configured but unreachable (${remoteUrl})`,
+                  ? getText("onboarding.mode.remote_reachable", "Gateway reachable ({url})", { url: remoteUrl })
+                  : getText("onboarding.mode.remote_unreachable", "Configured but unreachable ({url})", { url: remoteUrl }),
             },
           ],
         })) as OnboardMode));
@@ -327,7 +327,7 @@ export async function runOnboardingWizard(
     nextConfig = onboardHelpers.applyWizardMetadata(nextConfig, { command: "onboard", mode });
     await writeConfigFile(nextConfig);
     logConfigUpdated(runtime);
-    await prompter.outro("Remote gateway configured.");
+    await prompter.outro(getText("onboarding.mode.remote_configured", "Remote gateway configured."));
     return;
   }
 
@@ -336,7 +336,7 @@ export async function runOnboardingWizard(
     (flow === "quickstart"
       ? (baseConfig.agents?.defaults?.workspace ?? onboardHelpers.DEFAULT_WORKSPACE)
       : await prompter.text({
-          message: "Workspace directory",
+          message: getText("onboarding.workspace.message", "Workspace directory"),
           initialValue: baseConfig.agents?.defaults?.workspace ?? onboardHelpers.DEFAULT_WORKSPACE,
         }));
 
@@ -419,7 +419,7 @@ export async function runOnboardingWizard(
   const settings = gateway.settings;
 
   if (opts.skipChannels ?? opts.skipProviders) {
-    await prompter.note("Skipping channel setup.", "Channels");
+    await prompter.note(getText("onboarding.skip.channels.body", "Skipping channel setup."), getText("onboarding.skip.channels.title", "Channels"));
   } else {
     const { listChannelPlugins } = await import("../channels/plugins/index.js");
     const { setupChannels } = await import("../commands/onboard-channels.js");
@@ -446,7 +446,7 @@ export async function runOnboardingWizard(
   });
 
   if (opts.skipSkills) {
-    await prompter.note("Skipping skills setup.", "Skills");
+    await prompter.note(getText("onboarding.skip.skills.body", "Skipping skills setup."), getText("onboarding.skip.skills.title", "Skills"));
   } else {
     const { setupSkills } = await import("../commands/onboard-skills.js");
     nextConfig = await setupSkills(nextConfig, workspaceDir, runtime, prompter);

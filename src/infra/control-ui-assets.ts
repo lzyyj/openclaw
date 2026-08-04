@@ -261,9 +261,12 @@ export async function ensureControlUiAssetsBuilt(
   // First, ensure the main project is built (some UI assets may depend on built files)
   // This follows the same order as the prepack script: build then ui:build
   runtime.log("Control UI assets missing; building main project first (build)…");
-  // Try to run pnpm build, if pnpm is available
-  const pnpmPath = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-  const mainBuild = await runCommandWithTimeout([pnpmPath, "build"], {
+  // On Windows, `.cmd` shims (pnpm.cmd) cannot be spawned directly without a shell
+  // (throws EINVAL). Route through cmd.exe with an explicit shell-wrapper argv to
+  // avoid enabling a general `shell: true` (see shouldSpawnWithShell security note).
+  const pnpmArgv =
+    process.platform === "win32" ? ["cmd.exe", "/c", "pnpm", "build"] : ["pnpm", "build"];
+  const mainBuild = await runCommandWithTimeout(pnpmArgv, {
     cwd: repoRoot,
     timeoutMs: opts?.timeoutMs ? Math.floor(opts.timeoutMs / 2) : 5 * 60_000,
   });

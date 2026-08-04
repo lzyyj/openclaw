@@ -475,17 +475,6 @@ export function renderChat(props: ChatProps) {
       ${renderCompactionIndicator(props.compactionStatus)}
 
       ${
-        isBusy
-          ? html`
-              <div class="chat-busy-indicator" role="status" aria-live="polite">
-                <span class="chat-busy-indicator__dot" aria-hidden="true"></span>
-                <span>${t("chat.processing")}</span>
-              </div>
-            `
-          : nothing
-      }
-
-      ${
         props.showNewMessages
           ? html`
             <button

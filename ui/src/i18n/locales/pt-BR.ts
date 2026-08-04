@@ -125,7 +125,6 @@ export const pt_BR: TranslationMap = {
     queue: "Fila",
     interrupt: "Interromper",
     interruptTitle: "Interromper: injetar na resposta em andamento em vez de enfileirar",
-    processing: "Processando…",
     queued: "Na fila ({count})",
     removeQueued: "Remover mensagem da fila",
     queueModeLabel: "Modo ocupado",

@@ -122,7 +122,6 @@ export const zh_TW: TranslationMap = {
     queue: "排隊",
     interrupt: "插話",
     interruptTitle: "插話提醒：不等目前回覆結束，直接注入給 AI",
-    processing: "處理中…",
     queued: "排隊中（{count}）",
     removeQueued: "移除排隊訊息",
     queueModeLabel: "忙時模式",

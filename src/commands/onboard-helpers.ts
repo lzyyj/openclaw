@@ -88,14 +88,17 @@ export function normalizeGatewayTokenInput(value: unknown): string {
 
 export function validateGatewayPasswordInput(value: unknown): string | undefined {
   if (typeof value !== "string") {
-    return "Required";
+    return getText("onboarding.helpers.required", "Required");
   }
   const trimmed = value.trim();
   if (!trimmed) {
-    return "Required";
+    return getText("onboarding.helpers.required", "Required");
   }
   if (trimmed === "undefined" || trimmed === "null") {
-    return 'Cannot be the literal string "undefined" or "null"';
+    return getText(
+      "onboarding.helpers.password_literal",
+      'Cannot be the literal string "undefined" or "null"',
+    );
   }
   return undefined;
 }
@@ -217,12 +220,12 @@ export function formatControlUiSshHint(params: {
     : undefined;
   const sshTarget = resolveSshTargetHint();
   return [
-    "No GUI detected. Open from your computer:",
+    getText("onboarding.helpers.ssh.no_gui", "No GUI detected. Open from your computer:"),
     `ssh -N -L ${params.port}:127.0.0.1:${params.port} ${sshTarget}`,
-    "Then open:",
+    getText("onboarding.helpers.ssh.then_open", "Then open:"),
     localUrl,
     authedUrl,
-    "Docs:",
+    getText("onboarding.helpers.ssh.docs", "Docs:"),
     "https://docs.openclaw.ai/gateway/remote",
     "https://docs.openclaw.ai/web/control-ui",
   ]
@@ -297,10 +300,18 @@ export async function ensureWorkspaceAndSessions(
     dir: workspaceDir,
     ensureBootstrapFiles: !options?.skipBootstrap,
   });
-  runtime.log(`Workspace OK: ${shortenHomePath(ws.dir)}`);
+  runtime.log(
+    getText("onboarding.helpers.workspace_ok", "Workspace OK: {dir}", {
+      dir: shortenHomePath(ws.dir),
+    }),
+  );
   const sessionsDir = resolveSessionTranscriptsDirForAgent(options?.agentId);
   await fs.mkdir(sessionsDir, { recursive: true });
-  runtime.log(`Sessions OK: ${shortenHomePath(sessionsDir)}`);
+  runtime.log(
+    getText("onboarding.helpers.sessions_ok", "Sessions OK: {dir}", {
+      dir: shortenHomePath(sessionsDir),
+    }),
+  );
 }
 
 export function resolveNodeManagerOptions(): Array<{
@@ -325,9 +336,17 @@ export async function moveToTrash(pathname: string, runtime: RuntimeEnv): Promis
   }
   try {
     await runCommandWithTimeout(["trash", pathname], { timeoutMs: 5000 });
-    runtime.log(`Moved to Trash: ${shortenHomePath(pathname)}`);
+    runtime.log(
+      getText("onboarding.helpers.trash.moved", "Moved to Trash: {path}", {
+        path: shortenHomePath(pathname),
+      }),
+    );
   } catch {
-    runtime.log(`Failed to move to Trash (manual delete): ${shortenHomePath(pathname)}`);
+    runtime.log(
+      getText("onboarding.helpers.trash.failed", "Failed to move to Trash (manual delete): {path}", {
+        path: shortenHomePath(pathname),
+      }),
+    );
   }
 }
 
@@ -440,7 +459,7 @@ export async function waitForGatewayReachable(params: {
 }
 
 function summarizeError(err: unknown): string {
-  let raw = "unknown error";
+  let raw = getText("onboarding.helpers.unknown_error", "unknown error");
   if (err instanceof Error) {
     raw = err.message || raw;
   } else if (typeof err === "string") {

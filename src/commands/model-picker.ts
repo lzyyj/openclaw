@@ -132,17 +132,23 @@ function addModelSelectOption(params: {
     hints.push(params.entry.name);
   }
   if (params.entry.contextWindow) {
-    hints.push(`ctx ${formatTokenK(params.entry.contextWindow)}`);
+    hints.push(
+      getText("onboarding.model.hint.ctx", "ctx {size}", {
+        size: formatTokenK(params.entry.contextWindow),
+      }),
+    );
   }
   if (params.entry.reasoning) {
-    hints.push("reasoning");
+    hints.push(getText("onboarding.model.hint.reasoning", "reasoning"));
   }
   const aliases = params.aliasIndex.byKey.get(key);
   if (aliases?.length) {
-    hints.push(`alias: ${aliases.join(", ")}`);
+    hints.push(
+      getText("onboarding.model.hint.alias", "alias: {aliases}", { aliases: aliases.join(", ") }),
+    );
   }
   if (!params.hasAuth(params.entry.provider)) {
-    hints.push("auth missing");
+    hints.push(getText("onboarding.model.hint.auth_missing", "auth missing"));
   }
   params.options.push({
     value: key,
@@ -166,10 +172,15 @@ async function promptManualModel(params: {
   initialValue?: string;
 }): Promise<PromptDefaultModelResult> {
   const modelInput = await params.prompter.text({
-    message: params.allowBlank ? "Default model (blank to keep)" : "Default model",
+    message: params.allowBlank
+      ? getText("onboarding.model.manual.blank_keep", "Default model (blank to keep)")
+      : getText("onboarding.model.default", "Default model"),
     initialValue: params.initialValue,
-    placeholder: "provider/model",
-    validate: params.allowBlank ? undefined : (value) => (value?.trim() ? undefined : "Required"),
+    placeholder: getText("onboarding.model.manual.placeholder", "provider/model"),
+    validate: params.allowBlank
+      ? undefined
+      : (value) =>
+          value?.trim() ? undefined : getText("onboarding.model.manual.required", "Required"),
   });
   const model = String(modelInput ?? "").trim();
   if (!model) {
@@ -240,15 +251,15 @@ export async function promptDefaultModel(
     !hasPreferredProvider && providers.length > 1 && models.length > PROVIDER_FILTER_THRESHOLD;
   if (shouldPromptProvider) {
     const selection = await params.prompter.select({
-      message: "Filter models by provider",
+      message: getText("onboarding.model.filter_provider", "Filter models by provider"),
       options: [
-        { value: "*", label: "All providers" },
+        { value: "*", label: getText("onboarding.model.filter_provider.all", "All providers") },
         ...providers.map((provider) => {
           const count = models.filter((entry) => entry.provider === provider).length;
           return {
             value: provider,
             label: provider,
-            hint: `${count} model${count === 1 ? "" : "s"}`,
+            hint: getText("onboarding.model.provider_model_count", "{count} model(s)", { count }),
           };
         }),
       ],
@@ -281,20 +292,31 @@ export async function promptDefaultModel(
     options.push({
       value: KEEP_VALUE,
       label: configuredRaw
-        ? `Keep current (${configuredRaw})`
-        : `Keep current (default: ${resolvedKey})`,
+        ? getText("onboarding.model.keep_current", "Keep current ({model})", {
+            model: configuredRaw,
+          })
+        : getText("onboarding.model.keep_current_default", "Keep current (default: {model})", {
+            model: resolvedKey,
+          }),
       hint:
-        configuredRaw && configuredRaw !== resolvedKey ? `resolves to ${resolvedKey}` : undefined,
+        configuredRaw && configuredRaw !== resolvedKey
+          ? getText("onboarding.model.keep_current_resolves", "resolves to {model}", {
+              model: resolvedKey,
+            })
+          : undefined,
     });
   }
   if (includeManual) {
-    options.push({ value: MANUAL_VALUE, label: "Enter model manually" });
+    options.push({
+      value: MANUAL_VALUE,
+      label: getText("onboarding.model.enter_manual", "Enter model manually"),
+    });
   }
   if (includeVllm && agentDir) {
     options.push({
       value: VLLM_VALUE,
-      label: "vLLM (custom)",
-      hint: "Enter vLLM URL + API key + model",
+      label: getText("onboarding.model.vllm", "vLLM (custom)"),
+      hint: getText("onboarding.model.vllm.hint", "Enter vLLM URL + API key + model"),
     });
   }
 
@@ -308,7 +330,7 @@ export async function promptDefaultModel(
     options.push({
       value: configuredKey,
       label: configuredKey,
-      hint: "current (not in catalog)",
+      hint: getText("onboarding.model.current_not_catalog", "current (not in catalog)"),
     });
   }
 
@@ -326,7 +348,7 @@ export async function promptDefaultModel(
   }
 
   const selection = await params.prompter.select({
-    message: params.message ?? "Default model",
+    message: params.message ?? getText("onboarding.model.default", "Default model"),
     options,
     initialValue,
   });
@@ -344,8 +366,11 @@ export async function promptDefaultModel(
   if (selection === VLLM_VALUE) {
     if (!agentDir) {
       await params.prompter.note(
-        "vLLM setup requires an agent directory context.",
-        "vLLM not available",
+        getText(
+          "onboarding.model.vllm.need_agent_dir",
+          "vLLM setup requires an agent directory context.",
+        ),
+        getText("onboarding.model.vllm.not_available", "vLLM not available"),
       );
       return {};
     }
@@ -392,7 +417,10 @@ export async function promptModelAllowlist(params: {
     const raw = await params.prompter.text({
       message:
         params.message ??
-        "Allowlist models (comma-separated provider/model; blank to keep current)",
+        getText(
+          "onboarding.model.allowlist.text",
+          "Allowlist models (comma-separated provider/model; blank to keep current)",
+        ),
       initialValue: existingKeys.join(", "),
       placeholder: `${OPENAI_CODEX_DEFAULT_MODEL}, anthropic/claude-opus-4-6`,
     });
@@ -431,7 +459,9 @@ export async function promptModelAllowlist(params: {
     options.push({
       value: key,
       label: key,
-      hint: allowedKeySet ? "allowed (not in catalog)" : "configured (not in catalog)",
+      hint: allowedKeySet
+        ? getText("onboarding.model.allowlist.allowed_not_catalog", "allowed (not in catalog)")
+        : getText("onboarding.model.allowlist.configured_not_catalog", "configured (not in catalog)"),
     });
     seen.add(key);
   }
@@ -456,7 +486,10 @@ export async function promptModelAllowlist(params: {
     return { models: [] };
   }
   const confirmClear = await params.prompter.confirm({
-    message: "Clear the model allowlist? (shows all models)",
+    message: getText(
+      "onboarding.model.allowlist.clear_confirm",
+      "Clear the model allowlist? (shows all models)",
+    ),
     initialValue: false,
   });
   if (!confirmClear) {
@@ -492,11 +525,23 @@ export async function promptModelFallbacks(params: {
 
   // Decide the action up front so users can clear/keep without a full multiselect.
   const action = await params.prompter.select({
-    message: "Fallback models (used when the primary model fails)",
+    message: getText(
+      "onboarding.model.fallbacks.message",
+      "Fallback models (used when the primary model fails)",
+    ),
     options: [
-      { value: "keep", label: "Keep current fallbacks" },
-      { value: "multiselect", label: "Choose fallback models (multi-select)" },
-      { value: "clear", label: "Clear all fallbacks" },
+      {
+        value: "keep",
+        label: getText("onboarding.model.fallbacks.keep", "Keep current fallbacks"),
+      },
+      {
+        value: "multiselect",
+        label: getText("onboarding.model.fallbacks.choose", "Choose fallback models (multi-select)"),
+      },
+      {
+        value: "clear",
+        label: getText("onboarding.model.fallbacks.clear", "Clear all fallbacks"),
+      },
     ],
   });
   if (action === "keep") {
@@ -536,7 +581,11 @@ export async function promptModelFallbacks(params: {
     if (seen.has(key)) {
       continue;
     }
-    options.push({ value: key, label: key, hint: "configured (not in catalog)" });
+    options.push({
+      value: key,
+      label: key,
+      hint: getText("onboarding.model.fallbacks.configured_not_catalog", "configured (not in catalog)"),
+    });
     seen.add(key);
   }
 
@@ -547,7 +596,10 @@ export async function promptModelFallbacks(params: {
 
   const currentFallbacks = normalizeModelKeys(existingFallbacks);
   const selection = await params.prompter.multiselect({
-    message: "Select fallback models (priority = list order)",
+    message: getText(
+      "onboarding.model.fallbacks.select",
+      "Select fallback models (priority = list order)",
+    ),
     options,
     initialValues: currentFallbacks.length > 0 ? currentFallbacks : undefined,
     searchable: true,

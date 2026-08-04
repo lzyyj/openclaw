@@ -25,7 +25,7 @@ function formatSkillHint(skill: {
   const installLabel = skill.install[0]?.label?.trim();
   const combined = desc && installLabel ? `${desc} — ${installLabel}` : desc || installLabel;
   if (!combined) {
-    return "install";
+    return getText("onboarding.skills.hint.install", "install");
   }
   const maxLen = 90;
   return combined.length > maxLen ? `${combined.slice(0, maxLen - 1)}…` : combined;
@@ -66,16 +66,16 @@ export async function setupSkills(
 
   await prompter.note(
     [
-      `Eligible: ${eligible.length}`,
-      `Missing requirements: ${missing.length}`,
-      `Unsupported on this OS: ${unsupportedOs.length}`,
-      `Blocked by allowlist: ${blocked.length}`,
+      getText("onboarding.skills.status.eligible", "Eligible: {count}", { count: eligible.length }),
+      getText("onboarding.skills.status.missing", "Missing requirements: {count}", { count: missing.length }),
+      getText("onboarding.skills.status.unsupported", "Unsupported on this OS: {count}", { count: unsupportedOs.length }),
+      getText("onboarding.skills.status.blocked", "Blocked by allowlist: {count}", { count: blocked.length }),
     ].join("\n"),
-    "Skills status",
+    getText("onboarding.skills.status.title", "Skills status"),
   );
 
   const shouldConfigure = await prompter.confirm({
-    message: "Configure skills now? (recommended)",
+    message: getText("onboarding.skills.configurePrompt", "Configure skills now? (recommended)"),
     initialValue: true,
   });
   if (!shouldConfigure) {
@@ -88,12 +88,12 @@ export async function setupSkills(
   let next: OpenClawConfig = cfg;
   if (installable.length > 0) {
     const toInstall = await prompter.multiselect({
-      message: "Install missing skill dependencies",
+      message: getText("onboarding.skills.installMissingPrompt", "Install missing skill dependencies"),
       options: [
         {
           value: "__skip__",
-          label: "Skip for now",
-          hint: "Continue without installing dependencies",
+          label: getText("onboarding.skills.skipNow", "Skip for now"),
+          hint: getText("onboarding.skills.installMissingSkipHint", "Continue without installing dependencies"),
         },
         ...installable.map((skill) => ({
           value: skill.name,
@@ -117,22 +117,22 @@ export async function setupSkills(
     if (needsBrewPrompt) {
       await prompter.note(
         [
-          "Many skill dependencies are shipped via Homebrew.",
-          "Without brew, you'll need to build from source or download releases manually.",
+          getText("onboarding.skills.brew.body1", "Many skill dependencies are shipped via Homebrew."),
+          getText("onboarding.skills.brew.body2", "Without brew, you'll need to build from source or download releases manually."),
         ].join("\n"),
-        "Homebrew recommended",
+        getText("onboarding.skills.brew.title", "Homebrew recommended"),
       );
       const showBrewInstall = await prompter.confirm({
-        message: "Show Homebrew install command?",
+        message: getText("onboarding.skills.brew.showInstall", "Show Homebrew install command?"),
         initialValue: true,
       });
       if (showBrewInstall) {
         await prompter.note(
           [
-            "Run:",
+            getText("onboarding.skills.brew.runLabel", "Run:"),
             '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
           ].join("\n"),
-          "Homebrew install",
+          getText("onboarding.skills.brew.installTitle", "Homebrew install"),
         );
       }
     }
@@ -142,7 +142,7 @@ export async function setupSkills(
     );
     if (needsNodeManagerPrompt) {
       const nodeManager = (await prompter.select({
-        message: "Preferred node manager for skill installs",
+        message: getText("onboarding.skills.nodeManagerPrompt", "Preferred node manager for skill installs"),
         options: resolveNodeManagerOptions(),
       })) as "npm" | "pnpm" | "bun";
       next = {
@@ -166,7 +166,7 @@ export async function setupSkills(
       if (!installId) {
         continue;
       }
-      const spin = prompter.progress(`Installing ${name}…`);
+      const spin = prompter.progress(getText("onboarding.skills.progress.installing", "Installing {name}…", { name }));
       const result = await installSkill({
         workspaceDir,
         skillName: target.name,
@@ -175,15 +175,25 @@ export async function setupSkills(
       });
       const warnings = result.warnings ?? [];
       if (result.ok) {
-        spin.stop(warnings.length > 0 ? `Installed ${name} (with warnings)` : `Installed ${name}`);
+        spin.stop(
+          warnings.length > 0
+            ? getText("onboarding.skills.progress.installedWarnings", "Installed {name} (with warnings)", { name })
+            : getText("onboarding.skills.progress.installed", "Installed {name}", { name }),
+        );
         for (const warning of warnings) {
           runtime.log(warning);
         }
         continue;
       }
-      const code = result.code == null ? "" : ` (exit ${result.code})`;
+      const code = result.code == null ? "" : getText("onboarding.skills.progress.exitCode", " (exit {code})", { code: result.code });
       const detail = summarizeInstallFailure(result.message);
-      spin.stop(`Install failed: ${name}${code}${detail ? ` — ${detail}` : ""}`);
+      spin.stop(
+        getText("onboarding.skills.progress.installFailed", "Install failed: {name}{code}{detail}", {
+          name,
+          code,
+          detail: detail ? ` — ${detail}` : "",
+        }),
+      );
       for (const warning of warnings) {
         runtime.log(warning);
       }
@@ -204,7 +214,7 @@ export async function setupSkills(
       continue;
     }
     const wantsKey = await prompter.confirm({
-      message: `Set ${skill.primaryEnv} for ${skill.name}?`,
+      message: getText("onboarding.skills.env.setPrompt", "Set {env} for {name}?", { env: skill.primaryEnv, name: skill.name }),
       initialValue: false,
     });
     if (!wantsKey) {
@@ -212,8 +222,8 @@ export async function setupSkills(
     }
     const apiKey = String(
       await prompter.text({
-        message: `Enter ${skill.primaryEnv}`,
-        validate: (value) => (value?.trim() ? undefined : "Required"),
+        message: getText("onboarding.skills.env.enter", "Enter {env}", { env: skill.primaryEnv }),
+        validate: (value) => (value?.trim() ? undefined : getText("onboarding.skills.env.required", "Required")),
       }),
     );
     next = upsertSkillEntry(next, skill.skillKey, { apiKey: normalizeSecretInput(apiKey) });

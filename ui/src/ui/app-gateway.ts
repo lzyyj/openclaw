@@ -140,6 +140,7 @@ function applySessionDefaults(host: GatewayHost, defaults?: SessionDefaultsSnaps
 export function connectGateway(host: GatewayHost) {
   host.lastError = null;
   host.lastErrorCode = null;
+  (host as unknown as { lastErrorKind: string | null }).lastErrorKind = null;
   host.hello = null;
   host.connected = false;
   host.execApprovalQueue = [];
@@ -160,6 +161,7 @@ export function connectGateway(host: GatewayHost) {
       host.connected = true;
       host.lastError = null;
       host.lastErrorCode = null;
+      (host as unknown as { lastErrorKind: string | null }).lastErrorKind = null;
       host.hello = hello;
       applySnapshot(host, hello);
       // Reset orphaned chat run state from before disconnect.
@@ -187,9 +189,11 @@ export function connectGateway(host: GatewayHost) {
       if (code !== 1012) {
         if (error?.message) {
           host.lastError = error.message;
+          (host as unknown as { lastErrorKind: string | null }).lastErrorKind = null;
           return;
         }
         host.lastError = `disconnected (${code}): ${reason || "no reason"}`;
+        (host as unknown as { lastErrorKind: string | null }).lastErrorKind = null;
       } else {
         host.lastError = null;
         host.lastErrorCode = null;

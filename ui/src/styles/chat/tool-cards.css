@@ -200,3 +200,41 @@
     transform: scale(1);
   }
 }
+
+/* Classified chat error banner -------------------------------------------
+   Distinct, user-friendly error states instead of a raw error dump.
+   Backend classifies run failures into a `kind` (billing/auth/busy/...). */
+.chat-error {
+  border-left-width: 4px;
+}
+.chat-error__title {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 4px;
+}
+.chat-error__detail {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.chat-error__raw {
+  font-size: 12px;
+  opacity: 0.7;
+  word-break: break-word;
+  font-family: var(--font-mono, monospace);
+}
+.chat-error--billing {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.05) 100%);
+  color: var(--warning, #f59e0b);
+}
+.chat-error--auth {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.04) 100%);
+  color: var(--danger);
+}
+.chat-error--busy {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.04) 100%);
+  color: var(--info);
+}

@@ -136,6 +136,16 @@ export const en: TranslationMap = {
     queue: "Queue",
     interrupt: "Interrupt",
     interruptTitle: "Interrupt: inject into the running AI turn instead of queueing",
+    errorBillingTitle: "⚠️ Model service billing issue",
+    errorBillingDetail:
+      "Your API key is out of credits or has insufficient balance. Please top up or switch keys and retry.",
+    errorAuthTitle: "⚠️ Model service auth failed",
+    errorAuthDetail:
+      "API key is invalid or lacks permission. Check your model service configuration.",
+    errorBusyTitle: "⚠️ Model service busy",
+    errorBusyDetail:
+      "Model service is temporarily overloaded (503). Retrying automatically — please wait or try again shortly.",
+    errorGenericTitle: "⚠️ Model service error",
     queued: "Queued ({count})",
     removeQueued: "Remove queued message",
     queueModeLabel: "Busy mode",

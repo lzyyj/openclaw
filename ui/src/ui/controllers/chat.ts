@@ -17,6 +17,8 @@ export type ChatState = {
   chatStream: string | null;
   chatStreamStartedAt: number | null;
   lastError: string | null;
+  /** Structured error classification ("billing" | "rate_limit" | "auth" | "timeout" | ...). */
+  lastErrorKind: string | null;
 };
 
 export type ChatEventPayload = {
@@ -25,6 +27,7 @@ export type ChatEventPayload = {
   state: "delta" | "final" | "aborted" | "error";
   message?: unknown;
   errorMessage?: string;
+  kind?: string;
 };
 
 export async function loadChatHistory(state: ChatState) {
@@ -33,6 +36,7 @@ export async function loadChatHistory(state: ChatState) {
   }
   state.chatLoading = true;
   state.lastError = null;
+  state.lastErrorKind = null;
   try {
     const res = await state.client.request<{ messages?: Array<unknown>; thinkingLevel?: string }>(
       "chat.history",
@@ -45,6 +49,7 @@ export async function loadChatHistory(state: ChatState) {
     state.chatThinkingLevel = res.thinkingLevel ?? null;
   } catch (err) {
     state.lastError = String(err);
+    state.lastErrorKind = null;
   } finally {
     state.chatLoading = false;
   }
@@ -150,6 +155,7 @@ export async function sendChatMessage(
 
   state.chatSending = true;
   state.lastError = null;
+  state.lastErrorKind = null;
   const runId = generateUUID();
   state.chatRunId = runId;
   state.chatStream = "";
@@ -188,6 +194,7 @@ export async function sendChatMessage(
     state.chatStream = null;
     state.chatStreamStartedAt = null;
     state.lastError = error;
+    state.lastErrorKind = null;
     state.chatMessages = [
       ...state.chatMessages,
       {
@@ -215,6 +222,7 @@ export async function abortChatRun(state: ChatState): Promise<boolean> {
     return true;
   } catch (err) {
     state.lastError = String(err);
+    state.lastErrorKind = null;
     return false;
   }
 }
@@ -282,6 +290,7 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
     state.chatRunId = null;
     state.chatStreamStartedAt = null;
     state.lastError = payload.errorMessage ?? "chat error";
+    state.lastErrorKind = payload.kind ?? null;
   }
   return payload.state;
 }

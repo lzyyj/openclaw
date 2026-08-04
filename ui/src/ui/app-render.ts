@@ -1012,6 +1012,7 @@ export function renderApp(state: AppViewState) {
                 canSend: state.connected,
                 disabledReason: chatDisabledReason,
                 error: state.lastError,
+                errorKind: state.lastErrorKind,
                 sessions: state.sessionsResult,
                 focusMode: chatFocus,
                 onRefresh: () => {

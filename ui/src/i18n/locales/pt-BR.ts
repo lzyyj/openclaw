@@ -125,6 +125,16 @@ export const pt_BR: TranslationMap = {
     queue: "Fila",
     interrupt: "Interromper",
     interruptTitle: "Interromper: injetar na resposta em andamento em vez de enfileirar",
+    errorBillingTitle: "⚠️ Problema de cobrança do serviço de modelo",
+    errorBillingDetail:
+      "Sua chave de API está sem créditos ou com saldo insuficiente. Recarregue ou troque a chave e tente novamente.",
+    errorAuthTitle: "⚠️ Falha de autenticação do serviço de modelo",
+    errorAuthDetail:
+      "A chave de API é inválida ou sem permissão. Verifique a configuração do serviço de modelo.",
+    errorBusyTitle: "⚠️ Serviço de modelo ocupado",
+    errorBusyDetail:
+      "O serviço de modelo está temporariamente sobrecarregado (503). Repetindo automaticamente — aguarde ou tente novamente em instantes.",
+    errorGenericTitle: "⚠️ Erro no serviço de modelo",
     queued: "Na fila ({count})",
     removeQueued: "Remover mensagem da fila",
     queueModeLabel: "Modo ocupado",

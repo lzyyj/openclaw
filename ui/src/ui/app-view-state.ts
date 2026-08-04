@@ -56,6 +56,10 @@ export type AppViewState = {
   hello: GatewayHelloOk | null;
   lastError: string | null;
   lastErrorCode: string | null;
+  /** Structured classification of the last chat run failure ("billing" | "rate_limit" | ...). */
+  lastErrorKind: string | null;
+  /** Structured chat run error classification ("billing" | "rate_limit" | "auth" | ...). */
+  lastErrorKind: string | null;
   eventLog: EventLogEntry[];
   assistantName: string;
   assistantAvatar: string | null;

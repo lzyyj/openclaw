@@ -3,6 +3,7 @@ import path from "node:path";
 import { CURRENT_SESSION_VERSION } from "@mariozechner/pi-coding-agent";
 import { resolveSessionAgentId } from "../../agents/agent-scope.js";
 import { resolveThinkingDefault } from "../../agents/model-selection.js";
+import { classifyFailoverReason } from "../../agents/pi-embedded-helpers/errors.js";
 import { resolveAgentTimeoutMs } from "../../agents/timeout.js";
 import { dispatchInboundMessage } from "../../auto-reply/dispatch.js";
 import { createReplyDispatcher } from "../../auto-reply/reply/reply-dispatcher.js";
@@ -523,6 +524,9 @@ function broadcastChatError(params: {
     seq,
     state: "error" as const,
     errorMessage: params.errorMessage,
+    // Structured error classification so the UI can render distinct feedback
+    // (billing → payment prompt, rate_limit/unavailable → retry, auth → key issue, …).
+    kind: classifyFailoverReason(params.errorMessage ?? "") ?? "unknown",
   };
   params.context.broadcast("chat", payload);
   params.context.nodeSendToSession(params.sessionKey, "chat", payload);
@@ -943,14 +947,20 @@ export const chatHandlers: GatewayRequestHandlers = {
           });
         })
         .catch((err) => {
-          const error = errorShape(ErrorCodes.UNAVAILABLE, String(err));
+          const errText = String(err);
+          const kind = classifyFailoverReason(errText) ?? "unknown";
+          const error = errorShape(ErrorCodes.UNAVAILABLE, errText, {
+            details: { kind },
+            retryable: kind === "rate_limit" || kind === "timeout",
+          });
           context.dedupe.set(`chat:${clientRunId}`, {
             ts: Date.now(),
             ok: false,
             payload: {
               runId: clientRunId,
               status: "error" as const,
-              summary: String(err),
+              summary: errText,
+              kind,
             },
             error,
           });
@@ -958,18 +968,24 @@ export const chatHandlers: GatewayRequestHandlers = {
             context,
             runId: clientRunId,
             sessionKey: rawSessionKey,
-            errorMessage: String(err),
+            errorMessage: errText,
           });
         })
         .finally(() => {
           context.chatAbortControllers.delete(clientRunId);
         });
     } catch (err) {
-      const error = errorShape(ErrorCodes.UNAVAILABLE, String(err));
+      const errText = String(err);
+      const kind = classifyFailoverReason(errText) ?? "unknown";
+      const error = errorShape(ErrorCodes.UNAVAILABLE, errText, {
+        details: { kind },
+        retryable: kind === "rate_limit" || kind === "timeout",
+      });
       const payload = {
         runId: clientRunId,
         status: "error" as const,
-        summary: String(err),
+        summary: errText,
+        kind,
       };
       context.dedupe.set(`chat:${clientRunId}`, {
         ts: Date.now(),

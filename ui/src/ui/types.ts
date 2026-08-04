@@ -624,6 +624,37 @@ export type SkillStatusReport = {
   skills: SkillStatusEntry[];
 };
 
+export type PluginStatusEntry = {
+  id: string;
+  name: string;
+  version?: string;
+  description?: string;
+  source: string;
+  origin: string;
+  enabled: boolean;
+  status: "loaded" | "disabled" | "error";
+  error?: string;
+  toolNames: string[];
+  hookNames: string[];
+  channelIds: string[];
+  providerIds: string[];
+  cliCommands: string[];
+  services: string[];
+};
+
+export type PluginDiagnostic = {
+  level: "warn" | "error";
+  message: string;
+  pluginId?: string;
+  source?: string;
+};
+
+export type PluginStatusReport = {
+  workspaceDir: string;
+  plugins: PluginStatusEntry[];
+  diagnostics: PluginDiagnostic[];
+};
+
 export type StatusSummary = Record<string, unknown>;
 
 export type HealthSnapshot = Record<string, unknown>;

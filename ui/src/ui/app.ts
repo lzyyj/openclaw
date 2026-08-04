@@ -59,6 +59,7 @@ import type { CronFieldErrors } from "./controllers/cron.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
+import type { PluginMessage } from "./controllers/plugins.ts";
 import type { SkillMessage } from "./controllers/skills.ts";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
 import type { Tab } from "./navigation.ts";
@@ -83,6 +84,7 @@ import type {
   ToolsCatalogResult,
   StatusSummary,
   NostrProfile,
+  PluginStatusReport,
 } from "./types.ts";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types.ts";
 import { generateUUID } from "./uuid.ts";
@@ -346,6 +348,13 @@ export class OpenClawApp extends LitElement {
   @state() skillEdits: Record<string, string> = {};
   @state() skillsBusyKey: string | null = null;
   @state() skillMessages: Record<string, SkillMessage> = {};
+
+  @state() pluginsLoading = false;
+  @state() pluginsReport: PluginStatusReport | null = null;
+  @state() pluginsError: string | null = null;
+  @state() pluginsFilter = "";
+  @state() pluginsBusyKey: string | null = null;
+  @state() pluginsMessages: Record<string, PluginMessage> = {};
 
   @state() debugLoading = false;
   @state() debugStatus: StatusSummary | null = null;

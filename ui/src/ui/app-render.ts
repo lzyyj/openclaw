@@ -58,6 +58,7 @@ import {
 } from "./controllers/exec-approvals.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
+import { loadPlugins, updatePluginEnabled } from "./controllers/plugins.ts";
 import { loadPresence } from "./controllers/presence.ts";
 import { deleteSessionAndRefresh, loadSessions, patchSession } from "./controllers/sessions.ts";
 import {
@@ -81,6 +82,7 @@ import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
 import { renderNodes } from "./views/nodes.ts";
 import { renderOverview } from "./views/overview.ts";
+import { renderPlugins } from "./views/plugins.ts";
 import { renderSessions } from "./views/sessions.ts";
 import { renderSkills } from "./views/skills.ts";
 
@@ -889,6 +891,22 @@ export function renderApp(state: AppViewState) {
                 onSaveKey: (key) => saveSkillApiKey(state, key),
                 onInstall: (skillKey, name, installId) =>
                   installSkill(state, skillKey, name, installId),
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "plugins"
+            ? renderPlugins({
+                loading: state.pluginsLoading,
+                report: state.pluginsReport,
+                error: state.pluginsError,
+                filter: state.pluginsFilter,
+                busyKey: state.pluginsBusyKey,
+                messages: state.pluginsMessages,
+                onFilterChange: (next) => (state.pluginsFilter = next),
+                onRefresh: () => loadPlugins(state, { clearMessages: true }),
+                onToggle: (id, enabled) => updatePluginEnabled(state, id, enabled),
               })
             : nothing
         }

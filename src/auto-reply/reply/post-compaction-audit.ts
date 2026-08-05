@@ -10,6 +10,9 @@ const DEFAULT_REQUIRED_READS: Array<string | RegExp> = [
 /**
  * Audit whether agent read required startup files after compaction.
  * Returns list of missing file patterns.
+ *
+ * 语义：只审计"真实存在"的必需文件——字符串形式的必需文件若在 workspace
+ * 中不存在（如 WORKFLOW_AUTO.md 从未创建），跳过不报缺失，避免 ENOENT 噪音。
  */
 export function auditPostCompactionReads(
   readFilePaths: string[],
@@ -22,6 +25,10 @@ export function auditPostCompactionReads(
   for (const required of requiredReads) {
     if (typeof required === "string") {
       const requiredResolved = path.resolve(workspaceDir, required);
+      // 文件不存在 → 无需审计（不是"该读没读"，而是"没有这个文件"）
+      if (!fs.existsSync(requiredResolved)) {
+        continue;
+      }
       const found = normalizedReads.some((r) => r === requiredResolved);
       if (!found) {
         missingPatterns.push(required);

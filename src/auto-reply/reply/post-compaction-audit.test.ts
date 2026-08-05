@@ -107,7 +107,21 @@ describe("extractReadPaths", () => {
 });
 
 describe("auditPostCompactionReads", () => {
-  const workspaceDir = "/Users/test/workspace";
+  // 使用真实临时目录 + 创建文件：不存在的工作流文件（如 WORKFLOW_AUTO.md）不算缺失
+  const fs = require("node:fs");
+  const os = require("node:os");
+  const path = require("node:path");
+  const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "audit-test-"));
+
+  const writeFile = (rel: string) => {
+    const abs = path.join(workspaceDir, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, "");
+  };
+
+  // 默认必需文件：WORKFLOW_AUTO.md + 每日 memory（正则）
+  writeFile("WORKFLOW_AUTO.md");
+  writeFile("memory/2026-02-16.md");
 
   it("passes when all required files are read", () => {
     const readPaths = ["WORKFLOW_AUTO.md", "memory/2026-02-16.md"];
@@ -143,6 +157,14 @@ describe("auditPostCompactionReads", () => {
     expect(result.missingPatterns.length).toBe(1);
   });
 
+  it("skips required files that do not exist (no ENOENT noise)", () => {
+    // 自定义必需列表引用不存在的文件 → 不算缺失
+    const result = auditPostCompactionReads([], workspaceDir, ["nonexistent.md"]);
+
+    expect(result.passed).toBe(true);
+    expect(result.missingPatterns).toEqual([]);
+  });
+
   it("normalizes relative paths when matching", () => {
     const readPaths = ["./WORKFLOW_AUTO.md", "memory/2026-02-16.md"];
     const result = auditPostCompactionReads(readPaths, workspaceDir);
@@ -153,8 +175,8 @@ describe("auditPostCompactionReads", () => {
 
   it("normalizes absolute paths when matching", () => {
     const readPaths = [
-      "/Users/test/workspace/WORKFLOW_AUTO.md",
-      "/Users/test/workspace/memory/2026-02-16.md",
+      path.join(workspaceDir, "WORKFLOW_AUTO.md"),
+      path.join(workspaceDir, "memory/2026-02-16.md"),
     ];
     const result = auditPostCompactionReads(readPaths, workspaceDir);
 

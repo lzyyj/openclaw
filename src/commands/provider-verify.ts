@@ -250,6 +250,11 @@ export async function verifyProviderInteractive(params: {
       });
       await mergeVerifiedModelsIntoFile(providerId, result.models);
 
+      // 同步更新 wizard config 快照的显式 models.providers[providerId].models 为真实模型，
+      // 否则 ensureOpenClawModelsJson(merge 模式)会以 openclaw.json 里旧的硬编码 alias 覆盖
+      // models.json 的真实模型，导致主/备用模型选择列表仍只有旧 alias、选不到 v4。
+      mutateProviderModels(providerId, result.models, cfg);
+
       // 若配置里当前主模型不在真实模型列表（如插件硬编码模型名已失效 / 厂商换网关），
       // 让用户从真实列表里挑一个纠正，避免运行时拿到不存在的模型 id。
       const fixed = await maybeCorrectDefaultModel({
@@ -403,6 +408,38 @@ function mutateProviderBaseUrl(
   (providers[providerId] as Record<string, unknown>).baseUrl = baseUrl;
 }
 
+/**
+ * verify 成功拉取真实模型后，直接更新 wizard config 快照的
+ * models.providers[providerId].models 为真实模型列表（整个替换，不保留旧失效 alias）。
+ *
+ * 背景：openclaw.json 里 models.providers[providerId].models 可能是历史遗留的旧硬编码
+ * alias（如 deepseek-chat/reasoner）。ensureOpenClawModelsJson 在 merge 模式下以这个显式
+ * 配置为准覆盖 models.json，导致 verify 拉到的真实模型（v4-pro/v4-flash）每次都被旧 alias
+ * 冲掉、选不到。API 已通、拿到真实模型就是权威——直接整个替换，旧 alias 一并清掉。
+ */
+function mutateProviderModels(
+  providerId: string,
+  realModelIds: string[],
+  cfg?: ReturnType<typeof loadConfig>,
+): void {
+  if (!cfg) {
+    return;
+  }
+  const providers = cfg.models?.providers;
+  if (!providers || typeof providers !== "object" || !providers[providerId]) {
+    return;
+  }
+  const provider = providers[providerId] as Record<string, unknown> | undefined;
+  if (!provider || typeof provider !== "object") {
+    return;
+  }
+  // API 通了、真实模型是权威：整体替换为真实模型列表（不再保留旧 alias，如 chat/reasoner）
+  provider.models = realModelIds
+    .map((id) => normalizeModelIdForCatalog(providerId, id))
+    .filter((id) => id)
+    .map((id) => ({ id, name: id }));
+}
+
 export const MODELS_VERIFIED_FILENAME = "models-verified.json";
 
 type ModelsVerifiedFile = {
@@ -494,13 +531,13 @@ export function normalizeModelIdForCatalog(providerId: string, rawId: string): s
 }
 
 /**
- * 把真实模型 id 追加进 agentDir/models.json 对应 provider 的 models 数组。
- * 仅追加不在已有列表里的新 id；构造最小基础条目（运行时字段用默认值，
- * 具体 name/cost 等信息由用户后续在配置里细化或被 ensure 合并补齐）。
+ * API 通了、拿到真实模型即为权威：把 agentDir/models.json 对应 provider 的 models
+ * 数组**整个替换**为真实模型列表（旧硬编码 alias 一并清掉，不保留）。
  *
  * 写入前先 normalizeModelIdForCatalog 剥掉 id 可能带有的厂商前缀，
  * 保证条目 id 为裸 id，与顶层 provider key 组合后得到
- * "providerId/裸id" 的一致完整引用。
+ * "providerId/裸id" 的一致完整引用。name 用裸 id 兜底，
+ * 具体 cost/contextWindow 等由后续 ensure 合并或用户配置细化补齐。
  */
 async function mergeRealModelsIntoCatalogJson(
   providerId: string,
@@ -519,60 +556,16 @@ async function mergeRealModelsIntoCatalogJson(
   if (!provider || typeof provider !== "object") {
     return;
   }
-  const existingModels = Array.isArray(provider.models) ? provider.models : [];
-
-  // 归一化真实模型 id（剥掉厂商前缀），作为权威集合。
-  const realIds = new Set(
-    realModelIds.map((id) => normalizeModelIdForCatalog(providerId, id)).filter((id) => id),
-  );
-
-  // 收集该 provider 被显式引用的模型（主模型/备用/allowlist），清理时保留——
-  // 避免误删用户手动配置、但厂商 API 暂不返回的模型。
-  const keepIds = new Set<string>();
-  try {
-    const cfg = loadConfig();
-    const modelRefs: string[] = [];
-    const primary = resolveAgentModelPrimaryValue(cfg.agents?.defaults?.model);
-    if (primary) {
-      modelRefs.push(primary);
-    }
-    const fallbacks = cfg.agents?.defaults?.model?.fallbacks;
-    if (Array.isArray(fallbacks)) {
-      modelRefs.push(...fallbacks);
-    }
-    const allowlist = cfg.models?.allowlist;
-    if (Array.isArray(allowlist)) {
-      modelRefs.push(...allowlist);
-    }
-    const prefix = `${providerId}/`;
-    for (const ref of modelRefs) {
-      if (typeof ref === "string" && ref.startsWith(prefix)) {
-        keepIds.add(ref.slice(prefix.length));
-      }
-    }
-  } catch {
-    // 读配置失败不影响清理主流程
-  }
-
-  // 保留：真实模型 + 被显式引用但不在真实列表的（保护用户配置）。
-  const keptModels = existingModels.filter((m) => {
-    if (m && typeof m === "object" && typeof m.id === "string") {
-      return realIds.has(m.id) || keepIds.has(m.id);
-    }
-    return true;
-  });
-  const keptIds = new Set(keptModels.map((m) => (m ? String(m.id) : "")).filter(Boolean));
-  const toAdd = [...realIds].filter((id) => !keptIds.has(id));
-  if (keptModels.length === existingModels.length && toAdd.length === 0) {
-    return;
-  }
-  const newEntries = toAdd.map((id) => ({
+  const realIds = realModelIds
+    .map((id) => normalizeModelIdForCatalog(providerId, id))
+    .filter((id) => id);
+  const newEntries = realIds.map((id) => ({
     id,
     name: id,
     reasoning: false,
     input: ["text"] as string[],
   }));
-  provider.models = [...keptModels, ...newEntries];
+  provider.models = newEntries;
   saveJsonFile(modelsPath, raw);
 }
 

@@ -236,6 +236,49 @@ describe("verifyProviderInteractive", () => {
     expect(String(secondUrl)).toContain("dashscope.aliyuncs.com");
   });
 
+  it("verify 成功后把真实模型合并进 wizard config 快照的显式 providers", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [{ id: "deepseek-v4-pro" }, { id: "deepseek-v4-flash" }] }),
+      }),
+    );
+    const prompter = makePrompter();
+    // 显式配置的历史遗留 alias（正是用户 openclaw.json 里的 chat/reasoner 场景）
+    const cfg = {
+      models: {
+        providers: {
+          deepseek: {
+            baseUrl: "https://api.deepseek.com",
+            apiKey: "sk-test",
+            api: "openai-completions",
+            models: [{ id: "deepseek-chat" }, { id: "deepseek-reasoner" }],
+          },
+        },
+      },
+      agents: { defaults: { model: { primary: "deepseek/deepseek-v4-pro" } } },
+    } as never;
+
+    await verifyProviderInteractive({
+      providerId: "deepseek",
+      methodId: "deepseek-api-key",
+      prompter,
+      cfg,
+    });
+
+    const updated = (
+      cfg as unknown as {
+        models: { providers: Record<string, { models: Array<{ id: string }> }> };
+      }
+    ).models.providers.deepseek.models.map((m) => m.id);
+    // 旧 alias chat/reasoner 被真实模型替换（v4-pro 因是主模型被保留）
+    expect(updated).toEqual(["deepseek-v4-pro", "deepseek-v4-flash"]);
+    expect(updated).not.toContain("deepseek-chat");
+    expect(updated).not.toContain("deepseek-reasoner");
+  });
+
   it("marks auth failures (401) as suspect and lets user re-enter key", async () => {
     vi.stubGlobal(
       "fetch",
@@ -268,7 +311,7 @@ describe("mergeVerifiedModelsIntoFile (方案 A: 合并进 models.json)", () => 
     fs.rmSync(agentDir, { recursive: true, force: true });
   });
 
-  it("追加真实模型 id 到 models.json 对应 provider（不覆盖已有条目）", async () => {
+  it("API 通后整体替换 models.json 对应 provider 的模型列表（不保留旧条目结构）", async () => {
     fs.writeFileSync(
       `${agentDir}/models.json`,
       JSON.stringify({
@@ -284,7 +327,7 @@ describe("mergeVerifiedModelsIntoFile (方案 A: 合并进 models.json)", () => 
     await mergeVerifiedModelsIntoFile("deepseek", [
       "deepseek-v4-pro",
       "deepseek-v4-flash",
-      "deepseek-chat", // 已存在，不应重复
+      "deepseek-chat", // 厂商 API 返回里仍含 chat
     ]);
 
     const raw = JSON.parse(fs.readFileSync(`${agentDir}/models.json`, "utf8")) as {
@@ -294,7 +337,8 @@ describe("mergeVerifiedModelsIntoFile (方案 A: 合并进 models.json)", () => 
       >;
     };
     const ids = raw.providers.deepseek.models.map((m) => m.id);
-    expect(ids).toEqual(["deepseek-chat", "deepseek-v4-pro", "deepseek-v4-flash"]);
+    // 整体替换为真实模型列表（顺序按 API 返回），旧条目结构不保留
+    expect(ids).toEqual(["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-chat"]);
     // 新条目是基础结构（含 name/reasoning/input）
     const v4Pro = raw.providers.deepseek.models.find((m) => m.id === "deepseek-v4-pro");
     expect(v4Pro).toBeDefined();

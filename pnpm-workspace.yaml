@@ -4,7 +4,28 @@ packages:
   - packages/*
   - extensions/*
 
+# pnpm 10+ 配置主文件: overrides / onlyBuiltDependencies / minimumReleaseAge 等
+# 从 package.json 的 "pnpm" 字段迁移至此 (pnpm 10 不再读取 package.json 的 pnpm 字段)
+# 见 https://pnpm.io/settings
+# 注: package.json 仍保留同款配置以兼容 pnpm 9 (方案A双写)
+
+overrides:
+  hono: 4.11.10
+  libsignal: git+https://gitee.com/OpenClaw-CN/libsignal-node.git
+  fast-xml-parser: 5.3.6
+  request: npm:@cypress/request@3.0.10
+  request-promise: npm:@cypress/request-promise@5.0.0
+  form-data: 2.5.4
+  minimatch: 10.2.1
+  qs: 6.14.2
+  "@sinclair/typebox": 0.34.48
+  tar: 7.5.9
+  tough-cookie: 4.1.3
+
+minimumReleaseAge: 2880
+
 onlyBuiltDependencies:
+  - "@discordjs/opus"
   - "@lydell/node-pty"
   - "@matrix-org/matrix-sdk-crypto-nodejs"
   - "@napi-rs/canvas"

@@ -15,7 +15,7 @@ import {
 } from "../config/config.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { defaultRuntime } from "../runtime.js";
-import { resolveUserPath } from "../utils.js";
+import { resolveUserPath, shortenHomeInString } from "../utils.js";
 import type { QuickstartGatewayDefaults, WizardFlow } from "./onboarding.types.js";
 import { WizardCancelledError, type WizardPrompter } from "./prompts.js";
 
@@ -409,7 +409,9 @@ export async function runOnboardingWizard(
       ? (baseConfig.agents?.defaults?.workspace ?? onboardHelpers.DEFAULT_WORKSPACE)
       : await prompter.text({
           message: getText("onboarding.workspace.message", "Workspace directory"),
-          initialValue: baseConfig.agents?.defaults?.workspace ?? onboardHelpers.DEFAULT_WORKSPACE,
+          initialValue: shortenHomeInString(
+            baseConfig.agents?.defaults?.workspace ?? onboardHelpers.DEFAULT_WORKSPACE,
+          ),
         }));
 
   const workspaceDir = resolveUserPath(workspaceInput.trim() || onboardHelpers.DEFAULT_WORKSPACE);

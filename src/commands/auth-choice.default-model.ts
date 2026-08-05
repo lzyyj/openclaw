@@ -1,5 +1,6 @@
 import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig } from "../config/config.js";
+import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { ensureModelAllowlistEntry } from "./model-allowlist.js";
 
@@ -14,10 +15,26 @@ export async function applyDefaultModelChoice(params: {
   prompter: WizardPrompter;
 }): Promise<{ config: OpenClawConfig; agentModelOverride?: string }> {
   if (params.setDefaultModel) {
+    // 重配（configure）场景：如果配置里已有主模型（如 deepseek/deepseek-v4-pro），
+    // 不应被 provider 的默认模型（如 deepseek-chat）无条件覆盖——否则用户已选好的
+    // 模型会被悄悄重置。仅当尚无主模型时才应用默认模型（首次 onboard）。
+    const existingPrimary = resolveAgentModelPrimaryValue(params.config.agents?.defaults?.model);
+    if (existingPrimary) {
+      const next = params.applyProviderConfig(params.config);
+      await params.prompter.note(
+        getText("configure.model.kept_existing", "Default model kept ({model})", {
+          model: existingPrimary,
+        }),
+        getText("configure.model.configured", "Model configured"),
+      );
+      return { config: next };
+    }
     const next = params.applyDefaultConfig(params.config);
     if (params.noteDefault) {
       await params.prompter.note(
-        getText("configure.model.default_set", `Default model set to ${params.noteDefault}`, { model: params.noteDefault }),
+        getText("configure.model.default_set", `Default model set to ${params.noteDefault}`, {
+          model: params.noteDefault,
+        }),
         getText("configure.model.configured", "Model configured"),
       );
     }

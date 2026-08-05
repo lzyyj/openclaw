@@ -672,6 +672,7 @@ const ZH_CN: Record<string, string> = {
   "configure.model.api_key": "API 密钥",
   "configure.model.api_key_prompt": "输入 API 密钥",
   "configure.model.configured": "模型配置完成",
+  "configure.model.kept_existing": "默认模型已保留（{model}）",
   "configure.model.default_set": "默认模型已设为 {model}",
   "configure.model.default_set_agent": "默认模型已设为 {model}（代理 {agentId}）",
   "configure.model.multiselect": "模型多选",

@@ -13,6 +13,8 @@ export async function applyDefaultModelChoice(params: {
   noteDefault?: string;
   noteAgentModel: (model: string) => Promise<void>;
   prompter: WizardPrompter;
+  /** 为 true 时推迟"模型配置完成"note 到后续模型选择之后（configure 场景）。 */
+  deferModelConfiguredNote?: boolean;
 }): Promise<{ config: OpenClawConfig; agentModelOverride?: string }> {
   if (params.setDefaultModel) {
     // 重配（configure）场景：如果配置里已有主模型（如 deepseek/deepseek-v4-pro），
@@ -21,12 +23,16 @@ export async function applyDefaultModelChoice(params: {
     const existingPrimary = resolveAgentModelPrimaryValue(params.config.agents?.defaults?.model);
     if (existingPrimary) {
       const next = params.applyProviderConfig(params.config);
-      await params.prompter.note(
-        getText("configure.model.kept_existing", "Default model kept ({model})", {
-          model: existingPrimary,
-        }),
-        getText("configure.model.configured", "Model configured"),
-      );
+      // configure 场景推迟完成 note（用户还要选具体模型名称），避免"模型配置完成"
+      // 早于模型选择出现造成顺序误导。
+      if (!params.deferModelConfiguredNote) {
+        await params.prompter.note(
+          getText("configure.model.kept_existing", "Default model kept ({model})", {
+            model: existingPrimary,
+          }),
+          getText("configure.model.configured", "Model configured"),
+        );
+      }
       return { config: next };
     }
     const next = params.applyDefaultConfig(params.config);

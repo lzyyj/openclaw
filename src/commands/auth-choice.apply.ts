@@ -26,6 +26,8 @@ export type ApplyAuthChoiceParams = {
   setDefaultModel: boolean;
   agentId?: string;
   opts?: Partial<OnboardOptions>;
+  /** 为 true 时推迟"模型配置完成"note 到后续模型选择之后（configure 场景）。 */
+  deferModelConfiguredNote?: boolean;
 };
 
 export type ApplyAuthChoiceResult = {

@@ -127,32 +127,19 @@ export async function promptAuthConfig(
     const customResult = await promptCustomApiConfig({ prompter, runtime, config: next });
     next = customResult.config;
   } else if (authChoice !== "skip") {
+    // 配置 provider + key（applyDefaultModelChoice 会保留已有主模型，不覆盖）。
+    // 具体模型名称选择放到 verifyProviderInteractive 之后（拉取真实模型列表，如
+    // deepseek-v4-flash）再做，否则列表只有旧的硬编码 alias，缺真实模型。
     const applied = await applyAuthChoice({
       authChoice,
       config: next,
       prompter,
       runtime,
       setDefaultModel: true,
+      // 推迟"模型配置完成"note 到模型选择之后，避免在用户选具体模型前就宣告完成。
+      deferModelConfiguredNote: true,
     });
     next = applied.config;
-
-    // 重配 provider 后允许选择具体模型名称（与 onboarding 行为一致）：
-    // applyDefaultModelChoice 在已有主模型时会保留（不覆盖），但用户仍可能想换模型，
-    // 所以这里照常弹出模型选择，让用户 keep 当前模型或改选具体型号。
-    const modelSelection = await promptDefaultModel({
-      config: next,
-      prompter,
-      allowKeep: true,
-      ignoreAllowlist: true,
-      includeVllm: true,
-      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
-    });
-    if (modelSelection.config) {
-      next = modelSelection.config;
-    }
-    if (modelSelection.model) {
-      next = applyPrimaryModel(next, modelSelection.model);
-    }
   } else {
     // "Skip" = keep existing auth. Default the model picker to the currently
     // configured provider (when present) so it follows the existing config
@@ -231,6 +218,34 @@ export async function promptAuthConfig(
           cfg: next,
         });
       }
+    }
+
+    // verify 已把厂商真实模型（如 deepseek-v4-flash）合并进 models.json，此时再让用户
+    // 选择具体模型名称，列表才完整（onboarding 也是这个顺序：先验证拉模型，再选模型）。
+    // skip 分支已在上面的 else 里弹过模型选择，这里只处理常规重配（non-skip）分支。
+    const modelSelection = await promptDefaultModel({
+      config: next,
+      prompter,
+      allowKeep: true,
+      ignoreAllowlist: true,
+      includeVllm: true,
+      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
+    });
+    if (modelSelection.config) {
+      next = modelSelection.config;
+    }
+    if (modelSelection.model) {
+      next = applyPrimaryModel(next, modelSelection.model);
+    }
+    // 模型名称已确认，此时才宣告"模型配置完成"（见 applyAuthChoice 的 deferModelConfiguredNote）。
+    const finalPrimary = resolveAgentModelPrimaryValue(next.agents?.defaults?.model);
+    if (finalPrimary) {
+      await prompter.note(
+        getText("configure.model.kept_existing", "Default model kept ({model})", {
+          model: finalPrimary,
+        }),
+        getText("configure.model.configured", "Model configured"),
+      );
     }
   }
 

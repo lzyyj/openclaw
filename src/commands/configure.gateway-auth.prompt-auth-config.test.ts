@@ -57,7 +57,7 @@ function makeRuntime(): RuntimeEnv {
   };
 }
 
-const noopPrompter = {} as WizardPrompter;
+const noopPrompter = { note: vi.fn() } as unknown as WizardPrompter;
 
 describe("promptAuthConfig", () => {
   beforeEach(() => {

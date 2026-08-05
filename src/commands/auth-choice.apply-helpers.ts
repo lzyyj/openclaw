@@ -69,6 +69,7 @@ export function createAuthChoiceDefaultModelApplier(
       setDefaultModel: params.setDefaultModel,
       noteAgentModel,
       prompter: params.prompter,
+      deferModelConfiguredNote: params.deferModelConfiguredNote,
       ...options,
     });
     state.config = applied.config;

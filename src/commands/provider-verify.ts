@@ -530,6 +530,45 @@ export function normalizeModelIdForCatalog(providerId: string, rawId: string): s
   return id;
 }
 
+const PROVIDER_META_FILE = "provider-meta.json";
+
+/**
+ * verify 拉取真实模型后，把该 provider 里「已从真实列表消失的旧模型」写进
+ * provider-meta.json 的 removedModels，让 ensureOpenClawModelsJson 在最后
+ * applyProviderMetaRemovals 时清掉它们。
+ *
+ * 背景：mergeRealModelsIntoCatalogJson 会把 models.json 该 provider 整体替换为真实模型，
+ * 但 ensureOpenClawModelsJson 的 mergeProviderModels 仍会把 implicit seed 里过时的别名
+ * （如 deepseek-chat/deepseek-reasoner）补回，导致列表残留失效选项。provider-meta.json
+ * 的 removedModels 正是为此设计——只清 seed 补回的旧 alias，不影响显式配置（explicit
+ * 已被 mutateProviderModels 替换为真实模型，非失效项不会误删）。
+ */
+async function updateProviderMetaRemovals(providerId: string, removedIds: string[]): Promise<void> {
+  const clean = removedIds.filter((id) => id).map((id) => id.trim());
+  if (clean.length === 0) {
+    return;
+  }
+  const metaPath = path.join(resolveOpenClawAgentDir(), PROVIDER_META_FILE);
+  const raw = (loadJsonFile(metaPath) ?? {}) as {
+    version?: number;
+    providers?: Record<string, { removedModels?: string[] }>;
+  };
+  const providers = (raw.providers ??= {});
+  const prev = providers[providerId]?.removedModels ?? [];
+  providers[providerId] = {
+    ...providers[providerId],
+    removedModels: Array.from(new Set([...prev, ...clean])),
+  };
+  saveJsonFile(metaPath, { version: raw.version ?? 1, providers });
+}
+
+/** 归一化厂商 id 映射（含前缀），返回：真实裸 id 集合 */
+function normalizeRealIdSet(providerId: string, realModelIds: string[]): Set<string> {
+  return new Set(
+    realModelIds.map((id) => normalizeModelIdForCatalog(providerId, id)).filter((id) => id),
+  );
+}
+
 /**
  * API 通了、拿到真实模型即为权威：把 agentDir/models.json 对应 provider 的 models
  * 数组**整个替换**为真实模型列表（旧硬编码 alias 一并清掉，不保留）。
@@ -538,6 +577,10 @@ export function normalizeModelIdForCatalog(providerId: string, rawId: string): s
  * 保证条目 id 为裸 id，与顶层 provider key 组合后得到
  * "providerId/裸id" 的一致完整引用。name 用裸 id 兜底，
  * 具体 cost/contextWindow 等由后续 ensure 合并或用户配置细化补齐。
+ *
+ * 同时把「旧 models 里已不在真实列表的模型」（如 deepseek-chat/deepseek-reasoner）
+ * 写入 provider-meta.json 的 removedModels，供 ensureOpenClawModelsJson 最后清理
+ * seed 补回的失效别名——否则整体替换后 seed 仍会把它们补回来。
  */
 async function mergeRealModelsIntoCatalogJson(
   providerId: string,
@@ -556,10 +599,13 @@ async function mergeRealModelsIntoCatalogJson(
   if (!provider || typeof provider !== "object") {
     return;
   }
-  const realIds = realModelIds
-    .map((id) => normalizeModelIdForCatalog(providerId, id))
-    .filter((id) => id);
-  const newEntries = realIds.map((id) => ({
+  const realIds = normalizeRealIdSet(providerId, realModelIds);
+  // 记录旧列表里已不在真实列表的模型 → provider-meta removedModels（清 seed 补回的失效别名）
+  const existingIds = Array.isArray(provider.models)
+    ? provider.models.map((m) => (m && typeof m.id === "string" ? m.id.trim() : "")).filter(Boolean)
+    : [];
+  const removed = existingIds.filter((id) => !realIds.has(id));
+  const newEntries = [...realIds].map((id) => ({
     id,
     name: id,
     reasoning: false,
@@ -567,6 +613,7 @@ async function mergeRealModelsIntoCatalogJson(
   }));
   provider.models = newEntries;
   saveJsonFile(modelsPath, raw);
+  await updateProviderMetaRemovals(providerId, removed);
 }
 
 /**

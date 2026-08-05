@@ -430,5 +430,14 @@ describe("mergeVerifiedModelsIntoFile (方案 A: 合并进 models.json)", () => 
     expect(ids).toEqual(["deepseek-v4-pro", "deepseek-v4-flash"]);
     expect(ids).not.toContain("deepseek-chat");
     expect(ids).not.toContain("deepseek-reasoner");
+
+    // 旧别名也应写进 provider-meta.json 的 removedModels，供 ensureOpenClawModelsJson
+    // 最后清理 seed 补回的失效项（否则整体替换后 seed 仍会把 chat/reasoner 补回来）
+    const meta = JSON.parse(fs.readFileSync(`${agentDir}/provider-meta.json`, "utf8")) as {
+      providers: Record<string, { removedModels?: string[] }>;
+    };
+    expect(meta.providers.deepseek.removedModels).toEqual(
+      expect.arrayContaining(["deepseek-chat", "deepseek-reasoner"]),
+    );
   });
 });

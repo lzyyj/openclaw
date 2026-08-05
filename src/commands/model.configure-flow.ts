@@ -99,13 +99,44 @@ export async function configureModelFlow(
   let next: OpenClawConfig = cfg;
 
   const authChoiceFromPrompt = params.authChoice === undefined;
+  let addProviderConfigured: OpenClawConfig | null = null;
   const authChoice =
     params.authChoice ??
     (await promptAuthChoiceGrouped({
       prompter,
       store: ensureAuthProfileStore(undefined, { allowKeychainPrompt: false }),
       includeSkip,
+      runtime,
+      config: cfg,
+      // Add provider 完整配置完成后：接管 config，跳过 applyAuthChoice
+      onAddProviderConfigured: (configured) => {
+        addProviderConfigured = configured;
+        return true;
+      },
     }));
+
+  // Add provider 已完整配置（含新厂商 + 主模型）：直接走备用模型收尾。
+  if (addProviderConfigured) {
+    let customNext = addProviderConfigured;
+    if (authChoiceFromPrompt && includeFallbacks) {
+      const chosenDefaultModel = resolveAgentModelPrimaryValue(customNext.agents?.defaults?.model);
+      if (chosenDefaultModel) {
+        customNext = applyModelAllowlist(customNext, [chosenDefaultModel]);
+        const fallbackSelection = await promptModelFallbacks({
+          config: customNext,
+          prompter,
+          allowEmpty: true,
+        });
+        if (fallbackSelection.models) {
+          customNext = applyModelFallbacks(customNext, fallbackSelection.models);
+        }
+      }
+    }
+    if (params.warnIfOff) {
+      await warnIfModelConfigLooksOff(customNext, prompter);
+    }
+    return { config: customNext };
+  }
 
   // 自定义 API key：单独流程（不配置具体厂商）。
   if (authChoice === "custom-api-key") {

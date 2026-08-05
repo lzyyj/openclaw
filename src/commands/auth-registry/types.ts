@@ -63,6 +63,12 @@ export type AuthProvider = {
   id: string;
   /** 厂商展示名（如 "千问/Qwen"） */
   name: string;
+  /** API Base URL（自定义厂商；用于按 baseUrl 检索合并，避免重复注册） */
+  baseUrl?: string;
+  /** 厂商官网（可选，自定义厂商录入） */
+  website?: string;
+  /** 厂商别名（品牌/域名主体，如 moonshot → ["kimi", "月之暗面"]；用于跨平台合并判定） */
+  aliases?: string[];
   /** 说明 */
   hint?: string;
   /** 软删除标记 */

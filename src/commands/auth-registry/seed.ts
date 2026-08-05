@@ -161,6 +161,7 @@ export const AUTH_REGISTRY_SEED: AuthRegistry = {
       id: "qwen",
       name: "Qwen",
       hint: "Coder model (recommended)",
+      aliases: ["qwen", "tongyi", "千问", "通义", "dashscope", "bailian", "百炼"],
       order: 6,
       authMethods: [
         {
@@ -194,6 +195,7 @@ export const AUTH_REGISTRY_SEED: AuthRegistry = {
       id: "moonshot",
       name: "Moonshot AI (Kimi K2.5)",
       hint: "Kimi K2.5 + Kimi Coding",
+      aliases: ["moonshot", "kimi", "月之暗面"],
       order: 7,
       authMethods: [
         {
@@ -260,6 +262,7 @@ export const AUTH_REGISTRY_SEED: AuthRegistry = {
       id: "minimax",
       name: "MiniMax",
       hint: "M2.5 (recommended)",
+      aliases: ["minimax", "海螺", "abab"],
       order: 9,
       authMethods: [
         {
@@ -363,6 +366,7 @@ export const AUTH_REGISTRY_SEED: AuthRegistry = {
       id: "zai",
       name: "Z.AI",
       hint: "GLM Coding Plan / Global / CN",
+      aliases: ["zai", "glm", "智谱", "bigmodel", "chatglm"],
       order: 12,
       authMethods: [
         {
@@ -657,6 +661,7 @@ export const AUTH_REGISTRY_SEED: AuthRegistry = {
       id: "qianfan",
       name: "Qianfan",
       hint: "API key",
+      aliases: ["qianfan", "baidu", "千帆", "百度", "ernie", "文心"],
       order: 25,
       authMethods: [
         {

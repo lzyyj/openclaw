@@ -5,6 +5,7 @@ import type { ModelProviderConfig } from "../config/types.models.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { fetchWithTimeout } from "../utils/fetch-timeout.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
+import { loadAuthRegistry } from "./auth-registry/index.js";
 import { applyPrimaryModel } from "./model-picker.js";
 import { normalizeAlias } from "./models/shared.js";
 
@@ -142,7 +143,7 @@ function normalizeEndpointId(raw: string): string {
   return trimmed.replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function buildEndpointIdFromUrl(baseUrl: string): string {
+export function buildEndpointIdFromUrl(baseUrl: string): string {
   try {
     const url = new URL(baseUrl);
     const host = url.hostname.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
@@ -452,6 +453,102 @@ export function resolveCustomProviderId(
   };
 }
 
+/** 按 baseUrl 检索命中结果 */
+export type ProviderBaseUrlMatch =
+  | {
+      /** exact: baseUrl 精确命中（复用该认证方式） */
+      kind: "exact";
+      providerId: string;
+      name: string;
+      website?: string;
+    }
+  | {
+      /** vendor: 域名主体/别名命中同一厂商的不同平台（追加认证方式，不新建厂商） */
+      kind: "vendor";
+      providerId: string;
+      name: string;
+      website?: string;
+    };
+
+/**
+ * 提取域名主体（品牌名）：`https://api.moonshot.cn/v1` → "moonshot"
+ * 去掉 api./www./openapi./portal. 前缀，取主域名第一段（不含 TLD）。
+ */
+export function extractDomainBrand(baseUrl: string): string {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+    const brand = hostname.replace(/^(api|www|openapi|portal|dashboard)\./, "").split(".")[0];
+    return brand || "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * 按 baseUrl 检索"已存在"的自定义厂商（config providers + 本地注册表），
+ * 用于合并重复注册：用户不确定厂商名时先录 baseUrl，命中已有数据则复用。
+ *
+ * 三级匹配：
+ * 1. config providers 的 baseUrl 精确相等 → exact
+ * 2. 注册表厂商 baseUrl 精确相等 → exact
+ * 3. 注册表厂商 id/aliases 命中域名主体（同厂商不同平台，如 .ai/.cn）→ vendor
+ *
+ * 返回 null 表示未命中（可安全新建）。
+ */
+export function findExistingProviderByBaseUrl(params: {
+  config: OpenClawConfig;
+  baseUrl: string;
+}): ProviderBaseUrlMatch | null {
+  const normalized = params.baseUrl.trim().replace(/\/+$/, "");
+  if (!normalized) {
+    return null;
+  }
+
+  // 1) config models.providers（真实可用配置）—— 精确匹配优先
+  const providers = params.config.models?.providers ?? {};
+  for (const [providerId, provider] of Object.entries(providers)) {
+    if (provider?.baseUrl && provider.baseUrl.trim().replace(/\/+$/, "") === normalized) {
+      return { kind: "exact", providerId, name: providerId };
+    }
+  }
+
+  // 2) 本地注册表（auth-registry.json，含自定义厂商元数据）
+  try {
+    const registry = loadAuthRegistry();
+    const brand = extractDomainBrand(params.baseUrl);
+    for (const provider of registry.providers) {
+      const providerBaseUrl = provider.baseUrl?.trim().replace(/\/+$/, "");
+      if (providerBaseUrl && providerBaseUrl === normalized) {
+        return {
+          kind: "exact",
+          providerId: provider.id,
+          name: provider.name || provider.id,
+          ...(provider.website ? { website: provider.website } : {}),
+        };
+      }
+      // 域名主体/别名命中 → 同厂商不同平台（vendor 级合并）
+      if (brand) {
+        const aliases = provider.aliases ?? [];
+        const brandHit =
+          provider.id.toLowerCase() === brand ||
+          aliases.some((alias) => alias.toLowerCase() === brand);
+        if (brandHit) {
+          return {
+            kind: "vendor",
+            providerId: provider.id,
+            name: provider.name || provider.id,
+            ...(provider.website ? { website: provider.website } : {}),
+          };
+        }
+      }
+    }
+  } catch {
+    // 注册表不可读时静默（不阻断新增流程）
+  }
+
+  return null;
+}
+
 export function parseNonInteractiveCustomApiFlags(
   params: ParseNonInteractiveCustomApiFlagsParams,
 ): ParsedNonInteractiveCustomApiFlags {
@@ -599,8 +696,34 @@ export async function promptCustomApiConfig(params: {
   const { prompter, runtime, config } = params;
 
   const baseInput = await promptBaseUrlAndKey({ prompter });
-  let baseUrl = baseInput.baseUrl;
-  let apiKey = baseInput.apiKey;
+
+  return await promptCustomApiCore({
+    prompter,
+    runtime,
+    config,
+    baseUrl: baseInput.baseUrl,
+    apiKey: baseInput.apiKey,
+  });
+}
+
+/**
+ * 自定义厂商核心流程（baseUrl/key 已确定后）：
+ * 兼容性 → modelId → 验证循环 →（可选 alias）→ 写 config。
+ * - providerId 传入时跳过 Endpoint ID 提问（Add provider 用注册表 id）
+ * - askAlias 控制是否问 Model alias（Add provider 流程可跳过）
+ */
+export async function promptCustomApiCore(params: {
+  prompter: WizardPrompter;
+  runtime: RuntimeEnv;
+  config: OpenClawConfig;
+  baseUrl: string;
+  apiKey?: string;
+  providerId?: string;
+  askAlias?: boolean;
+}): Promise<CustomApiResult> {
+  const { prompter, runtime, config } = params;
+  let baseUrl = params.baseUrl.trim();
+  let apiKey = params.apiKey?.trim() ?? "";
 
   const compatibilityChoice = await prompter.select({
     message: "Endpoint compatibility",
@@ -678,42 +801,93 @@ export async function promptCustomApiConfig(params: {
   }
 
   const providers = config.models?.providers ?? {};
-  const suggestedId = buildEndpointIdFromUrl(baseUrl);
-  const providerIdInput = await prompter.text({
-    message: "Endpoint ID",
-    initialValue: suggestedId,
-    placeholder: "custom",
-    validate: (value) => {
-      const normalized = normalizeEndpointId(value);
-      if (!normalized) {
-        return "Endpoint ID is required.";
-      }
-      return undefined;
-    },
-  });
-  const aliasInput = await prompter.text({
-    message: "Model alias (optional)",
-    placeholder: "e.g. local, ollama",
-    initialValue: "",
-    validate: (value) => {
-      const requestedId = normalizeEndpointId(providerIdInput) || "custom";
-      const providerIdResult = resolveUniqueEndpointId({
-        requestedId,
-        baseUrl,
-        providers,
-      });
-      const modelRef = modelKey(providerIdResult.providerId, modelId);
-      return resolveAliasError({ raw: value, cfg: config, modelRef });
-    },
-  });
-  const resolvedCompatibility = compatibility ?? "openai";
-  const result = applyCustomApiConfig({
+  const providerIdInput = params.providerId?.trim() || buildEndpointIdFromUrl(baseUrl);
+  const normalizedProviderId = normalizeEndpointId(providerIdInput) || "custom";
+
+  // 未显式传 providerId（Custom Provider 独立入口）：保留 Endpoint ID 提问。
+  if (!params.providerId) {
+    const endpointIdInput = await prompter.text({
+      message: "Endpoint ID",
+      initialValue: normalizedProviderId,
+      placeholder: "custom",
+      validate: (value) => {
+        const normalized = normalizeEndpointId(value);
+        if (!normalized) {
+          return "Endpoint ID is required.";
+        }
+        return undefined;
+      },
+    });
+    const requestedId = normalizeEndpointId(endpointIdInput) || "custom";
+    const providerIdResult = resolveUniqueEndpointId({
+      requestedId,
+      baseUrl,
+      providers,
+    });
+    if (providerIdResult.renamed) {
+      await prompter.note(
+        `Endpoint ID "${providerIdResult.providerId}" already exists for a different base URL. Using "${providerIdResult.providerId}".`,
+        "Endpoint ID",
+      );
+    }
+    return await finishCustomApiConfig({
+      prompter,
+      runtime,
+      config,
+      baseUrl,
+      apiKey,
+      modelId,
+      compatibility: compatibility ?? "openai",
+      providerId: providerIdResult.providerId,
+      askAlias: params.askAlias ?? true,
+    });
+  }
+
+  return await finishCustomApiConfig({
+    prompter,
+    runtime,
     config,
     baseUrl,
-    modelId,
-    compatibility: resolvedCompatibility,
     apiKey,
-    providerId: providerIdInput,
+    modelId,
+    compatibility: compatibility ?? "openai",
+    providerId: normalizedProviderId,
+    askAlias: params.askAlias ?? true,
+  });
+}
+
+/** 写 config 收尾（providerId 已确定）：alias 提问（可选）→ applyCustomApiConfig → note。 */
+async function finishCustomApiConfig(params: {
+  prompter: WizardPrompter;
+  runtime: RuntimeEnv;
+  config: OpenClawConfig;
+  baseUrl: string;
+  apiKey: string;
+  modelId: string;
+  compatibility: CustomApiCompatibility;
+  providerId: string;
+  askAlias: boolean;
+}): Promise<CustomApiResult> {
+  const { prompter, runtime, config } = params;
+  const aliasInput = params.askAlias
+    ? await prompter.text({
+        message: "Model alias (optional)",
+        placeholder: "e.g. local, ollama",
+        initialValue: "",
+        validate: (value) => {
+          const modelRef = modelKey(params.providerId, params.modelId);
+          return resolveAliasError({ raw: value, cfg: config, modelRef });
+        },
+      })
+    : "";
+
+  const result = applyCustomApiConfig({
+    config,
+    baseUrl: params.baseUrl,
+    modelId: params.modelId,
+    compatibility: params.compatibility,
+    apiKey: params.apiKey,
+    providerId: params.providerId,
     alias: aliasInput,
   });
 

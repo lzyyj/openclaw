@@ -1,9 +1,16 @@
 import type { AuthProfileStore } from "../agents/auth-profiles.js";
 import { getText } from "../cli/i18n.js";
+import type { OpenClawConfig } from "../config/config.js";
+import type { RuntimeEnv } from "../runtime.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { buildAuthChoiceGroupsFromRegistry, PROVIDER_TO_GROUP_ID } from "./auth-choice-options.js";
 import { addAuthMethod } from "./auth-registry/index.js";
 import type { AuthMethodType } from "./auth-registry/types.js";
+import {
+  buildEndpointIdFromUrl,
+  findExistingProviderByBaseUrl,
+  promptCustomApiCore,
+} from "./onboard-custom.js";
 import type { AuthChoice } from "./onboard-types.js";
 
 const BACK_VALUE = "__back";
@@ -40,10 +47,22 @@ const AUTH_METHOD_TYPE_OPTIONS: Array<{ value: AuthMethodType; label: string }> 
 ];
 
 /**
- * 新增厂商交互流程：依次询问厂商名、认证方式名、认证类型，写入注册表。
- * 返回新增的认证方式 id（AuthChoice）。
+ * 新增厂商完整流程：
+ * 1) API Base URL（用户最确定的，可能不知道厂商名）→ 按 baseUrl 检索已有数据
+ * 2) 命中已有厂商 → 复用（合并，不重复注册）
+ * 3) 未命中 → 厂商名（可选）+ 官网（可选）→ 注册表写入（含 baseUrl/website）
+ * 4) 有 runtime+config 时走完整配置（key/兼容性/model/验证/写 config）
+ *
+ * 返回认证方式 id（AuthChoice）；取消返回 null。
  */
-async function promptAddProvider(prompter: WizardPrompter): Promise<AuthChoice | null> {
+async function promptAddProvider(params: {
+  prompter: WizardPrompter;
+  runtime?: RuntimeEnv;
+  config?: OpenClawConfig;
+  onAddProviderConfigured?: (config: OpenClawConfig) => boolean;
+}): Promise<AuthChoice | null> {
+  const { prompter, runtime, config } = params;
+
   await prompter.note(
     getText(
       "configure.model.add_provider.intro",
@@ -52,23 +71,86 @@ async function promptAddProvider(prompter: WizardPrompter): Promise<AuthChoice |
     getText("configure.model.add_provider.title", "Add provider"),
   );
 
-  const providerName = (
+  // 1) 先问 API Base URL —— 这是用户最确定的信息；用它检索已有厂商避免重复注册。
+  const baseUrlInput = (
     await prompter.text({
-      message: getText("configure.model.add_provider.name", "Provider name (e.g. MyAI)"),
-      placeholder: "MyAI",
+      message: getText("configure.model.add_provider.base_url", "API Base URL"),
+      placeholder: "https://api.example.com/v1",
+      validate: (val) => {
+        try {
+          new URL(val);
+          return undefined;
+        } catch {
+          return getText(
+            "configure.model.add_provider.base_url_invalid",
+            "Please enter a valid URL (e.g. https://api.example.com/v1)",
+          );
+        }
+      },
     })
   ).trim();
 
-  if (!providerName) {
+  if (!baseUrlInput) {
     await prompter.note(
-      getText("configure.model.add_provider.cancelled", "Provider name empty — cancelled."),
+      getText("configure.model.add_provider.cancelled", "Base URL empty — cancelled."),
       getText("configure.model.choice_title", "Model/auth choice"),
     );
     return null;
   }
 
-  // provider id = 小写、去空格、取首段
-  const providerId = providerName.toLowerCase().replace(/\s+/g, "-");
+  // 2) 按 baseUrl 检索已有厂商（config providers + 注册表）→ 命中则复用
+  const existing = config ? findExistingProviderByBaseUrl({ config, baseUrl: baseUrlInput }) : null;
+  if (existing) {
+    await prompter.note(
+      getText(
+        "configure.model.add_provider.existing",
+        'Found existing provider "{{name}}" ({{id}}) with the same base URL — reusing it instead of creating a duplicate.',
+        { name: existing.name, id: existing.providerId },
+      ),
+      getText("configure.model.add_provider.title", "Add provider"),
+    );
+    // 复用已有 providerId，继续走完整配置（key/model 等）
+    if (runtime && config) {
+      const coreResult = await runCustomApiCoreForProvider({
+        prompter,
+        runtime,
+        config,
+        baseUrl: baseUrlInput,
+        providerId: existing.providerId,
+      });
+      if (coreResult && params.onAddProviderConfigured?.(coreResult.config)) {
+        // 调用方已接管最终 config，不再走 applyAuthChoice
+        return null;
+      }
+      return coreResult?.methodId ?? null;
+    }
+    // 无 runtime/config（旧调用方）：仅提示，返回 null 让用户重新选择
+    await prompter.note(
+      getText(
+        "configure.model.add_provider.reuse_hint",
+        'Provider "{{id}}" already configured. Pick it from the list above to continue.',
+        { id: existing.providerId },
+      ),
+      getText("configure.model.choice_title", "Model/auth choice"),
+    );
+    return null;
+  }
+
+  // 3) 未命中：问厂商名（可选）+ 官网（可选），注册表写入
+  const suggestedId = buildEndpointIdFromUrl(baseUrlInput);
+  const providerName = (
+    await prompter.text({
+      message: getText(
+        "configure.model.add_provider.name",
+        "Provider name (optional, default from URL)",
+      ),
+      placeholder: suggestedId,
+      initialValue: "",
+    })
+  ).trim();
+  const resolvedName = providerName || suggestedId;
+
+  const providerId = resolvedName.toLowerCase().replace(/\s+/g, "-");
   if (!/^[a-z0-9-]+$/.test(providerId)) {
     await prompter.note(
       getText(
@@ -80,6 +162,14 @@ async function promptAddProvider(prompter: WizardPrompter): Promise<AuthChoice |
     );
     return null;
   }
+
+  const website = (
+    await prompter.text({
+      message: getText("configure.model.add_provider.website", "Provider website (optional)"),
+      placeholder: "https://example.com",
+      initialValue: "",
+    })
+  ).trim();
 
   const methodName = (
     await prompter.text({
@@ -105,11 +195,13 @@ async function promptAddProvider(prompter: WizardPrompter): Promise<AuthChoice |
 
   // method id = providerId + 类型后缀
   const methodId = `${providerId}-${methodType === "api-key" ? "api-key" : methodType}`;
-  const methodLabel = `${providerName} ${methodName}`;
+  const methodLabel = `${resolvedName} ${methodName}`;
 
   const added = addAuthMethod({
     providerId,
-    providerName,
+    providerName: resolvedName,
+    providerBaseUrl: baseUrlInput,
+    ...(website ? { providerWebsite: website } : {}),
     method: {
       id: methodId,
       name: methodName,
@@ -138,7 +230,67 @@ async function promptAddProvider(prompter: WizardPrompter): Promise<AuthChoice |
     getText("configure.model.add_provider.title", "Add provider"),
   );
 
+  // 4) 有 runtime+config：继续完整配置（key/兼容性/model/验证/写 config）
+  if (runtime && config) {
+    const coreResult = await runCustomApiCoreForProvider({
+      prompter,
+      runtime,
+      config,
+      baseUrl: baseUrlInput,
+      providerId,
+    });
+    if (coreResult && params.onAddProviderConfigured?.(coreResult.config)) {
+      // 调用方已接管最终 config，不再走 applyAuthChoice
+      return null;
+    }
+    return coreResult?.methodId ?? null;
+  }
+
+  // 无 runtime/config（旧调用方）：仅注册，返回 methodId
   return methodId as AuthChoice;
+}
+
+/** 复用 providerId 走自定义厂商核心配置流程（key/兼容性/model/验证/写 config）。 */
+async function runCustomApiCoreForProvider(params: {
+  prompter: WizardPrompter;
+  runtime: RuntimeEnv;
+  config: OpenClawConfig;
+  baseUrl: string;
+  providerId: string;
+}): Promise<{ methodId: AuthChoice; config: OpenClawConfig } | null> {
+  const { prompter, runtime, config, baseUrl, providerId } = params;
+
+  // 问 API key（可留空）——复用核心流程前先收集 key
+  const apiKeyInput = (
+    await prompter.text({
+      message: getText(
+        "configure.model.add_provider.api_key",
+        "API Key (leave blank if not required)",
+      ),
+      placeholder: "sk-...",
+      initialValue: "",
+    })
+  ).trim();
+
+  const result = await promptCustomApiCore({
+    prompter,
+    runtime,
+    config,
+    baseUrl,
+    apiKey: apiKeyInput,
+    providerId,
+    askAlias: false,
+  });
+
+  if (!result.config) {
+    return null;
+  }
+
+  // 配置写入成功，返回认证方式 id（与注册表 methodId 一致）+ 最终 config
+  return {
+    methodId: `${providerId}-api-key` as AuthChoice,
+    config: result.config,
+  };
 }
 
 export async function promptAuthChoiceGrouped(params: {
@@ -147,10 +299,19 @@ export async function promptAuthChoiceGrouped(params: {
   includeSkip: boolean;
   /** Initial group to pre-select (e.g. "deepseek" for current model "deepseek/deepseek-chat"). */
   initialGroupValue?: string;
+  /** 提供时，Add provider 走完整配置流程（key/兼容性/model/验证/写 config） */
+  runtime?: RuntimeEnv;
+  config?: OpenClawConfig;
+  /**
+   * Add provider 完整配置完成后回调（携带最终 config）。
+   * 返回 true 表示调用方已接管（不再返回 methodId 给 applyAuthChoice）。
+   */
+  onAddProviderConfigured?: (config: OpenClawConfig) => boolean;
 }): Promise<AuthChoice> {
   // 方案 A：优先从注册表构建分组（动态可维护）；注册表为空时退回旧逻辑由调用方兜底。
   const { groups, skipOption } = buildAuthChoiceGroupsFromRegistry({
     includeSkip: params.includeSkip,
+    excludeCustom: true,
   });
   const availableGroups = groups.filter((group) => group.options.length > 0);
 
@@ -186,7 +347,12 @@ export async function promptAuthChoiceGrouped(params: {
 
     // 新增厂商流程
     if (providerSelection === ADD_PROVIDER_VALUE) {
-      const added = await promptAddProvider(params.prompter);
+      const added = await promptAddProvider({
+        prompter: params.prompter,
+        runtime: params.runtime,
+        config: params.config,
+        onAddProviderConfigured: params.onAddProviderConfigured,
+      });
       if (added) {
         return added;
       }

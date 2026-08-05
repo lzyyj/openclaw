@@ -110,6 +110,10 @@ export function disableAuthMethod(methodId: string): boolean {
 export function addAuthMethod(params: {
   providerId: string;
   providerName?: string;
+  /** 厂商 API Base URL（自定义厂商；注册时记录，供按 baseUrl 检索合并） */
+  providerBaseUrl?: string;
+  /** 厂商官网（可选，自定义厂商录入） */
+  providerWebsite?: string;
   method: Omit<AuthMethod, "vendor"> & { vendor?: string };
 }): boolean {
   const registry = loadAuthRegistry();
@@ -125,7 +129,16 @@ export function addAuthMethod(params: {
     registry.providers.push(provider);
   }
 
+  // 自定义厂商元数据：创建或已存在时都回填（幂等，便于按 baseUrl 检索合并）
+  if (params.providerBaseUrl) {
+    provider.baseUrl = params.providerBaseUrl;
+  }
+  if (params.providerWebsite) {
+    provider.website = params.providerWebsite;
+  }
+
   if (provider.authMethods.some((m) => m.id === params.method.id)) {
+    saveAuthRegistry(registry);
     return false;
   }
 

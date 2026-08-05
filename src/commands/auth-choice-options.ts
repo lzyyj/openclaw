@@ -470,8 +470,13 @@ const CHANNEL_STATUS_NOTE: Record<ChannelStatus, string> = {
  * - 软删除（disabled）的厂商/认证方式被过滤
  * - 通道 down 的认证方式置灰（disabled: true）
  * - 通道状态用 ✅/⚠️/⛔ 前缀展示
+ * - excludeCustom: 隐藏 "custom" 厂商（Custom Provider）——交互界面由
+ *   "➕ Add provider" 入口取代，非交互 CLI（--custom-* flag）仍可用
  */
-export function buildAuthChoiceGroupsFromRegistry(params: { includeSkip: boolean }): {
+export function buildAuthChoiceGroupsFromRegistry(params: {
+  includeSkip: boolean;
+  excludeCustom?: boolean;
+}): {
   groups: AuthChoiceGroup[];
   skipOption?: AuthChoiceOption;
 } {
@@ -480,6 +485,9 @@ export function buildAuthChoiceGroupsFromRegistry(params: { includeSkip: boolean
 
   for (const provider of registry.providers) {
     if (provider.disabled) {
+      continue;
+    }
+    if (params.excludeCustom && provider.id === "custom") {
       continue;
     }
     const options = provider.authMethods

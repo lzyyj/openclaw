@@ -681,6 +681,28 @@ const ZH_CN: Record<string, string> = {
   "configure.model.auth_method": "认证方式",
   "configure.model.choice_title": "模型/认证选择",
   "configure.model.no_auth_methods": "该提供商没有可用的认证方式。",
+  // ---- Add provider（自定义厂商新增/合并流程）----
+  "configure.model.add_provider.option": "➕ 新增提供商",
+  "configure.model.add_provider.option_hint": "注册新厂商 / 认证方式",
+  "configure.model.add_provider.title": "新增提供商",
+  "configure.model.add_provider.intro":
+    "新增一个提供商。这会写入本地认证注册表（~/.openclaw/auth-registry.json）。\n之后你也可以直接编辑该文件来添加更多认证方式或将其标记为不可用。",
+  "configure.model.add_provider.base_url": "API Base URL",
+  "configure.model.add_provider.base_url_invalid":
+    "请输入有效的 URL（例如 https://api.example.com/v1）",
+  "configure.model.add_provider.cancelled": "输入为空，已取消。",
+  "configure.model.add_provider.existing":
+    "发现已有提供商「{{name}}」（{{id}}）使用相同的 Base URL，已复用而非重复创建。",
+  "configure.model.add_provider.reuse_hint": "提供商「{{id}}」已配置。请从上方列表中选择它以继续。",
+  "configure.model.add_provider.name": "提供商名称（可选，默认取自 URL）",
+  "configure.model.add_provider.invalid_id":
+    "无效的提供商 ID（请使用字母/数字/连字符）：「{{id}}」",
+  "configure.model.add_provider.website": "提供商官网（可选）",
+  "configure.model.add_provider.method_name": "认证方式名称（例如 API Key）",
+  "configure.model.add_provider.method_type": "认证方式类型",
+  "configure.model.add_provider.exists": "认证方式「{{id}}」已存在于注册表中。",
+  "configure.model.add_provider.done": "已将「{{id}}」添加到认证注册表。",
+  "configure.model.add_provider.api_key": "API 密钥（如不需要可留空）",
   "configure.model.api_key": "API 密钥",
   "configure.model.api_key_prompt": "输入 API 密钥",
   "configure.model.configured": "模型配置完成",

@@ -135,6 +135,24 @@ export async function promptAuthConfig(
       setDefaultModel: true,
     });
     next = applied.config;
+
+    // 重配 provider 后允许选择具体模型名称（与 onboarding 行为一致）：
+    // applyDefaultModelChoice 在已有主模型时会保留（不覆盖），但用户仍可能想换模型，
+    // 所以这里照常弹出模型选择，让用户 keep 当前模型或改选具体型号。
+    const modelSelection = await promptDefaultModel({
+      config: next,
+      prompter,
+      allowKeep: true,
+      ignoreAllowlist: true,
+      includeVllm: true,
+      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
+    });
+    if (modelSelection.config) {
+      next = modelSelection.config;
+    }
+    if (modelSelection.model) {
+      next = applyPrimaryModel(next, modelSelection.model);
+    }
   } else {
     // "Skip" = keep existing auth. Default the model picker to the currently
     // configured provider (when present) so it follows the existing config

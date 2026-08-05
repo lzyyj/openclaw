@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   promptDefaultModel: vi.fn(),
   promptCustomApiConfig: vi.fn(),
   promptModelFallbacks: vi.fn(),
+  verifyProviderInteractive: vi.fn(),
 }));
 
 vi.mock("../agents/auth-profiles.js", () => ({
@@ -42,6 +43,10 @@ vi.mock("./onboard-custom.js", () => ({
   promptCustomApiConfig: mocks.promptCustomApiConfig,
 }));
 
+vi.mock("./provider-verify.js", () => ({
+  verifyProviderInteractive: mocks.verifyProviderInteractive,
+}));
+
 import { promptAuthConfig } from "./configure.gateway-auth.js";
 
 function makeRuntime(): RuntimeEnv {
@@ -58,6 +63,9 @@ describe("promptAuthConfig", () => {
   beforeEach(() => {
     // Default: keep existing fallbacks so tests don't need to set this up.
     mocks.promptModelFallbacks.mockResolvedValue({ mode: "keep" });
+    // Default: model picker returns nothing (keeps current selection), so tests
+    // that don't exercise model-switching aren't affected by the added picker step.
+    mocks.promptDefaultModel.mockResolvedValue({});
   });
 
   it("keeps Kilo provider models while applying allowlist defaults", async () => {
@@ -137,5 +145,29 @@ describe("promptAuthConfig", () => {
     expect(result.models?.providers?.minimax?.models?.map((model) => model.id)).toEqual([
       "MiniMax-M2.1",
     ]);
+  });
+
+  it("allows switching the default model when reconfiguring a provider (non-skip)", async () => {
+    mocks.promptAuthChoiceGrouped.mockResolvedValue("deepseek-api-key");
+    mocks.applyAuthChoice.mockResolvedValue({
+      config: {
+        agents: { defaults: { model: { primary: "deepseek/deepseek-v4-pro", fallbacks: [] } } },
+        models: { providers: {} },
+      },
+    });
+    // 用户在选择具体模型名称时改选 v4-flash
+    mocks.promptDefaultModel.mockResolvedValue({
+      model: "deepseek/deepseek-v4-flash",
+      config: undefined,
+    });
+
+    const result = await promptAuthConfig({}, makeRuntime(), noopPrompter);
+
+    // 必须在 applyAuthChoice 之后调用了模型选择（能换具体模型）
+    expect(mocks.promptDefaultModel).toHaveBeenCalled();
+    // 新选的模型被 applyPrimaryModel 应用为主模型
+    expect(result.agents?.defaults?.model?.primary).toBe("deepseek/deepseek-v4-flash");
+    // 旧默认 v4-pro 自动降级为备用
+    expect(result.agents?.defaults?.model?.fallbacks).toContain("deepseek/deepseek-v4-pro");
   });
 });

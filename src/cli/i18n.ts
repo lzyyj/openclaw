@@ -787,6 +787,35 @@ const ZH_CN: Record<string, string> = {
   // ---- Clack prompt internals ----
   "clack.no_matches": "未找到匹配项",
   "clack.search": "搜索：",
+
+  // ---- Provider verify (厂商模型验证 / 动态取模型) ----
+  "provider_verify.title": "提供商验证",
+  "provider_verify.verifying": "正在验证 {provider}…",
+  "provider_verify.ok": "验证通过。",
+  "provider_verify.failed": "验证失败（{detail}）。",
+  "provider_verify.missing_inputs": "无法验证 {provider}：缺少 baseUrl 或 apiKey（未写入配置）。",
+  "provider_verify.required": "必填",
+  "provider_verify.enter_api_key": "输入 API key",
+  "provider_verify.auth_bad_key": "baseUrl 正确但 apiKey 无效（HTTP {status}）。",
+  "provider_verify.auth_reenter": "重新输入 API key",
+  "provider_verify.auth_keep": "保持现状（标记 suspect）",
+  "provider_verify.network_timeout": "网络/超时",
+  "provider_verify.baseurl_severe":
+    "baseUrl 出现严重错误（HTTP {status}）：{detail}。\n这通常意味着配置的 baseUrl（当前：{baseUrl}）已过时或厂商更换了网关 —— 请重新核实当前厂商最新的 API 端点，而不是沿用历史硬编码值。",
+  "provider_verify.baseurl_failed": "baseUrl 验证失败（HTTP {status}）：{detail}",
+  "provider_verify.baseurl_edit": "重新核实并修改 baseUrl",
+  "provider_verify.current": "当前：{baseUrl}",
+  "provider_verify.baseurl_retry": "重新验证（保持当前 baseUrl）",
+  "provider_verify.baseurl_skip": "跳过（标记 suspect，稍后再调）",
+  "provider_verify.baseurl_prompt": "baseUrl（OpenAI 兼容端点，含 /v1；请填核实后的最新地址）",
+  "provider_verify.model_mismatch":
+    '当前默认模型 "{current}" 不在 {provider} 返回的真实列表里（可能模型名已变更 / 网关切换）。',
+  "provider_verify.model_pick": "从真实模型里选一个",
+  "provider_verify.model_count": "共 {count} 个",
+  "provider_verify.model_keep": "保持现状",
+  "provider_verify.model_select": "选择默认模型",
+  "provider_verify.model_changed": "默认模型已改为 {model}",
+  "provider_verify.default_model": "默认模型",
 };
 
 /**

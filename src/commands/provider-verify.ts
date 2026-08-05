@@ -1,13 +1,13 @@
 import path from "node:path";
 import { resolveOpenClawAgentDir } from "../agents/agent-paths.js";
 import { resolveApiKeyForProvider } from "../agents/model-auth.js";
+import { getText } from "../cli/i18n.js";
 import { loadConfig } from "../config/config.js";
 import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import { resolveStateDir } from "../config/paths.js";
 import { loadJsonFile, saveJsonFile } from "../infra/json-file.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { updateAuthMethodChannelStatus } from "./auth-registry/index.js";
-import { applyDefaultModel } from "./provider-auth-helpers.js";
 
 /**
  * 厂商模型列表验证 + 动态同步（"拿到 key 后立即验证"）
@@ -214,8 +214,12 @@ export async function verifyProviderInteractive(params: {
   const initialInputs = await readProviderVerifyInputs(providerId, cfg);
   if (!initialInputs) {
     await prompter.note(
-      `无法验证 ${providerId}：缺少 baseUrl 或 apiKey（未写入配置）。`,
-      "Provider verify",
+      getText(
+        "provider_verify.missing_inputs",
+        `Cannot verify {provider}: missing baseUrl or apiKey (not written to config).`,
+        { provider: providerId },
+      ),
+      getText("provider_verify.title", "Provider verify"),
     );
     return { kind: "skipped" };
   }
@@ -224,10 +228,16 @@ export async function verifyProviderInteractive(params: {
   let apiKey = initialInputs.apiKey;
 
   for (let attempt = 0; attempt < 10; attempt++) {
-    const spinner = prompter.progress(`Verifying ${providerId}…`);
+    const spinner = prompter.progress(
+      getText("provider_verify.verifying", "Verifying {provider}…", { provider: providerId }),
+    );
     const result = await verifyProviderWithModels({ baseUrl, apiKey });
     spinner.stop(
-      result.ok ? "Verification OK." : `Verification failed (${result.status ?? result.detail}).`,
+      result.ok
+        ? getText("provider_verify.ok", "Verification OK.")
+        : getText("provider_verify.failed", "Verification failed ({detail}).", {
+            detail: String(result.status ?? result.detail),
+          }),
     );
 
     // 成功 → 标 ok + 合并真实模型
@@ -261,17 +271,28 @@ export async function verifyProviderInteractive(params: {
         note: `auth failed: invalid api key (${result.detail})`,
       });
       const choice = await prompter.select<"change-key" | "keep">({
-        message: `baseUrl 正确但 apiKey 无效（HTTP ${result.status}）。`,
+        message: getText(
+          "provider_verify.auth_bad_key",
+          "baseUrl is correct but apiKey is invalid (HTTP {status}).",
+          { status: String(result.status) },
+        ),
         options: [
-          { value: "change-key", label: "重新输入 API key" },
-          { value: "keep", label: "保持现状（标记 suspect）" },
+          {
+            value: "change-key",
+            label: getText("provider_verify.auth_reenter", "Re-enter API key"),
+          },
+          {
+            value: "keep",
+            label: getText("provider_verify.auth_keep", "Keep as-is (mark suspect)"),
+          },
         ],
       });
       if (choice === "change-key") {
         const newKey = await prompter.text({
-          message: "Enter API key",
+          message: getText("provider_verify.enter_api_key", "Enter API key"),
           initialValue: apiKey,
-          validate: (v) => (String(v ?? "").trim() ? undefined : "Required"),
+          validate: (v) =>
+            String(v ?? "").trim() ? undefined : getText("provider_verify.required", "Required"),
         });
         apiKey = String(newKey ?? "").trim();
         continue;
@@ -293,18 +314,39 @@ export async function verifyProviderInteractive(params: {
     // 严重错误：5xx/网关超时/网络不可达 → 强烈提示可能是"硬编码 baseUrl 已过时"，
     // 引导用户优先重新核实当前 baseUrl，而不是继续盲目重试。
     const severeStatus = result.status >= 500 || result.status === 0;
+    const statusLabel =
+      result.status ?? getText("provider_verify.network_timeout", "network/timeout");
     const msg = severeStatus
-      ? `baseUrl 出现严重错误（HTTP ${result.status ?? "网络/超时"}）：${result.detail}。` +
-        `\n这通常意味着配置的 baseUrl（当前：${baseUrl}）已过时或厂商更换了网关 —— ` +
-        `请重新核实当前厂商最新的 API 端点，而不是沿用历史硬编码值。`
-      : `baseUrl 验证失败（HTTP ${result.status ?? "?"}）：${result.detail}`;
+      ? getText(
+          "provider_verify.baseurl_severe",
+          "baseUrl has a severe error (HTTP {status}): {detail}.\nThis usually means the configured baseUrl (currently: {baseUrl}) is outdated or the vendor switched gateways — please re-verify the vendor's latest API endpoint instead of reusing the old hard-coded value.",
+          { status: String(statusLabel), detail: String(result.detail), baseUrl },
+        )
+      : getText(
+          "provider_verify.baseurl_failed",
+          "baseUrl verification failed (HTTP {status}): {detail}",
+          {
+            status: String(statusLabel),
+            detail: String(result.detail),
+          },
+        );
 
     const choice = await prompter.select<"edit-url" | "retry" | "skip">({
       message: msg,
       options: [
-        { value: "edit-url", label: "重新核实并修改 baseUrl", hint: `当前：${baseUrl}` },
-        { value: "retry", label: "重新验证（保持当前 baseUrl）" },
-        { value: "skip", label: "跳过（标记 suspect，稍后再调）" },
+        {
+          value: "edit-url",
+          label: getText("provider_verify.baseurl_edit", "Re-verify and modify baseUrl"),
+          hint: getText("provider_verify.current", "current: {baseUrl}", { baseUrl }),
+        },
+        {
+          value: "retry",
+          label: getText("provider_verify.baseurl_retry", "Re-verify (keep current baseUrl)"),
+        },
+        {
+          value: "skip",
+          label: getText("provider_verify.baseurl_skip", "Skip (mark suspect, fix later)"),
+        },
       ],
       initialValue: severeStatus ? "edit-url" : undefined,
     });
@@ -312,10 +354,14 @@ export async function verifyProviderInteractive(params: {
     if (choice === "edit-url") {
       const newUrl = (
         await prompter.text({
-          message: "baseUrl（OpenAI 兼容端点，含 /v1；请填核实后的最新地址）",
+          message: getText(
+            "provider_verify.baseurl_prompt",
+            "baseUrl (OpenAI-compatible endpoint, incl. /v1; use the latest verified address)",
+          ),
           initialValue: baseUrl,
           placeholder: "https://api.example.com/v1",
-          validate: (v) => (String(v ?? "").trim() ? undefined : "Required"),
+          validate: (v) =>
+            String(v ?? "").trim() ? undefined : getText("provider_verify.required", "Required"),
         })
       ).trim();
       if (newUrl && newUrl !== baseUrl) {
@@ -523,10 +569,20 @@ async function maybeCorrectDefaultModel(params: {
   const pool = candidates.length > 0 ? candidates : realModels.slice(0, 40);
 
   const choice = await prompter.select<"pick" | "keep">({
-    message: `当前默认模型 "${current}" 不在 ${providerId} 返回的真实列表里（可能模型名已变更 / 网关切换）。`,
+    message: getText(
+      "provider_verify.model_mismatch",
+      'Current default model "{current}" is not in the real list returned by {provider} (model name may have changed / gateway switched).',
+      { current, provider: providerId },
+    ),
     options: [
-      { value: "pick", label: "从真实模型里选一个", hint: `共 ${realModels.length} 个` },
-      { value: "keep", label: "保持现状" },
+      {
+        value: "pick",
+        label: getText("provider_verify.model_pick", "Pick one from the real models"),
+        hint: getText("provider_verify.model_count", "{count} total", {
+          count: String(realModels.length),
+        }),
+      },
+      { value: "keep", label: getText("provider_verify.model_keep", "Keep as-is") },
     ],
   });
   if (choice !== "pick") {
@@ -534,7 +590,7 @@ async function maybeCorrectDefaultModel(params: {
   }
 
   const picked = await prompter.select<string>({
-    message: "选择默认模型",
+    message: getText("provider_verify.model_select", "Select default model"),
     options: pool.map((id) => ({ value: id, label: id })),
   });
   if (!picked) {
@@ -543,12 +599,47 @@ async function maybeCorrectDefaultModel(params: {
 
   const newPrimary = `${providerId}/${picked}`;
   try {
-    // 只就地修改传入的 wizard config（promptAuthConfig 的 next 快照），
+    // 就地修改传入的 wizard config（promptAuthConfig 的 next 快照），
     // 由外层向导统一保存；不单独 writeConfigFile，避免被外层旧快照覆盖。
-    applyDefaultModel(config, newPrimary);
-    await prompter.note(`默认模型已改为 ${newPrimary}`, "Default model");
+    // 注意：不能使用不可变的 applyDefaultModel（返回新对象且此处丢弃返回值，
+    // 会导致"note 谎报已改、实际外层仍是旧模型"的假成功）。
+    mutateDefaultModelPrimary(config, newPrimary);
+    await prompter.note(
+      getText("provider_verify.model_changed", "Default model set to {model}", {
+        model: newPrimary,
+      }),
+      getText("provider_verify.default_model", "Default model"),
+    );
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * 就地修改 wizard config 里 agents.defaults.model 的 primary（保留 fallbacks）。
+ * 与 mutateProviderBaseUrl 一致：只改内存中的 next 快照，由外层向导统一保存。
+ */
+function mutateDefaultModelPrimary(
+  config?: ReturnType<typeof loadConfig>,
+  newPrimary?: string,
+): void {
+  if (!config || !newPrimary) {
+    return;
+  }
+  const defaults = config.agents?.defaults;
+  if (!defaults) {
+    return;
+  }
+  const existing = defaults.model;
+  if (typeof existing === "string") {
+    defaults.model = newPrimary;
+    return;
+  }
+  if (existing && typeof existing === "object") {
+    const { primary: _omit, fallbacks } = existing as { primary?: string; fallbacks?: string[] };
+    defaults.model = fallbacks !== undefined ? { primary: newPrimary, fallbacks } : newPrimary;
+    return;
+  }
+  defaults.model = newPrimary;
 }

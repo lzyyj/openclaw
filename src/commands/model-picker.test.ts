@@ -432,4 +432,33 @@ describe("promptModelFallbacks", () => {
       expect(result.fallbacks).not.toContain("moonshot/kimi-k2.5");
     }
   });
+
+  it("excludes the primary model from fallback candidates", async () => {
+    loadModelCatalog.mockResolvedValue([
+      { provider: "deepseek", id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
+      { provider: "deepseek", id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+    ]);
+    listProfilesForProvider.mockImplementation((_store, provider) =>
+      provider === "deepseek" ? ["deepseek:default"] : [],
+    );
+    let candidateValues: string[] = [];
+    const multiselect = vi.fn(async (params) => {
+      candidateValues = params.options.map((opt: { value: string }) => opt.value);
+      return [];
+    });
+    const prompter = makePrompter({
+      select: vi.fn(async () => "multiselect" as never),
+      multiselect,
+    });
+    const config = {
+      agents: { defaults: { model: { primary: "deepseek/deepseek-v4-flash" } } },
+    } as OpenClawConfig;
+
+    const result = await promptModelFallbacks({ config, prompter });
+    // 主模型 deepseek/deepseek-v4-flash 不应出现在备用候选里
+    expect(candidateValues).not.toContain("deepseek/deepseek-v4-flash");
+    // 同 provider 的另一个模型仍可作为备用
+    expect(candidateValues).toContain("deepseek/deepseek-v4-pro");
+    expect(result.mode).toBe("clear");
+  });
 });

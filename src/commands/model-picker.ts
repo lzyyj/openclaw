@@ -591,8 +591,11 @@ export async function promptModelFallbacks(params: {
   const options: WizardSelectOption[] = [];
   const seen = new Set<string>();
 
+  // 主模型已经确定并作为 primary 使用，不应再出现在备用候选里 (备用是"主模型失败时"才用的)。
+  const isPrimaryKey = (key: string) => !!key && key === resolvedKey;
+
   const addConfiguredKey = (key: string, hint?: string) => {
-    if (seen.has(key) || !key) {
+    if (seen.has(key) || !key || isPrimaryKey(key)) {
       return;
     }
     options.push({
@@ -605,8 +608,8 @@ export async function promptModelFallbacks(params: {
 
   for (const entry of catalog) {
     const key = modelKey(entry.provider, entry.id);
-    // 已配置 allowlist 模型：始终保留为候选。
-    if (configuredKeys.has(key)) {
+    // 已配置 allowlist 模型：始终保留为候选 (排除主模型自身)。
+    if (configuredKeys.has(key) && !isPrimaryKey(key)) {
       addModelSelectOption({ entry, options, seen, aliasIndex, hasAuth });
       continue;
     }

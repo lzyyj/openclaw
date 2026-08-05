@@ -170,4 +170,23 @@ describe("promptAuthConfig", () => {
     // 旧默认 v4-pro 自动降级为备用
     expect(result.agents?.defaults?.model?.fallbacks).toContain("deepseek/deepseek-v4-pro");
   });
+
+  it("verify 抛错时主模型选择仍出现（不因验证失败而丢失）", async () => {
+    mocks.promptAuthChoiceGrouped.mockResolvedValue("deepseek-api-key");
+    mocks.applyAuthChoice.mockResolvedValue({
+      config: {
+        agents: { defaults: { model: { primary: "deepseek/deepseek-v4-pro", fallbacks: [] } } },
+        models: { providers: {} },
+      },
+    });
+    // verify 拉取真实模型时抛异常（网络/未知错误）——不应阻断后续主模型选择
+    mocks.verifyProviderInteractive.mockRejectedValue(new Error("network boom"));
+    mocks.promptDefaultModel.mockResolvedValue({}); // 用户保持当前模型
+
+    const result = await promptAuthConfig({}, makeRuntime(), noopPrompter);
+
+    // 即便 verify 抛错，主模型选择仍被调用（不丢失）
+    expect(mocks.promptDefaultModel).toHaveBeenCalled();
+    expect(result.agents?.defaults?.model?.primary).toBe("deepseek/deepseek-v4-pro");
+  });
 });

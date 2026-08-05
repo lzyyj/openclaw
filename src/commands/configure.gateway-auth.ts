@@ -165,6 +165,45 @@ export async function promptAuthConfig(
     authChoice === "setup-token" || authChoice === "token" || authChoice === "oauth";
 
   if (authChoice !== "custom-api-key" && authChoice !== "skip") {
+    // 1) 先拿到 key 并交互式验证厂商配置（GET /models）：成功升 ok、动态取真实模型
+    //    写回 models.json（如 deepseek-v4-flash），随后主/备用模型选择列表才完整。
+    //    baseUrl 错（404/超时）会展示当前 baseUrl 供用户现场修改后重试；认证错提示改 key。
+    //    传入 next（向导正在构建的 config 快照），验证内对 baseUrl/默认模型的修正
+    //    直接作用于此快照，由外层向导统一保存 —— 避免内层另存被外层旧快照覆盖。
+    //    验证失败/抛错不应阻断 configure 主流程（onboarding 同样 try/catch 包裹）：
+    //    即便拉不到真实模型，也要继续让用户选择主模型名称（否则"主模型选择"会莫名丢失）。
+    const providerId = providerIdFromAuthChoice(authChoice);
+    if (providerId) {
+      try {
+        await verifyProviderInteractive({
+          providerId,
+          methodId: authChoice,
+          prompter,
+          cfg: next,
+        });
+      } catch {
+        // 静默：verify 意外失败（网络异常等）不阻断 configure 向导
+      }
+    }
+
+    // 2) 选择主模型名称（verify 已拉取真实模型，列表含 deepseek-v4-pro/v4-flash）。
+    //    skip 分支已在上面的 else 里弹过模型选择，这里只处理常规重配（non-skip）分支。
+    const modelSelection = await promptDefaultModel({
+      config: next,
+      prompter,
+      allowKeep: true,
+      ignoreAllowlist: true,
+      includeVllm: true,
+      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
+    });
+    if (modelSelection.config) {
+      next = modelSelection.config;
+    }
+    if (modelSelection.model) {
+      next = applyPrimaryModel(next, modelSelection.model);
+    }
+
+    // 3) 备用模型与 allowlist。
     if (anthropicOAuth) {
       // For Anthropic OAuth, show the model allowlist with limited set
       const allowlistSelection = await promptModelAllowlist({
@@ -202,42 +241,9 @@ export async function promptAuthConfig(
       } else if (fallbackSelection.mode === "clear") {
         next = applyModelFallbacks(next, []);
       }
-
-      // 拿到 key 后，交互式验证厂商配置（GET /models）：成功升 ok、动态取模型写回；
-      // baseUrl 错（404/超时）会展示当前 baseUrl 供用户现场修改后重试；认证错提示改 key。
-      // 相比静默后台验证，让 baseUrl 变更/厂商换网关时能就地维护，不硬编码。
-      // 传入 next（向导正在构建的 config 快照），验证内对 baseUrl/默认模型的修正
-      // 直接作用于此快照，由外层向导统一保存 —— 避免内层另存被外层旧快照覆盖，
-      // 导致"保存的模型与启动读取不一致"。
-      const providerId = providerIdFromAuthChoice(authChoice);
-      if (providerId) {
-        await verifyProviderInteractive({
-          providerId,
-          methodId: authChoice,
-          prompter,
-          cfg: next,
-        });
-      }
     }
 
-    // verify 已把厂商真实模型（如 deepseek-v4-flash）合并进 models.json，此时再让用户
-    // 选择具体模型名称，列表才完整（onboarding 也是这个顺序：先验证拉模型，再选模型）。
-    // skip 分支已在上面的 else 里弹过模型选择，这里只处理常规重配（non-skip）分支。
-    const modelSelection = await promptDefaultModel({
-      config: next,
-      prompter,
-      allowKeep: true,
-      ignoreAllowlist: true,
-      includeVllm: true,
-      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
-    });
-    if (modelSelection.config) {
-      next = modelSelection.config;
-    }
-    if (modelSelection.model) {
-      next = applyPrimaryModel(next, modelSelection.model);
-    }
-    // 模型名称已确认，此时才宣告"模型配置完成"（见 applyAuthChoice 的 deferModelConfiguredNote）。
+    // 4) 模型名称已确认，此时才宣告"模型配置完成"（见 applyAuthChoice 的 deferModelConfiguredNote）。
     const finalPrimary = resolveAgentModelPrimaryValue(next.agents?.defaults?.model);
     if (finalPrimary) {
       await prompter.note(

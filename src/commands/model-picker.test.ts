@@ -4,6 +4,7 @@ import {
   applyModelAllowlist,
   applyModelFallbacks,
   applyModelFallbacksFromSelection,
+  applyPrimaryModel,
   promptDefaultModel,
   promptModelAllowlist,
   promptModelFallbacks,
@@ -215,6 +216,58 @@ describe("applyModelAllowlist", () => {
   });
 });
 
+describe("applyPrimaryModel", () => {
+  it("auto-demotes the previous default model into fallbacks when switching primary", () => {
+    const config = {
+      agents: {
+        defaults: {
+          model: { primary: "deepseek/deepseek-chat", fallbacks: [] },
+        },
+      },
+    } as OpenClawConfig;
+
+    const next = applyPrimaryModel(config, "deepseek/deepseek-v4-pro");
+    expect(next.agents.defaults.model.primary).toBe("deepseek/deepseek-v4-pro");
+    // 旧默认 chat 自动降级为第一备用
+    expect(next.agents.defaults.model.fallbacks).toEqual(["deepseek/deepseek-chat"]);
+  });
+
+  it("keeps existing fallbacks and does not duplicate the old primary", () => {
+    const config = {
+      agents: {
+        defaults: {
+          model: {
+            primary: "deepseek/deepseek-chat",
+            fallbacks: ["deepseek/deepseek-reasoner"],
+          },
+        },
+      },
+    } as OpenClawConfig;
+
+    const next = applyPrimaryModel(config, "deepseek/deepseek-v4-pro");
+    // 旧已存在的备用保留，旧 primary chat 自动补到最前
+    expect(next.agents.defaults.model.fallbacks).toEqual([
+      "deepseek/deepseek-chat",
+      "deepseek/deepseek-reasoner",
+    ]);
+  });
+
+  it("does not demote when primary is unchanged", () => {
+    const config = {
+      agents: {
+        defaults: {
+          model: { primary: "deepseek/deepseek-chat", fallbacks: [] },
+        },
+      },
+    } as OpenClawConfig;
+
+    const next = applyPrimaryModel(config, "deepseek/deepseek-chat");
+    expect(next.agents.defaults.model.primary).toBe("deepseek/deepseek-chat");
+    // primary 未变时不产生降级备用（空 fallbacks 字段省略）
+    expect(next.agents.defaults.model.fallbacks ?? []).toEqual([]);
+  });
+});
+
 describe("applyModelFallbacksFromSelection", () => {
   it("sets fallbacks from selection when the primary is included", () => {
     const config = {
@@ -349,13 +402,18 @@ describe("promptModelFallbacks", () => {
 
   it("returns selected fallbacks in display order when multiselect is chosen", async () => {
     loadModelCatalog.mockResolvedValue([
-      { provider: "moonshot", id: "kimi-k2.5", name: "Kimi K2.5" },
       { provider: "deepseek", id: "deepseek-chat", name: "DeepSeek Chat" },
-      { provider: "qwen-portal", id: "coder-model", name: "Qwen Coder" },
+      { provider: "deepseek", id: "deepseek-reasoner", name: "DeepSeek Reasoner" },
+      { provider: "moonshot", id: "kimi-k2.5", name: "Kimi K2.5" },
     ]);
+    // 候选收窄到主模型 provider（deepseek）且已配置 key 的模型；moonshot 非该 provider 被排除
+    listProfilesForProvider.mockImplementation((_store, provider) =>
+      provider === "deepseek" ? ["deepseek:default"] : [],
+    );
+    // 主模型 provider = deepseek（auto-populate 后 primary 为 deepseek-chat）
     const multiselect = vi.fn(async (params) =>
       params.options
-        .filter((opt: { value: string }) => opt.value !== "qwen-portal/coder-model")
+        .filter((opt: { value: string }) => opt.value !== "deepseek/deepseek-chat")
         .map((opt: { value: string }) => opt.value),
     );
     const prompter = makePrompter({
@@ -363,13 +421,15 @@ describe("promptModelFallbacks", () => {
       multiselect,
     });
     const config = {
-      agents: { defaults: { model: { primary: "qwen-portal/coder-model" } } },
+      agents: { defaults: { model: { primary: "deepseek/deepseek-chat" } } },
     } as OpenClawConfig;
 
     const result = await promptModelFallbacks({ config, prompter });
     expect(result.mode).toBe("set");
     if (result.mode === "set") {
-      expect(result.fallbacks).toEqual(["moonshot/kimi-k2.5", "deepseek/deepseek-chat"]);
+      // moonshot 不属于主模型 provider，应被排除
+      expect(result.fallbacks).toEqual(["deepseek/deepseek-reasoner"]);
+      expect(result.fallbacks).not.toContain("moonshot/kimi-k2.5");
     }
   });
 });

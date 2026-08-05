@@ -461,7 +461,10 @@ export async function promptModelAllowlist(params: {
       label: key,
       hint: allowedKeySet
         ? getText("onboarding.model.allowlist.allowed_not_catalog", "allowed (not in catalog)")
-        : getText("onboarding.model.allowlist.configured_not_catalog", "configured (not in catalog)"),
+        : getText(
+            "onboarding.model.allowlist.configured_not_catalog",
+            "configured (not in catalog)",
+          ),
     });
     seen.add(key);
   }
@@ -520,6 +523,8 @@ export async function promptModelFallbacks(params: {
   prompter: WizardPrompter;
   agentDir?: string;
   initialSelections?: string[];
+  /** 限定候选到某个 provider（与主模型选择的 preferredProvider 一致，如 deepseek）。 */
+  preferredProvider?: string;
 }): Promise<PromptModelFallbacksResult> {
   const cfg = params.config;
 
@@ -536,7 +541,10 @@ export async function promptModelFallbacks(params: {
       },
       {
         value: "multiselect",
-        label: getText("onboarding.model.fallbacks.choose", "Choose fallback models (multi-select)"),
+        label: getText(
+          "onboarding.model.fallbacks.choose",
+          "Choose fallback models (multi-select)",
+        ),
       },
       {
         value: "clear",
@@ -571,22 +579,60 @@ export async function promptModelFallbacks(params: {
   const aliasIndex = buildModelAliasIndex({ cfg, defaultProvider: DEFAULT_PROVIDER });
   const hasAuth = createProviderAuthChecker({ cfg, agentDir: params.agentDir });
 
+  // 候选 = 与主模型选择时一致的范围，而不是整个 catalog 平铺（否则出现一堆跨厂商、
+  // 未配置的同名变体，如 amazon-bedrock/groq/huggingface/openrouter/vercel 的 deepseek，
+  // 选了也用不了——这些 provider 没配 key，备用根本不可用）。
+  // 复用主模型选择范围：优先 preferredProvider（如 deepseek），否则当前默认模型的 provider；
+  // 再加"已配置 allowlist"（曾是默认模型 / 用户显式配置过的模型）。
+  const defaultProvider = resolved.provider;
+  const preferredProvider = params.preferredProvider?.trim() || defaultProvider;
+  const configuredKeys = new Set(resolveConfiguredModelKeys(cfg));
+
   const options: WizardSelectOption[] = [];
   const seen = new Set<string>();
 
-  for (const entry of catalog) {
-    addModelSelectOption({ entry, options, seen, aliasIndex, hasAuth });
-  }
-  for (const key of initialSeeds) {
-    if (seen.has(key)) {
-      continue;
+  const addConfiguredKey = (key: string, hint?: string) => {
+    if (seen.has(key) || !key) {
+      return;
     }
     options.push({
       value: key,
       label: key,
-      hint: getText("onboarding.model.fallbacks.configured_not_catalog", "configured (not in catalog)"),
+      hint,
     });
     seen.add(key);
+  };
+
+  for (const entry of catalog) {
+    const key = modelKey(entry.provider, entry.id);
+    // 已配置 allowlist 模型：始终保留为候选。
+    if (configuredKeys.has(key)) {
+      addModelSelectOption({ entry, options, seen, aliasIndex, hasAuth });
+      continue;
+    }
+    // 同 provider 下 catalog 中"已配置 key"的模型：与主模型选择视图一致，且确实可用作备用。
+    const normalizedProvider = normalizeProviderId(entry.provider);
+    const matchesPreferred =
+      normalizedProvider === preferredProvider ||
+      (preferredProvider === "volcengine" &&
+        (normalizedProvider === "volcengine" || normalizedProvider === "volcengine-plan")) ||
+      (preferredProvider === "byteplus" &&
+        (normalizedProvider === "byteplus" || normalizedProvider === "byteplus-plan"));
+    if (matchesPreferred && hasAuth(entry.provider)) {
+      addConfiguredKey(
+        key,
+        getText("onboarding.model.fallbacks.same_provider", "same provider ({provider})", {
+          provider: entry.provider,
+        }),
+      );
+    }
+  }
+  // 已配置 allowlist / 主模型 / 既有 fallbacks 即使不在 catalog 也保留为候选。
+  for (const key of initialSeeds) {
+    addConfiguredKey(
+      key,
+      getText("onboarding.model.fallbacks.configured_not_catalog", "configured (not in catalog)"),
+    );
   }
 
   if (options.length === 0) {
@@ -640,10 +686,20 @@ export function applyPrimaryModel(cfg: OpenClawConfig, model: string): OpenClawC
   const defaults = cfg.agents?.defaults;
   const existingModel = defaults?.model;
   const existingModels = defaults?.models;
+  const existingPrimary = resolveAgentModelPrimaryValue(existingModel);
   const fallbacks =
     typeof existingModel === "object" && existingModel !== null && "fallbacks" in existingModel
       ? (existingModel as { fallbacks?: string[] }).fallbacks
       : undefined;
+
+  // 换默认模型时，旧的默认模型自动降级为备用（若它不同于新模型且不在 fallbacks 里）。
+  // 这样"曾经的默认模型"自然成为第一备用，不用用户在庞大的 catalog 里重勾。
+  let nextFallbacks = fallbacks ? [...fallbacks] : [];
+  if (existingPrimary && existingPrimary !== model && !nextFallbacks.includes(existingPrimary)) {
+    nextFallbacks.unshift(existingPrimary);
+  }
+  nextFallbacks = normalizeModelKeys(nextFallbacks);
+
   return {
     ...cfg,
     agents: {
@@ -651,7 +707,7 @@ export function applyPrimaryModel(cfg: OpenClawConfig, model: string): OpenClawC
       defaults: {
         ...defaults,
         model: {
-          ...(fallbacks ? { fallbacks } : undefined),
+          ...(nextFallbacks.length > 0 ? { fallbacks: nextFallbacks } : undefined),
           primary: model,
         },
         models: {

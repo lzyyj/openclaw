@@ -528,6 +528,7 @@ const ZH_CN: Record<string, string> = {
   "onboarding.model.fallbacks.choose": "选择备用模型（多选）",
   "onboarding.model.fallbacks.clear": "清空所有备用模型",
   "onboarding.model.fallbacks.configured_not_catalog": "已配置（不在目录中）",
+  "onboarding.model.fallbacks.same_provider": "同提供商（{provider}）",
   "onboarding.model.fallbacks.select": "选择备用模型（优先级 = 列表顺序）",
   "onboarding.helpers.required": "必填",
   "onboarding.helpers.password_literal": '不能是字面字符串 "undefined" 或 "null"',

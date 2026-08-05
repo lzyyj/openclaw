@@ -184,9 +184,13 @@ export async function promptAuthConfig(
       // Fallback (backup) models share the same model pool as the primary — only
       // priority differs. Let the user manage them here so stale/hand-edited
       // fallbacks (e.g. providers without a configured key) get cleaned up.
+      // 候选限定到当前默认模型的 provider，和主模型选择范围一致（避免平铺整个 catalog）。
       const fallbackSelection = await promptModelFallbacks({
         config: next,
         prompter,
+        preferredProvider: chosenDefaultModel
+          ? chosenDefaultModel.split("/")[0]?.trim()
+          : undefined,
       });
       if (fallbackSelection.mode === "set") {
         next = applyModelFallbacks(next, fallbackSelection.fallbacks);

@@ -19,31 +19,6 @@ import { resolveUserPath, shortenHomeInString } from "../utils.js";
 import type { QuickstartGatewayDefaults, WizardFlow } from "./onboarding.types.js";
 import { WizardCancelledError, type WizardPrompter } from "./prompts.js";
 
-/**
- * 从 authChoice 推导规范 provider id（用于验证）。
- * - "deepseek-api-key"         -> "deepseek"
- * - "openrouter-api-key"       -> "openrouter"
- * - "kimi-code-api-key"        -> "kimi-coding"（特殊映射）
- * - "ai-gateway-api-key"       -> "vercel-ai-gateway"（特殊映射）
- * 无法可靠推导（custom-api-key / OAuth 等）返回 undefined（跳过验证）。
- */
-function resolveAuthChoiceProviderId(authChoice: string): string | undefined {
-  if (!authChoice || authChoice === "custom-api-key") {
-    return undefined;
-  }
-  if (authChoice.endsWith("-api-key")) {
-    return authChoice.slice(0, -"-api-key".length);
-  }
-  const special: Record<string, string> = {
-    "ai-gateway-api-key": "vercel-ai-gateway",
-    "kimi-code-api-key": "kimi-coding",
-  };
-  if (special[authChoice]) {
-    return special[authChoice];
-  }
-  return undefined;
-}
-
 async function requireRiskAcknowledgement(params: {
   opts: OnboardOptions;
   prompter: WizardPrompter;
@@ -419,84 +394,25 @@ export async function runOnboardingWizard(
   const { applyOnboardingLocalWorkspaceConfig } = await import("../commands/onboard-config.js");
   let nextConfig: OpenClawConfig = applyOnboardingLocalWorkspaceConfig(baseConfig, workspaceDir);
 
-  const { ensureAuthProfileStore } = await import("../agents/auth-profiles.js");
-  const { promptAuthChoiceGrouped } = await import("../commands/auth-choice-prompt.js");
-  const { promptCustomApiConfig } = await import("../commands/onboard-custom.js");
-  const { applyAuthChoice, resolvePreferredProviderForAuthChoice, warnIfModelConfigLooksOff } =
-    await import("../commands/auth-choice.js");
-  const { applyPrimaryModel, promptDefaultModel } = await import("../commands/model-picker.js");
-
-  const authStore = ensureAuthProfileStore(undefined, {
-    allowKeychainPrompt: false,
+  // 厂商认证 + 验证拉真实模型 + 选主模型 + 选备用/allowlist + 完成 note，
+  // 统一走共享函数 configureModelFlow（与 configure/config 同一份实现，
+  // 避免 onboard 落后于 configure 的修复导致行为漂移）。
+  const { configureModelFlow } = await import("../commands/model.configure-flow.js");
+  const modelFlow = await configureModelFlow({
+    prompter,
+    runtime,
+    cfg: nextConfig,
+    authChoice: opts.authChoice,
+    opts: {
+      tokenProvider: opts.tokenProvider,
+      token: opts.authChoice === "apiKey" && opts.token ? opts.token : undefined,
+    },
+    includeSkip: true,
+    includeFallbacks: true,
+    // onboard 在模型配置后做一次"配置看起来不对劲"的检查。
+    warnIfOff: true,
   });
-  const authChoiceFromPrompt = opts.authChoice === undefined;
-  const authChoice =
-    opts.authChoice ??
-    (await promptAuthChoiceGrouped({
-      prompter,
-      store: authStore,
-      includeSkip: true,
-    }));
-
-  if (authChoice === "custom-api-key") {
-    const customResult = await promptCustomApiConfig({
-      prompter,
-      runtime,
-      config: nextConfig,
-    });
-    nextConfig = customResult.config;
-  } else {
-    const authResult = await applyAuthChoice({
-      authChoice,
-      config: nextConfig,
-      prompter,
-      runtime,
-      setDefaultModel: true,
-      opts: {
-        tokenProvider: opts.tokenProvider,
-        token: opts.authChoice === "apiKey" && opts.token ? opts.token : undefined,
-      },
-    });
-    nextConfig = authResult.config;
-
-    // 拿到 key 且 provider 已配置（含 baseUrl）后，交互式验证 + 拉取真实模型：
-    // 发起 GET {baseUrl}/models 验证 key 有效性，并把真实模型合并进 models.json，
-    // 让随后的模型选择列表能显示厂商当前真实支持的模型（而非硬编码旧别名）。
-    // 失败不抛错（verifyProviderInteractive 内部处理重输 key/改 baseUrl/跳过），向导继续。
-    const verifyProviderId = resolveAuthChoiceProviderId(authChoice);
-    if (verifyProviderId) {
-      try {
-        const { verifyProviderInteractive } = await import("../commands/provider-verify.js");
-        await verifyProviderInteractive({
-          providerId: verifyProviderId,
-          methodId: authChoice,
-          prompter,
-          cfg: nextConfig,
-        });
-      } catch {
-        // 验证意外失败（网络异常等）不阻断 onbaord 向导
-      }
-    }
-  }
-
-  if (authChoiceFromPrompt && authChoice !== "custom-api-key") {
-    const modelSelection = await promptDefaultModel({
-      config: nextConfig,
-      prompter,
-      allowKeep: true,
-      ignoreAllowlist: true,
-      includeVllm: true,
-      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
-    });
-    if (modelSelection.config) {
-      nextConfig = modelSelection.config;
-    }
-    if (modelSelection.model) {
-      nextConfig = applyPrimaryModel(nextConfig, modelSelection.model);
-    }
-  }
-
-  await warnIfModelConfigLooksOff(nextConfig, prompter);
+  nextConfig = modelFlow.config;
 
   const { configureGatewayForOnboarding } = await import("./onboarding.gateway-config.js");
   const gateway = await configureGatewayForOnboarding({

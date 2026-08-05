@@ -1,28 +1,11 @@
-import { ensureAuthProfileStore } from "../agents/auth-profiles.js";
-import { getText } from "../cli/i18n.js";
 import type { OpenClawConfig, GatewayAuthConfig } from "../config/config.js";
-import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import type { RuntimeEnv } from "../runtime.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
-import { PROVIDER_TO_GROUP_ID_REVERSE } from "./auth-choice-options.js";
-import { promptAuthChoiceGrouped, resolveInitialGroupFromConfig } from "./auth-choice-prompt.js";
-import { applyAuthChoice, resolvePreferredProviderForAuthChoice } from "./auth-choice.js";
-import {
-  applyModelAllowlist,
-  applyModelFallbacks,
-  applyModelFallbacksFromSelection,
-  applyPrimaryModel,
-  promptDefaultModel,
-  promptModelAllowlist,
-  promptModelFallbacks,
-} from "./model-picker.js";
-import { promptCustomApiConfig } from "./onboard-custom.js";
+import { configureModelFlow } from "./model.configure-flow.js";
 import { randomToken } from "./onboard-helpers.js";
-import { verifyProviderInteractive } from "./provider-verify.js";
 
-type GatewayAuthChoice = "token" | "password" | "trusted-proxy";
+export type { ConfigureModelFlowParams } from "./model.configure-flow.js";
 
-/** Reject undefined, empty, and common JS string-coercion artifacts for token auth. */
 function sanitizeTokenValue(value: string | undefined): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -34,41 +17,7 @@ function sanitizeTokenValue(value: string | undefined): string | undefined {
   return trimmed;
 }
 
-const ANTHROPIC_OAUTH_MODEL_KEYS = [
-  "anthropic/claude-sonnet-4-6",
-  "anthropic/claude-opus-4-6",
-  "anthropic/claude-opus-4-5",
-  "anthropic/claude-sonnet-4-5",
-  "anthropic/claude-haiku-4-5",
-];
-
-/**
- * 从 auth choice（认证方式 id）推导出厂商 provider id，用于定位 config 里的
- * models.providers[providerId]（读取 baseUrl/apiKey 做验证）。
- * - "deepseek-api-key" -> "deepseek"
- * - "moonshot-api-key" -> "moonshot"
- * - "openrouter-api-key" -> "openrouter"
- * - "qwen-portal-api-key" -> "qwen-portal"（strip 后缀即可，已是规范 provider id）
- * - "qwen"（分组 id）       -> "qwen-portal"（经归一化映射）
- * 若无法可靠推导（如 custom-api-key / qwen-portal OAuth），返回 undefined（跳过验证）。
- */
-function providerIdFromAuthChoice(authChoice: string): string | undefined {
-  if (authChoice.endsWith("-api-key")) {
-    return authChoice.slice(0, -"-api-key".length);
-  }
-  // 特殊映射：部分 authChoice 与 provider id 不完全一致
-  const special: Record<string, string> = {
-    "ai-gateway-api-key": "vercel-ai-gateway",
-    "kimi-code-api-key": "kimi-coding",
-  };
-  if (special[authChoice]) {
-    return special[authChoice];
-  }
-  // 分组 id → provider id 归一化（group "qwen" -> provider "qwen-portal"）。
-  // 与 auth-choice-prompt 的 provider→group 映射保持一致，确保 authChoice 以分组名出现时
-  // 也能解析到规范 provider id。
-  return PROVIDER_TO_GROUP_ID_REVERSE[authChoice];
-}
+type GatewayAuthChoice = "token" | "password" | "trusted-proxy";
 
 export function buildGatewayAuthConfig(params: {
   existing?: GatewayAuthConfig;
@@ -105,155 +54,23 @@ export function buildGatewayAuthConfig(params: {
   return base;
 }
 
+/**
+ * 模型/厂商配置入口（configure / config 向导的 "model" 区块）。
+ *
+ * 完整流程（厂商认证 → 验证拉真实模型 → 选主模型 → 选备用/allowlist → 完成 note）
+ * 已抽到共享函数 configureModelFlow（model.configure-flow.ts），与 onboard 共用一份
+ * 逻辑，避免重复实现导致行为漂移。本函数仅作薄封装保持原有签名（OpenClawConfig）。
+ */
 export async function promptAuthConfig(
   cfg: OpenClawConfig,
   runtime: RuntimeEnv,
   prompter: WizardPrompter,
 ): Promise<OpenClawConfig> {
-  const existingModel = cfg.agents?.defaults?.model
-    ? resolveAgentModelPrimaryValue(cfg.agents.defaults.model)
-    : undefined;
-  const authChoice = await promptAuthChoiceGrouped({
+  const result = await configureModelFlow({
     prompter,
-    store: ensureAuthProfileStore(undefined, {
-      allowKeychainPrompt: false,
-    }),
-    includeSkip: true,
-    initialGroupValue: resolveInitialGroupFromConfig(existingModel),
+    runtime,
+    cfg,
+    includeFallbacks: true,
   });
-
-  let next = cfg;
-  if (authChoice === "custom-api-key") {
-    const customResult = await promptCustomApiConfig({ prompter, runtime, config: next });
-    next = customResult.config;
-  } else if (authChoice !== "skip") {
-    // 配置 provider + key（applyDefaultModelChoice 会保留已有主模型，不覆盖）。
-    // 具体模型名称选择放到 verifyProviderInteractive 之后（拉取真实模型列表，如
-    // deepseek-v4-flash）再做，否则列表只有旧的硬编码 alias，缺真实模型。
-    const applied = await applyAuthChoice({
-      authChoice,
-      config: next,
-      prompter,
-      runtime,
-      setDefaultModel: true,
-      // 推迟"模型配置完成"note 到模型选择之后，避免在用户选具体模型前就宣告完成。
-      deferModelConfiguredNote: true,
-    });
-    next = applied.config;
-  } else {
-    // "Skip" = keep existing auth. Default the model picker to the currently
-    // configured provider (when present) so it follows the existing config
-    // instead of resetting to "All providers" / the hardcoded default.
-    const currentProvider = existingModel?.split("/")[0]?.trim();
-    const modelSelection = await promptDefaultModel({
-      config: next,
-      prompter,
-      allowKeep: true,
-      ignoreAllowlist: true,
-      preferredProvider:
-        resolvePreferredProviderForAuthChoice(authChoice) ?? (currentProvider || undefined),
-    });
-    if (modelSelection.config) {
-      next = modelSelection.config;
-    }
-    if (modelSelection.model) {
-      next = applyPrimaryModel(next, modelSelection.model);
-    }
-  }
-
-  const anthropicOAuth =
-    authChoice === "setup-token" || authChoice === "token" || authChoice === "oauth";
-
-  if (authChoice !== "custom-api-key" && authChoice !== "skip") {
-    // 1) 先拿到 key 并交互式验证厂商配置（GET /models）：成功升 ok、动态取真实模型
-    //    写回 models.json（如 deepseek-v4-flash），随后主/备用模型选择列表才完整。
-    //    baseUrl 错（404/超时）会展示当前 baseUrl 供用户现场修改后重试；认证错提示改 key。
-    //    传入 next（向导正在构建的 config 快照），验证内对 baseUrl/默认模型的修正
-    //    直接作用于此快照，由外层向导统一保存 —— 避免内层另存被外层旧快照覆盖。
-    //    验证失败/抛错不应阻断 configure 主流程（onboarding 同样 try/catch 包裹）：
-    //    即便拉不到真实模型，也要继续让用户选择主模型名称（否则"主模型选择"会莫名丢失）。
-    const providerId = providerIdFromAuthChoice(authChoice);
-    if (providerId) {
-      try {
-        await verifyProviderInteractive({
-          providerId,
-          methodId: authChoice,
-          prompter,
-          cfg: next,
-        });
-      } catch {
-        // 静默：verify 意外失败（网络异常等）不阻断 configure 向导
-      }
-    }
-
-    // 2) 选择主模型名称（verify 已拉取真实模型，列表含 deepseek-v4-pro/v4-flash）。
-    //    skip 分支已在上面的 else 里弹过模型选择，这里只处理常规重配（non-skip）分支。
-    const modelSelection = await promptDefaultModel({
-      config: next,
-      prompter,
-      allowKeep: true,
-      ignoreAllowlist: true,
-      includeVllm: true,
-      preferredProvider: resolvePreferredProviderForAuthChoice(authChoice),
-    });
-    if (modelSelection.config) {
-      next = modelSelection.config;
-    }
-    if (modelSelection.model) {
-      next = applyPrimaryModel(next, modelSelection.model);
-    }
-
-    // 3) 备用模型与 allowlist。
-    if (anthropicOAuth) {
-      // For Anthropic OAuth, show the model allowlist with limited set
-      const allowlistSelection = await promptModelAllowlist({
-        config: next,
-        prompter,
-        allowedKeys: ANTHROPIC_OAUTH_MODEL_KEYS,
-        initialSelections: ["anthropic/claude-sonnet-4-6"],
-        message: getText("configure.gateway-auth.anthropic_oauth_models", "Anthropic OAuth models"),
-      });
-      if (allowlistSelection.models) {
-        next = applyModelAllowlist(next, allowlistSelection.models);
-        next = applyModelFallbacksFromSelection(next, allowlistSelection.models);
-      }
-    } else {
-      // API-key providers: auto-populate allowlist with the chosen default model,
-      // no interactive multi-select needed (too many models for most providers).
-      // Primary model lives under agents.defaults.model (not models.primary).
-      const chosenDefaultModel = resolveAgentModelPrimaryValue(next.agents?.defaults?.model);
-      if (chosenDefaultModel) {
-        next = applyModelAllowlist(next, [chosenDefaultModel]);
-      }
-      // Fallback (backup) models share the same model pool as the primary — only
-      // priority differs. Let the user manage them here so stale/hand-edited
-      // fallbacks (e.g. providers without a configured key) get cleaned up.
-      // 候选限定到当前默认模型的 provider，和主模型选择范围一致（避免平铺整个 catalog）。
-      const fallbackSelection = await promptModelFallbacks({
-        config: next,
-        prompter,
-        preferredProvider: chosenDefaultModel
-          ? chosenDefaultModel.split("/")[0]?.trim()
-          : undefined,
-      });
-      if (fallbackSelection.mode === "set") {
-        next = applyModelFallbacks(next, fallbackSelection.fallbacks);
-      } else if (fallbackSelection.mode === "clear") {
-        next = applyModelFallbacks(next, []);
-      }
-    }
-
-    // 4) 模型名称已确认，此时才宣告"模型配置完成"（见 applyAuthChoice 的 deferModelConfiguredNote）。
-    const finalPrimary = resolveAgentModelPrimaryValue(next.agents?.defaults?.model);
-    if (finalPrimary) {
-      await prompter.note(
-        getText("configure.model.kept_existing", "Default model kept ({model})", {
-          model: finalPrimary,
-        }),
-        getText("configure.model.configured", "Model configured"),
-      );
-    }
-  }
-
-  return next;
+  return result.config;
 }

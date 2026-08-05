@@ -677,6 +677,7 @@ const ZH_CN: Record<string, string> = {
   "configure.model.multiselect": "模型多选",
   "configure.model.items_selected": "{count} 项已选择",
   "configure.model.use_existing_key": "使用现有 {envLabel}（{source}，{preview}）？",
+  "configure.model.use_saved_key": "已保存 {provider} 的密钥（{preview}）。使用它还是输入新的？",
   "configure.back": "返回",
   "configure.skip_for_now": "暂不配置",
 

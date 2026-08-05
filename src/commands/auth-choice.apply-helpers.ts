@@ -1,5 +1,7 @@
-import { getText } from "../cli/i18n.js";
+import { listProfilesForProvider } from "../agents/auth-profiles/profiles.js";
+import { ensureAuthProfileStore } from "../agents/auth-profiles/store.js";
 import { resolveEnvApiKey } from "../agents/model-auth.js";
+import { getText } from "../cli/i18n.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { formatApiKeyPreview } from "./auth-choice.api-key.js";
 import type { ApplyAuthChoiceParams } from "./auth-choice.apply.js";
@@ -13,7 +15,11 @@ export function createAuthChoiceAgentModelNoter(
       return;
     }
     await params.prompter.note(
-      getText("configure.model.default_set_agent", `Default model set to ${model} for agent "${params.agentId}".`, { model, agentId: params.agentId }),
+      getText(
+        "configure.model.default_set_agent",
+        `Default model set to ${model} for agent "${params.agentId}".`,
+        { model, agentId: params.agentId },
+      ),
       getText("configure.model.configured", "Model configured"),
     );
   };
@@ -167,11 +173,50 @@ export async function ensureApiKeyFromEnvOrPrompt(params: {
     }
   }
 
+  // 已保存的凭据（auth.json / auth-profiles.json）里若已有该 provider 的 key，
+  // 提示用户沿用，避免重配时误以为 key 丢失而被迫重输。
+  const savedKey = readSavedProviderApiKey(params.provider);
+  if (savedKey) {
+    const useSaved = await params.prompter.confirm({
+      message: getText(
+        "configure.model.use_saved_key",
+        "Saved {provider} key found ({preview}). Use it or enter a new one?",
+        { provider: params.provider, preview: formatApiKeyPreview(savedKey) },
+      ),
+      initialValue: true,
+    });
+    if (useSaved) {
+      await params.setCredential(savedKey);
+      return savedKey;
+    }
+  }
+
   const key = await params.prompter.text({
     message: params.promptMessage,
+    initialValue: savedKey ?? "",
     validate: params.validate,
   });
   const apiKey = params.normalize(String(key ?? ""));
   await params.setCredential(apiKey);
   return apiKey;
+}
+
+/**
+ * 读取本地 auth store（auth.json / auth-profiles.json）里已保存的 provider api_key。
+ * 无则返回 undefined。仅用于 configure 重配时回显/沿用提示，不含环境变量。
+ */
+function readSavedProviderApiKey(provider: string): string | undefined {
+  try {
+    const store = ensureAuthProfileStore();
+    const profileIds = listProfilesForProvider(store, provider);
+    for (const id of profileIds) {
+      const cred = store.profiles[id];
+      if (cred?.type === "api_key" && cred.key) {
+        return cred.key;
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -228,6 +228,17 @@ const ZH_CN: Record<string, string> = {
   "gateway.control_ui.not_found":
     "未找到控制界面资源。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖），或在开发时运行 `pnpm ui:dev`。",
 
+  // ---- Control UI build (configure wizard 完成后的自动构建提示) ----
+  "control_ui.build.missing": "未找到控制界面资源",
+  "control_ui.build.missing_at": "在 {path} 未找到控制界面资源",
+  "control_ui.build.build_hint": "{hint}。请运行 `pnpm ui:build` 构建（自动安装 UI 依赖）。",
+  "control_ui.build.script_unavailable": "控制界面资源缺失，但 {path} 不可用。",
+  "control_ui.build.building_main_first": "控制界面资源缺失；先构建主项目（build）…",
+  "control_ui.build.main_build_failed": "主项目构建失败：{detail}。继续构建 UI…",
+  "control_ui.build.building_ui": "正在构建 UI（ui:build，自动安装 UI 依赖）…",
+  "control_ui.build.ui_build_failed": "控制界面构建失败：{detail}",
+  "control_ui.build.completed_missing": "控制界面构建完成，但 {path} 仍缺失。",
+
   // ---- Skills CLI ----
   "skills.list.tip": "提示：使用 `npx clawhub` 搜索、安装和同步技能。",
 

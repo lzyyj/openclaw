@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getText } from "../cli/i18n.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { resolveOpenClawPackageRoot, resolveOpenClawPackageRootSync } from "./openclaw-root.js";
@@ -235,12 +236,18 @@ export async function ensureControlUiAssetsBuilt(
   const repoRoot = resolveControlUiRepoRoot(process.argv[1]);
   if (!repoRoot) {
     const hint = indexFromDist
-      ? `Missing Control UI assets at ${indexFromDist}`
-      : "Missing Control UI assets";
+      ? getText("control_ui.build.missing_at", `Missing Control UI assets at {path}`, {
+          path: indexFromDist,
+        })
+      : getText("control_ui.build.missing", "Missing Control UI assets");
     return {
       ok: false,
       built: false,
-      message: `${hint}. Build them with \`pnpm ui:build\` (auto-installs UI deps).`,
+      message: getText(
+        "control_ui.build.build_hint",
+        "{hint}. Build them with `pnpm ui:build` (auto-installs UI deps).",
+        { hint },
+      ),
     };
   }
 
@@ -254,13 +261,22 @@ export async function ensureControlUiAssetsBuilt(
     return {
       ok: false,
       built: false,
-      message: `Control UI assets missing but ${uiScript} is unavailable.`,
+      message: getText(
+        "control_ui.build.script_unavailable",
+        "Control UI assets missing but {path} is unavailable.",
+        { path: uiScript },
+      ),
     };
   }
 
   // First, ensure the main project is built (some UI assets may depend on built files)
   // This follows the same order as the prepack script: build then ui:build
-  runtime.log("Control UI assets missing; building main project first (build)…");
+  runtime.log(
+    getText(
+      "control_ui.build.building_main_first",
+      "Control UI assets missing; building main project first (build)…",
+    ),
+  );
   // On Windows, `.cmd` shims (pnpm.cmd) cannot be spawned directly without a shell
   // (throws EINVAL). Route through cmd.exe with an explicit shell-wrapper argv to
   // avoid enabling a general `shell: true` (see shouldSpawnWithShell security note).
@@ -272,11 +288,17 @@ export async function ensureControlUiAssetsBuilt(
   });
   if (mainBuild.code !== 0) {
     runtime.log(
-      `Main build failed: ${mainBuild.stderr || mainBuild.stdout || "unknown error"}. Continuing with UI build...`,
+      getText(
+        "control_ui.build.main_build_failed",
+        "Main build failed: {detail}. Continuing with UI build...",
+        { detail: mainBuild.stderr || mainBuild.stdout || "unknown error" },
+      ),
     );
   }
 
-  runtime.log("Building UI (ui:build, auto-installs UI deps)…");
+  runtime.log(
+    getText("control_ui.build.building_ui", "Building UI (ui:build, auto-installs UI deps)…"),
+  );
 
   const uiBuild = await runCommandWithTimeout([process.execPath, uiScript, "build"], {
     cwd: repoRoot,
@@ -286,7 +308,9 @@ export async function ensureControlUiAssetsBuilt(
     return {
       ok: false,
       built: false,
-      message: `Control UI build failed: ${summarizeCommandOutput(uiBuild.stderr) ?? `exit ${uiBuild.code}`}`,
+      message: getText("control_ui.build.ui_build_failed", "Control UI build failed: {detail}", {
+        detail: summarizeCommandOutput(uiBuild.stderr) ?? `exit ${uiBuild.code}`,
+      }),
     };
   }
 
@@ -294,7 +318,11 @@ export async function ensureControlUiAssetsBuilt(
     return {
       ok: false,
       built: true,
-      message: `Control UI build completed but ${indexPath} is still missing.`,
+      message: getText(
+        "control_ui.build.completed_missing",
+        "Control UI build completed but {path} is still missing.",
+        { path: indexPath },
+      ),
     };
   }
 

@@ -359,4 +359,32 @@ describe("mergeVerifiedModelsIntoFile (方案 A: 合并进 models.json)", () => 
     expect(normalizeModelIdForCatalog("deepseek", "deepseek-chat")).toBe("deepseek-chat");
     expect(normalizeModelIdForCatalog("deepseek", "  deepseek-v4-pro  ")).toBe("deepseek-v4-pro");
   });
+
+  it("清理不在真实列表里的旧硬编码别名（兼容旧名如 deepseek-chat/reasoner）", async () => {
+    fs.writeFileSync(
+      `${agentDir}/models.json`,
+      JSON.stringify({
+        providers: {
+          deepseek: {
+            baseUrl: "https://api.deepseek.com",
+            models: [
+              { id: "deepseek-chat", name: "DeepSeek V3 (Chat)", reasoning: false },
+              { id: "deepseek-reasoner", name: "DeepSeek R1 (Reasoner)", reasoning: true },
+            ],
+          },
+        },
+      }),
+    );
+
+    // 厂商实际只返回 v4 系列, chat/reasoner 只是兼容旧名的别名, 应及时清理
+    await mergeVerifiedModelsIntoFile("deepseek", ["deepseek-v4-pro", "deepseek-v4-flash"]);
+
+    const raw = JSON.parse(fs.readFileSync(`${agentDir}/models.json`, "utf8")) as {
+      providers: Record<string, { models: Array<{ id: string }> }>;
+    };
+    const ids = raw.providers.deepseek.models.map((m) => m.id);
+    expect(ids).toEqual(["deepseek-v4-pro", "deepseek-v4-flash"]);
+    expect(ids).not.toContain("deepseek-chat");
+    expect(ids).not.toContain("deepseek-reasoner");
+  });
 });

@@ -520,11 +520,50 @@ async function mergeRealModelsIntoCatalogJson(
     return;
   }
   const existingModels = Array.isArray(provider.models) ? provider.models : [];
-  const existingIds = new Set(existingModels.map((m) => m?.id));
-  const toAdd = realModelIds
-    .map((id) => normalizeModelIdForCatalog(providerId, id))
-    .filter((id) => id && !existingIds.has(id));
-  if (toAdd.length === 0) {
+
+  // 归一化真实模型 id（剥掉厂商前缀），作为权威集合。
+  const realIds = new Set(
+    realModelIds.map((id) => normalizeModelIdForCatalog(providerId, id)).filter((id) => id),
+  );
+
+  // 收集该 provider 被显式引用的模型（主模型/备用/allowlist），清理时保留——
+  // 避免误删用户手动配置、但厂商 API 暂不返回的模型。
+  const keepIds = new Set<string>();
+  try {
+    const cfg = loadConfig();
+    const modelRefs: string[] = [];
+    const primary = resolveAgentModelPrimaryValue(cfg.agents?.defaults?.model);
+    if (primary) {
+      modelRefs.push(primary);
+    }
+    const fallbacks = cfg.agents?.defaults?.model?.fallbacks;
+    if (Array.isArray(fallbacks)) {
+      modelRefs.push(...fallbacks);
+    }
+    const allowlist = cfg.models?.allowlist;
+    if (Array.isArray(allowlist)) {
+      modelRefs.push(...allowlist);
+    }
+    const prefix = `${providerId}/`;
+    for (const ref of modelRefs) {
+      if (typeof ref === "string" && ref.startsWith(prefix)) {
+        keepIds.add(ref.slice(prefix.length));
+      }
+    }
+  } catch {
+    // 读配置失败不影响清理主流程
+  }
+
+  // 保留：真实模型 + 被显式引用但不在真实列表的（保护用户配置）。
+  const keptModels = existingModels.filter((m) => {
+    if (m && typeof m === "object" && typeof m.id === "string") {
+      return realIds.has(m.id) || keepIds.has(m.id);
+    }
+    return true;
+  });
+  const keptIds = new Set(keptModels.map((m) => (m ? String(m.id) : "")).filter(Boolean));
+  const toAdd = [...realIds].filter((id) => !keptIds.has(id));
+  if (keptModels.length === existingModels.length && toAdd.length === 0) {
     return;
   }
   const newEntries = toAdd.map((id) => ({
@@ -533,7 +572,7 @@ async function mergeRealModelsIntoCatalogJson(
     reasoning: false,
     input: ["text"] as string[],
   }));
-  provider.models = [...existingModels, ...newEntries];
+  provider.models = [...keptModels, ...newEntries];
   saveJsonFile(modelsPath, raw);
 }
 

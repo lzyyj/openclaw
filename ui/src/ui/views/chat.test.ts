@@ -34,7 +34,6 @@ function createProps(overrides: Partial<ChatProps> = {}): ChatProps {
     connected: true,
     canSend: true,
     disabledReason: null,
-    error: null,
     sessions: createSessions(),
     focusMode: false,
     assistantName: "OpenClaw",

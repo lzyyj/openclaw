@@ -58,9 +58,6 @@ export type ChatProps = {
   connected: boolean;
   canSend: boolean;
   disabledReason: string | null;
-  error: string | null;
-  /** Structured error classification ("billing" | "rate_limit" | "auth" | "timeout" | ...). */
-  errorKind?: string | null;
   sessions: SessionsListResult | null;
   // Focus mode
   focusMode: boolean;
@@ -109,54 +106,6 @@ function formatDuration(ms: number): string {
     return `${seconds}s`;
   }
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-}
-
-/**
- * Render a classified chat error as a distinct, user-friendly banner.
- *
- * The backend classifies run failures into a structured `kind`
- * ("billing" | "rate_limit" | "auth" | "timeout" | "model_not_found" | ...)
- * so the UI can give the right guidance instead of dumping a raw error string.
- */
-function renderChatError(error: string | null, kind?: string | null) {
-  if (!error) {
-    return nothing;
-  }
-  const k = kind ?? "";
-  if (k === "billing") {
-    return html`
-      <div class="callout chat-error chat-error--billing" role="alert">
-        <div class="chat-error__title">${t("chat.errorBillingTitle")}</div>
-        <div class="chat-error__detail">${t("chat.errorBillingDetail")}</div>
-        <div class="chat-error__raw">${error}</div>
-      </div>
-    `;
-  }
-  if (k === "auth") {
-    return html`
-      <div class="callout chat-error chat-error--auth" role="alert">
-        <div class="chat-error__title">${t("chat.errorAuthTitle")}</div>
-        <div class="chat-error__detail">${t("chat.errorAuthDetail")}</div>
-        <div class="chat-error__raw">${error}</div>
-      </div>
-    `;
-  }
-  if (k === "rate_limit" || k === "timeout") {
-    return html`
-      <div class="callout chat-error chat-error--busy" role="alert">
-        <div class="chat-error__title">${t("chat.errorBusyTitle")}</div>
-        <div class="chat-error__detail">${t("chat.errorBusyDetail")}</div>
-        <div class="chat-error__raw">${error}</div>
-      </div>
-    `;
-  }
-  // Generic fallback — still clearer than a raw dump.
-  return html`
-    <div class="callout chat-error" role="alert">
-      <div class="chat-error__title">${t("chat.errorGenericTitle")}</div>
-      <div class="chat-error__raw">${error}</div>
-    </div>
-  `;
 }
 
 function adjustTextareaHeight(el: HTMLTextAreaElement) {
@@ -407,8 +356,6 @@ export function renderChat(props: ChatProps) {
   return html`
     <section class="card chat">
       ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
-
-      ${props.error ? renderChatError(props.error, props.errorKind) : nothing}
 
       ${
         props.focusMode

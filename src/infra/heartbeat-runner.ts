@@ -261,6 +261,7 @@ function resolveHeartbeatSession(
   agentId?: string,
   heartbeat?: HeartbeatConfig,
   forcedSessionKey?: string,
+  reason?: string,
 ) {
   const sessionCfg = cfg.session;
   const scope = sessionCfg?.scope ?? "per-sender";
@@ -273,6 +274,13 @@ function resolveHeartbeatSession(
   });
   const store = loadSessionStore(storePath);
   const mainEntry = store[mainSessionKey];
+
+  // Exec completion events must always land in the main session: the user needs
+  // to see background command results. Never route them to a heartbeat-only
+  // session even when heartbeat.session is configured.
+  if (reason && resolveHeartbeatReasonKind(reason) === "exec-event") {
+    return { sessionKey: mainSessionKey, storePath, store, entry: mainEntry };
+  }
 
   if (scope === "global") {
     return { sessionKey: mainSessionKey, storePath, store, entry: mainEntry };
@@ -513,6 +521,7 @@ async function resolveHeartbeatPreflight(params: {
     params.agentId,
     params.heartbeat,
     params.forcedSessionKey,
+    params.reason,
   );
   const pendingEventEntries = peekSystemEventEntries(session.sessionKey);
   const hasTaggedCronEvents = pendingEventEntries.some((event) =>

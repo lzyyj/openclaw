@@ -49,7 +49,7 @@ import {
   isExecCompletionEvent,
 } from "./heartbeat-events-filter.js";
 import { emitHeartbeatEvent, resolveIndicatorType } from "./heartbeat-events.js";
-import { resolveHeartbeatReasonKind } from "./heartbeat-reason.js";
+import { isHeartbeatEventDrivenReason, resolveHeartbeatReasonKind } from "./heartbeat-reason.js";
 import { resolveHeartbeatVisibility } from "./heartbeat-visibility.js";
 import {
   type HeartbeatRunResult,
@@ -580,14 +580,21 @@ export async function runHeartbeatOnce(opts: {
   const cfg = opts.cfg ?? loadConfig();
   const agentId = normalizeAgentId(opts.agentId ?? resolveDefaultAgentId(cfg));
   const heartbeat = opts.heartbeat ?? resolveHeartbeatConfig(cfg, agentId);
-  if (!heartbeatsEnabled) {
-    return { status: "skipped", reason: "disabled" };
-  }
-  if (!isHeartbeatEnabledForAgent(cfg, agentId)) {
-    return { status: "skipped", reason: "disabled" };
-  }
-  if (!resolveHeartbeatIntervalMs(cfg, undefined, heartbeat)) {
-    return { status: "skipped", reason: "disabled" };
+  // Event-driven runs (exec completion, cron wakeups, hooks) must keep working even
+  // when periodic heartbeats are disabled (every: "0m") — the user still wants
+  // background-task notifications. Only the periodic interval run is gated below.
+  const isEventDriven =
+    isHeartbeatEventDrivenReason(opts.reason) || opts.reason?.startsWith("exec:");
+  if (!isEventDriven) {
+    if (!heartbeatsEnabled) {
+      return { status: "skipped", reason: "disabled" };
+    }
+    if (!isHeartbeatEnabledForAgent(cfg, agentId)) {
+      return { status: "skipped", reason: "disabled" };
+    }
+    if (!resolveHeartbeatIntervalMs(cfg, undefined, heartbeat)) {
+      return { status: "skipped", reason: "disabled" };
+    }
   }
 
   const startedAt = opts.deps?.nowMs?.() ?? Date.now();
@@ -1095,12 +1102,55 @@ export function startHeartbeatRunner(opts: {
     const isInterval = reason === "interval";
     const startedAt = Date.now();
     const now = startedAt;
+    // Event-driven wakeups (exec completion, cron, hooks) bypass the periodic
+    // heartbeat gate: they must notify even when every: "0m" disables the cycle.
+    const isEventDriven = isHeartbeatEventDrivenReason(reason) || reason?.startsWith("exec:");
+    if (!isEventDriven) {
+      if (!heartbeatsEnabled) {
+        return {
+          status: "skipped",
+          reason: "disabled",
+        } satisfies HeartbeatRunResult;
+      }
+      if (state.agents.size === 0) {
+        return {
+          status: "skipped",
+          reason: "disabled",
+        } satisfies HeartbeatRunResult;
+      }
+    }
+
     let ran = false;
 
     if (requestedSessionKey || requestedAgentId) {
       const targetAgentId = requestedAgentId ?? resolveAgentIdFromSessionKey(requestedSessionKey);
       const targetAgent = state.agents.get(targetAgentId);
       if (!targetAgent) {
+        // Event-driven run with an explicit target while periodic heartbeats are
+        // disabled: fall back to a direct runOnce so notifications still land.
+        if (isEventDriven) {
+          try {
+            const res = await runOnce({
+              cfg: state.cfg,
+              agentId: targetAgentId,
+              heartbeat: resolveHeartbeatConfig(state.cfg, targetAgentId),
+              reason,
+              sessionKey: requestedSessionKey,
+              deps: { runtime: state.runtime },
+            });
+            scheduleNext();
+            return res.status === "ran"
+              ? { status: "ran", durationMs: Date.now() - startedAt }
+              : res;
+          } catch (err) {
+            const errMsg = formatErrorMessage(err);
+            log.error(`heartbeat runner: event-driven runOnce threw unexpectedly: ${errMsg}`, {
+              error: errMsg,
+            });
+            scheduleNext();
+            return { status: "failed", reason: errMsg };
+          }
+        }
         scheduleNext();
         return { status: "skipped", reason: "disabled" };
       }
@@ -1124,6 +1174,33 @@ export function startHeartbeatRunner(opts: {
           error: errMsg,
         });
         advanceAgentSchedule(targetAgent, now);
+        scheduleNext();
+        return { status: "failed", reason: errMsg };
+      }
+    }
+
+    // Event-driven wakeup with no periodic agents configured (every: "0m"):
+    // still run once for the default agent so exec/cron notifications land.
+    if (isEventDriven && state.agents.size === 0) {
+      const defaultAgentId = resolveDefaultAgentId(state.cfg);
+      try {
+        const res = await runOnce({
+          cfg: state.cfg,
+          agentId: defaultAgentId,
+          heartbeat: resolveHeartbeatConfig(state.cfg, defaultAgentId),
+          reason,
+          deps: { runtime: state.runtime },
+        });
+        scheduleNext();
+        if (res.status === "ran") {
+          return { status: "ran", durationMs: Date.now() - startedAt };
+        }
+        return res;
+      } catch (err) {
+        const errMsg = formatErrorMessage(err);
+        log.error(`heartbeat runner: event-driven runOnce threw unexpectedly: ${errMsg}`, {
+          error: errMsg,
+        });
         scheduleNext();
         return { status: "failed", reason: errMsg };
       }

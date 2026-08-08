@@ -353,10 +353,20 @@ export function resolveSessionDisplayName(
     return prefixPattern.test(name) ? name : `${prefix} ${name}`;
   };
 
-  if (label && label !== key) {
+  // Internal system labels (heartbeat / cron / exec-event notifications) must
+  // never surface as the visible session name.
+  const isSystemLabel = (name: string): boolean =>
+    name === "heartbeat" ||
+    name.startsWith("heartbeat:") ||
+    name === "cron" ||
+    name.startsWith("cron:") ||
+    name === "exec-event" ||
+    name.startsWith("exec:");
+
+  if (label && label !== key && !isSystemLabel(label)) {
     return applyTypedPrefix(label);
   }
-  if (displayName && displayName !== key) {
+  if (displayName && displayName !== key && !isSystemLabel(displayName)) {
     return applyTypedPrefix(displayName);
   }
   return fallbackName;

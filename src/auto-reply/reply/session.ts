@@ -57,6 +57,35 @@ function resolveSessionKeyChannelHint(sessionKey?: string): string | undefined {
   return normalizeMessageChannel(head);
 }
 
+// Internal system senders (heartbeat / exec-event / cron notifications) must
+// never become the persisted "lastTo" of a session: otherwise a later user
+// message without an explicit target inherits the internal label (e.g.
+// "heartbeat") and the UI shows it as the session name.
+const SYSTEM_SENDER_LABELS = new Set(["heartbeat", "heartbeat-override", "cron", "exec-event"]);
+
+function isSystemSenderLabel(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (SYSTEM_SENDER_LABELS.has(value) ||
+      value.startsWith("heartbeat:") ||
+      value.startsWith("cron:") ||
+      value.startsWith("exec:"))
+  );
+}
+
+function resolveNonSystemLastTo(
+  ctx: TemplateContext,
+  persistedLastTo?: string,
+): string | undefined {
+  if (ctx.OriginatingTo && !isSystemSenderLabel(ctx.OriginatingTo)) {
+    return ctx.OriginatingTo;
+  }
+  if (ctx.To && !isSystemSenderLabel(ctx.To)) {
+    return ctx.To;
+  }
+  return persistedLastTo && !isSystemSenderLabel(persistedLastTo) ? persistedLastTo : undefined;
+}
+
 function resolveLastChannelRaw(params: {
   originatingChannelRaw?: string;
   persistedLastChannel?: string;
@@ -323,7 +352,7 @@ export async function initSessionState(params: {
     persistedLastChannel: baseEntry?.lastChannel,
     sessionKey,
   });
-  const lastToRaw = ctx.OriginatingTo || ctx.To || baseEntry?.lastTo;
+  const lastToRaw = resolveNonSystemLastTo(ctx, baseEntry?.lastTo);
   const lastAccountIdRaw = ctx.AccountId || baseEntry?.lastAccountId;
   // Only fall back to persisted threadId for thread sessions.  Non-thread
   // sessions (e.g. DM without topics) must not inherit a stale threadId from a

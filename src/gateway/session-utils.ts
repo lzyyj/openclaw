@@ -719,6 +719,11 @@ export function listSessionsFromStore(params: {
       if (isCronRunSessionKey(key)) {
         return false;
       }
+      // Heartbeat-only sessions (agent:main:heartbeat) are internal background
+      // workers - they must never show up in the session list UI.
+      if (key.endsWith(":heartbeat")) {
+        return false;
+      }
       if (!includeGlobal && key === "global") {
         return false;
       }

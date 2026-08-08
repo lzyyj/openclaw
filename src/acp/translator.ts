@@ -420,15 +420,17 @@ export class AcpGatewayAgent implements Agent {
     }
 
     if (state === "final") {
-      this.finishPrompt(pending.sessionId, pending, "end_turn");
+      const content = messageData?.content as Array<{ type: string; text?: string }> | undefined;
+      const finalText = content?.find((c) => c.type === "text")?.text ?? "";
+      await this.finishPrompt(pending.sessionId, pending, "end_turn", finalText);
       return;
     }
     if (state === "aborted") {
-      this.finishPrompt(pending.sessionId, pending, "cancelled");
+      await this.finishPrompt(pending.sessionId, pending, "cancelled");
       return;
     }
     if (state === "error") {
-      this.finishPrompt(pending.sessionId, pending, "refusal");
+      await this.finishPrompt(pending.sessionId, pending, "refusal");
     }
   }
 
@@ -461,15 +463,45 @@ export class AcpGatewayAgent implements Agent {
     });
   }
 
-  private finishPrompt(sessionId: string, pending: PendingPrompt, stopReason: StopReason): void {
+  private async finishPrompt(
+    sessionId: string,
+    pending: PendingPrompt,
+    stopReason: StopReason,
+    finalText?: string,
+  ): Promise<void> {
     this.pendingPrompts.delete(sessionId);
     this.sessionStore.clearActiveRun(sessionId);
+    // The gateway throttles chat deltas, so streamed agent_message_chunk updates
+    // may only carry a prefix of the reply. Deliver the full final text as an
+    // agent_message so ACP clients (e.g. JetBrains AI Assistant) receive it whole.
+    const fullText = finalText?.trim() ?? "";
+    if (fullText && stopReason === "end_turn") {
+      try {
+        await this.connection.sessionUpdate({
+          sessionId,
+          update: {
+            sessionUpdate: "agent_message",
+            message: { role: "assistant", content: [{ type: "text", text: fullText }] },
+          },
+        });
+      } catch {
+        // Best-effort; the prompt response still resolves below.
+      }
+    }
     pending.resolve({ stopReason });
   }
 
   private findPendingBySessionKey(sessionKey: string): PendingPrompt | undefined {
     for (const pending of this.pendingPrompts.values()) {
       if (pending.sessionKey === sessionKey) {
+        return pending;
+      }
+    }
+    // The gateway normalizes session keys (e.g. `acp:<id>` -> `agent:main:acp:<id>`),
+    // so chat/agent events may carry a prefixed variant of the key we stored.
+    // Match by suffix (UUIDs are unique) to stay robust across normalization formats.
+    for (const pending of this.pendingPrompts.values()) {
+      if (pending.sessionKey && sessionKey.endsWith(`:${pending.sessionKey}`)) {
         return pending;
       }
     }

@@ -236,6 +236,40 @@
   color: var(--danger);
 }
 
+.pill--notice {
+  border-color: var(--warning-subtle, var(--danger-subtle));
+  background: var(--warning-subtle, var(--secondary));
+  color: var(--warning, var(--danger));
+  max-width: 420px;
+}
+
+.pill--notice .pill__label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pill--notice .pill__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.pill__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.pill__close:hover {
+  opacity: 1;
+}
+
 /* ===========================================
    Theme Toggle
    =========================================== */

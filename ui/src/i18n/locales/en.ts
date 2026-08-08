@@ -920,4 +920,13 @@ export const en: TranslationMap = {
   gateway: {
     eventGap: "event gap detected (expected seq {expected}, got {received}); refresh recommended",
   },
+  notice: {
+    timeout: "Run timed out",
+    billing: "Billing issue",
+    auth: "Auth failed",
+    rateLimit: "Rate limited",
+    network: "Network error",
+    other: "Run failed",
+    dismiss: "Dismiss",
+  },
 };

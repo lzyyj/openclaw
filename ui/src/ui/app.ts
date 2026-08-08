@@ -24,6 +24,7 @@ import {
 import { DEFAULT_CRON_FORM, DEFAULT_LOG_LEVEL_FILTERS } from "./app-defaults.ts";
 import type { EventLogEntry } from "./app-events.ts";
 import { connectGateway as connectGatewayInternal } from "./app-gateway.ts";
+import type { RunFailureNotice } from "./app-gateway.ts";
 import {
   handleConnected,
   handleDisconnected,
@@ -133,6 +134,8 @@ export class OpenClawApp extends LitElement {
   @state() lastErrorCode: string | null = null;
   /** Structured chat run error classification ("billing" | "rate_limit" | "auth" | ...). */
   @state() lastErrorKind: string | null = null;
+  /** Global run-failure notice shown in the page header (timeout / billing / auth / ...). */
+  @state() notice: RunFailureNotice | null = null;
   @state() eventLog: EventLogEntry[] = [];
   private eventLogBuffer: EventLogEntry[] = [];
   private toolStreamSyncTimer: number | null = null;

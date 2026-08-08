@@ -53,6 +53,7 @@ type GatewayHost = {
   hello: GatewayHelloOk | null;
   lastError: string | null;
   lastErrorCode: string | null;
+  notice: RunFailureNotice | null;
   onboarding?: boolean;
   eventLogBuffer: EventLogEntry[];
   eventLog: EventLogEntry[];
@@ -83,6 +84,21 @@ type SessionDefaultsSnapshot = {
   mainKey?: string;
   mainSessionKey?: string;
   scope?: string;
+};
+
+export type RunFailureNoticeKind =
+  | "timeout"
+  | "billing"
+  | "auth"
+  | "rate_limit"
+  | "network"
+  | "other";
+
+export type RunFailureNotice = {
+  text: string;
+  kind: RunFailureNoticeKind;
+  ts: number;
+  sessionKey?: string;
 };
 
 function normalizeSessionKeyForDefaults(
@@ -141,6 +157,7 @@ export function connectGateway(host: GatewayHost) {
   host.lastError = null;
   host.lastErrorCode = null;
   (host as unknown as { lastErrorKind: string | null }).lastErrorKind = null;
+  host.notice = null;
   host.hello = null;
   host.connected = false;
   host.execApprovalQueue = [];
@@ -333,6 +350,21 @@ function handleGatewayEventUnsafe(host: GatewayHost, evt: GatewayEventFrame) {
     const payload = evt.payload as GatewayUpdateAvailableEventPayload | undefined;
     host.updateAvailable = payload?.updateAvailable ?? null;
   }
+
+  if (evt.event === "notice") {
+    const payload = evt.payload as RunFailureNotice | undefined;
+    if (payload?.text) {
+      host.notice = {
+        text: payload.text,
+        kind: payload.kind ?? "other",
+        ts: payload.ts ?? Date.now(),
+      };
+    }
+  }
+}
+
+export function dismissNotice(host: GatewayHost) {
+  host.notice = null;
 }
 
 export function applySnapshot(host: GatewayHost, hello: GatewayHelloOk) {

@@ -939,4 +939,13 @@ export const zh_CN: TranslationMap = {
   gateway: {
     eventGap: "检测到事件缺失（预期序号 {expected}，实际 {received}）；建议刷新",
   },
+  notice: {
+    timeout: "运行超时",
+    billing: "账户余额不足",
+    auth: "认证失败",
+    rateLimit: "请求受限",
+    network: "网络错误",
+    other: "运行失败",
+    dismiss: "关闭",
+  },
 };

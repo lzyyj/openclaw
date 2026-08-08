@@ -1,4 +1,5 @@
 import type { EventLogEntry } from "./app-events.ts";
+import type { RunFailureNotice } from "./app-gateway.ts";
 import type { CompactionStatus, FallbackStatus } from "./app-tool-stream.ts";
 import type { CronFieldErrors } from "./controllers/cron.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
@@ -58,6 +59,8 @@ export type AppViewState = {
   lastErrorCode: string | null;
   /** Structured classification of the last chat run failure ("billing" | "rate_limit" | ...). */
   lastErrorKind: string | null;
+  /** Global run-failure notice shown in the page header (timeout / billing / auth / ...). */
+  notice: RunFailureNotice | null;
   /** Structured chat run error classification ("billing" | "rate_limit" | "auth" | ...). */
   lastErrorKind: string | null;
   eventLog: EventLogEntry[];

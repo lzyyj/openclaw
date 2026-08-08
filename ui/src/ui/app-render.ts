@@ -2,6 +2,7 @@ import { html, nothing } from "lit";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
 import { t } from "../i18n/index.ts";
 import { refreshChatAvatar } from "./app-chat.ts";
+import { dismissNotice, type RunFailureNoticeKind } from "./app-gateway.ts";
 import { renderUsageTab } from "./app-render-usage-tab.ts";
 import {
   renderChatControls,
@@ -323,6 +324,20 @@ export function renderApp(state: AppViewState) {
             ${state.tab === "usage" ? nothing : html`<div class="page-sub">${subtitleForTab(state.tab)}</div>`}
           </div>
           <div class="page-meta">
+            ${
+              state.notice
+                ? html`<div class="pill pill--notice" role="alert">
+                  <span class="pill__label">${noticeLabel(state.notice.kind)}</span>
+                  <span class="pill__text">${state.notice.text}</span>
+                  <button
+                    class="pill__close"
+                    title=${t("notice.dismiss")}
+                    aria-label=${t("notice.dismiss")}
+                    @click=${() => dismissNotice(state)}
+                  >×</button>
+                </div>`
+                : nothing
+            }
             ${state.lastError ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
             ${isChat ? renderChatControls(state) : nothing}
           </div>
@@ -1162,4 +1177,21 @@ export function renderApp(state: AppViewState) {
       ${renderGatewayUrlConfirmation(state)}
     </div>
   `;
+}
+
+function noticeLabel(kind: RunFailureNoticeKind): string {
+  switch (kind) {
+    case "timeout":
+      return t("notice.timeout");
+    case "billing":
+      return t("notice.billing");
+    case "auth":
+      return t("notice.auth");
+    case "rate_limit":
+      return t("notice.rateLimit");
+    case "network":
+      return t("notice.network");
+    default:
+      return t("notice.other");
+  }
 }

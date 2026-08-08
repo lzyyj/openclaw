@@ -249,6 +249,53 @@ export type ChatEventBroadcast = (
   opts?: { dropIfSlow?: boolean },
 ) => void;
 
+export type RunFailureNoticeKind =
+  | "timeout"
+  | "billing"
+  | "auth"
+  | "rate_limit"
+  | "network"
+  | "other";
+
+export type RunFailureNotice = {
+  text: string;
+  kind: RunFailureNoticeKind;
+  ts: number;
+  sessionKey: string;
+};
+
+const NOTICE_KIND_PATTERNS: Array<[RunFailureNoticeKind, RegExp]> = [
+  ["timeout", /timed out|timeout|etimedout|econnaborted/i],
+  ["billing", /billing|insufficient|402|payment/i],
+  ["auth", /unauthorized|authentication|401|403|invalid api key|api key/i],
+  ["rate_limit", /rate\s*limit|429|too many requests/i],
+  ["network", /network|fetch failed|econnreset|ehostunreach|socket hang up/i],
+];
+
+export function resolveRunFailureNoticeKind(text: string): RunFailureNoticeKind | undefined {
+  for (const [kind, pattern] of NOTICE_KIND_PATTERNS) {
+    if (pattern.test(text)) {
+      return kind;
+    }
+  }
+  return undefined;
+}
+
+export function buildRunFailureNotice(
+  error: unknown,
+  sessionKey: string,
+): RunFailureNotice | undefined {
+  const text = error ? formatForLog(error) : "";
+  if (!text) {
+    return undefined;
+  }
+  const kind = resolveRunFailureNoticeKind(text);
+  if (!kind) {
+    return undefined;
+  }
+  return { text, kind, ts: Date.now(), sessionKey };
+}
+
 export type NodeSendToSession = (sessionKey: string, event: string, payload: unknown) => void;
 
 export type AgentEventHandlerOptions = {
@@ -365,6 +412,13 @@ export function createAgentEventHandler({
     };
     broadcast("chat", payload);
     nodeSendToSession(sessionKey, "chat", payload);
+    // Surface service-level run failures (timeout / billing / auth / rate-limit /
+    // network) as a global `notice` so the UI can show a header pill regardless
+    // of which session the run belonged to (main, subagent, background).
+    const notice = buildRunFailureNotice(error, sessionKey);
+    if (notice) {
+      broadcast("notice", notice);
+    }
   };
 
   const resolveToolVerboseLevel = (runId: string, sessionKey?: string) => {

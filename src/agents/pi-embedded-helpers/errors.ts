@@ -612,6 +612,29 @@ export function sanitizeUserFacingText(text: string, opts?: { errorContext?: boo
   return collapseConsecutiveDuplicateBlocks(withoutLeadingEmptyLines);
 }
 
+/**
+ * Escape backslashes inside Windows absolute paths so Markdown renderers
+ * don't swallow them.
+ *
+ * `\.` (and other backslash + ASCII punctuation pairs) is a valid Markdown
+ * escape sequence, so `C:\Users\a\.openclaw\...` renders as
+ * `C:\Users\a.openclaw\...` — a missing separator that looks like a path
+ * concatenation bug and derails debugging. Doubling the backslashes makes
+ * Markdown render the original path verbatim.
+ *
+ * Only drive-letter absolute paths are rewritten; the rest of the text is
+ * left untouched. In plain-text channels the doubled backslashes remain
+ * readable and unambiguous.
+ */
+export function escapeWindowsPathsForDisplay(text: string): string {
+  if (!text) {
+    return text;
+  }
+  return text.replace(/(?<![\\A-Za-z0-9])([A-Za-z]:\\[^\s"'`]+)/g, (match) =>
+    match.replace(/\\/g, "\\\\"),
+  );
+}
+
 export function isRateLimitAssistantError(msg: AssistantMessage | undefined): boolean {
   if (!msg || msg.stopReason !== "error") {
     return false;

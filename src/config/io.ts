@@ -3,10 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { getText } from "../cli/i18n.js";
 import JSON5 from "json5";
 import { ensureOwnerDisplaySecret } from "../agents/owner-display.js";
+import { getText } from "../cli/i18n.js";
 import { loadDotEnv } from "../infra/dotenv.js";
+import { readFileSyncWithRetry } from "../infra/fs-retry.js";
 import { resolveRequiredHomeDir } from "../infra/home-dir.js";
 import {
   loadShellEnvFallback,
@@ -633,7 +634,9 @@ function resolveConfigIncludesForRead(
   deps: Required<ConfigIoDeps>,
 ): unknown {
   return resolveConfigIncludes(parsed, configPath, {
-    readFile: (candidate) => deps.fs.readFileSync(candidate, "utf-8"),
+    // Retry transient read errors (EPERM/EBUSY/EACCES): a brief external lock
+    // (editor, AV scanner) should not fail config loading.
+    readFile: (candidate) => readFileSyncWithRetry(deps.fs, candidate, "utf-8"),
     parseJson: (raw) => deps.json5.parse(raw),
   });
 }
@@ -683,7 +686,7 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
         }
         return {};
       }
-      const raw = deps.fs.readFileSync(configPath, "utf-8");
+      const raw = readFileSyncWithRetry(deps.fs, configPath, "utf-8");
       const parsed = deps.json5.parse(raw);
       const { resolvedConfigRaw: resolvedConfig } = resolveConfigForRead(
         resolveConfigIncludesForRead(parsed, configPath, deps),
@@ -837,7 +840,7 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
     }
 
     try {
-      const raw = deps.fs.readFileSync(configPath, "utf-8");
+      const raw = readFileSyncWithRetry(deps.fs, configPath, "utf-8");
       const hash = hashConfigRaw(raw);
       const parsedRes = parseConfigJson5(raw, deps.json5);
       if (!parsedRes.ok) {
@@ -1025,7 +1028,7 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
       persistCandidate = applyMergePatch(snapshot.resolved, patch);
       try {
         const resolvedIncludes = resolveConfigIncludes(snapshot.parsed, configPath, {
-          readFile: (candidate) => deps.fs.readFileSync(candidate, "utf-8"),
+          readFile: (candidate) => readFileSyncWithRetry(deps.fs, candidate, "utf-8"),
           parseJson: (raw) => deps.json5.parse(raw),
         });
         const collected = new Map<string, string>();

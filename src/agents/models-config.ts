@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { type OpenClawConfig, loadConfig } from "../config/config.js";
+import { writeFileWithRetry } from "../infra/fs-retry.js";
 import { isRecord } from "../utils.js";
 import { resolveOpenClawAgentDir } from "./agent-paths.js";
 import {
@@ -163,6 +164,8 @@ export async function ensureOpenClawModelsJson(
   }
 
   await fs.mkdir(agentDir, { recursive: true, mode: 0o700 });
-  await fs.writeFile(targetPath, next, { mode: 0o600 });
+  // Retry transient write errors (EPERM/EBUSY/EACCES): a brief external lock
+  // on models.json should not fail the whole agent run.
+  await writeFileWithRetry(fs, targetPath, next, { mode: 0o600 });
   return { agentDir, wrote: true };
 }

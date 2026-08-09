@@ -9,6 +9,7 @@ export {
 } from "./pi-embedded-helpers/bootstrap.js";
 export {
   BILLING_ERROR_USER_MESSAGE,
+  escapeWindowsPathsForDisplay,
   formatBillingErrorMessage,
   classifyFailoverReason,
   formatRawAssistantErrorForUi,

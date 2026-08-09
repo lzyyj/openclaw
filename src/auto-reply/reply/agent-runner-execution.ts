@@ -5,6 +5,7 @@ import { getCliSessionId } from "../../agents/cli-session.js";
 import { runWithModelFallback } from "../../agents/model-fallback.js";
 import { isCliProvider } from "../../agents/model-selection.js";
 import {
+  escapeWindowsPathsForDisplay,
   isCompactionFailureError,
   isContextOverflowError,
   isLikelyContextOverflowError,
@@ -553,9 +554,9 @@ export async function runAgentTurnWithFallback(params: {
       }
 
       defaultRuntime.error(`Embedded agent failed before reply: ${message}`);
-      const safeMessage = isTransientHttp
-        ? sanitizeUserFacingText(message, { errorContext: true })
-        : message;
+      const safeMessage = escapeWindowsPathsForDisplay(
+        isTransientHttp ? sanitizeUserFacingText(message, { errorContext: true }) : message,
+      );
       const trimmedMessage = safeMessage.replace(/\.\s*$/, "");
       const fallbackText = isContextOverflow
         ? "⚠️ Context overflow — prompt too large for this model. Try a shorter message or a larger-context model."

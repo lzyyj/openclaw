@@ -507,17 +507,22 @@ export function renderChat(props: ChatProps) {
                   // Enter (confirm candidate), so Shift+Enter must still insert
                   // a newline while composing, otherwise the newline is swallowed.
                   e.preventDefault();
-                  if (props.draft != null) {
-                    const el = e.target as HTMLTextAreaElement;
-                    const start = el.selectionStart ?? props.draft.length;
-                    const end = el.selectionEnd ?? props.draft.length;
-                    const next = props.draft.slice(0, start) + "\n" + props.draft.slice(end);
-                    props.onDraftChange(next);
-                    requestAnimationFrame(() => {
-                      el.selectionStart = el.selectionEnd = start + 1;
-                      adjustTextareaHeight(el);
-                    });
-                  }
+                  const el = e.target as HTMLTextAreaElement;
+                  // Use the live DOM value (source of truth), NOT props.draft:
+                  // the lit-rendered draft may lag behind rapid keystrokes, and
+                  // a stale draft would silently drop newlines inserted here.
+                  const start = el.selectionStart ?? 0;
+                  const end = el.selectionEnd ?? 0;
+                  const next = el.value.slice(0, start) + "\n" + el.value.slice(end);
+                  // Write BOTH the DOM and the draft state synchronously so a
+                  // subsequent @input event reads the newline from the DOM and
+                  // never overwrites it with a stale single-line value.
+                  el.value = next;
+                  props.onDraftChange(next);
+                  requestAnimationFrame(() => {
+                    el.selectionStart = el.selectionEnd = start + 1;
+                    adjustTextareaHeight(el);
+                  });
                   return;
                 }
                 if (e.isComposing || e.keyCode === 229) {

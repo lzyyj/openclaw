@@ -231,11 +231,38 @@ export function connectGateway(host: GatewayHost) {
         received: String(received),
       });
       host.lastErrorCode = null;
+      (host as unknown as { lastErrorKind: string | null }).lastErrorKind = "gap";
+      // The event stream has a gap, but the underlying session store is intact:
+      // reload chat history automatically (self-heal) instead of only asking the
+      // user to refresh manually.
+      reloadChatHistoryAfterGap(host);
     },
   });
   host.client = client;
   previousClient?.stop();
   client.start();
+}
+
+let lastGapHistoryReloadAt = 0;
+const GAP_HISTORY_RELOAD_THROTTLE_MS = 15_000;
+
+function reloadChatHistoryAfterGap(host: GatewayHost) {
+  const now = Date.now();
+  if (now - lastGapHistoryReloadAt < GAP_HISTORY_RELOAD_THROTTLE_MS) {
+    return;
+  }
+  lastGapHistoryReloadAt = now;
+  const app = host as unknown as OpenClawApp;
+  if (app.tab !== "chat" || !app.sessionKey) {
+    return;
+  }
+  void loadChatHistory(app).then(() => {
+    const gapMark = host as unknown as { lastErrorKind: string | null };
+    if (gapMark.lastErrorKind === "gap") {
+      host.lastError = null;
+      gapMark.lastErrorKind = null;
+    }
+  });
 }
 
 export function handleGatewayEvent(host: GatewayHost, evt: GatewayEventFrame) {

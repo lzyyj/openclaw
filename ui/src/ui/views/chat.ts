@@ -266,6 +266,16 @@ function renderAttachmentPreview(props: ChatProps) {
 
 export function renderChat(props: ChatProps) {
   const canCompose = props.connected;
+  // Live reference to the compose textarea (set via the ref directive). The
+  // draft state can lag behind the DOM (lit async re-render, rapid typing), so
+  // send paths sync DOM -> draft right before dispatching to guarantee the
+  // message that goes out is exactly what the user sees.
+  let composeTextarea: HTMLTextAreaElement | null = null;
+  const syncDraftFromDom = () => {
+    if (composeTextarea) {
+      props.onDraftChange(composeTextarea.value);
+    }
+  };
   // "Busy" means the agent has an active (backend) run: either mid-stream
   // (stream), still dispatching (sending), or processing with no text output
   // yet (canAbort/chatRunId, e.g. during long tool calls). Including canAbort
@@ -493,7 +503,12 @@ export function renderChat(props: ChatProps) {
           <label class="field chat-compose__field">
             <span>${t("chat.messageLabel")}</span>
             <textarea
-              ${ref((el) => el && adjustTextareaHeight(el as HTMLTextAreaElement))}
+              ${ref((el) => {
+                composeTextarea = (el as HTMLTextAreaElement | null) ?? null;
+                if (el) {
+                  adjustTextareaHeight(el as HTMLTextAreaElement);
+                }
+              })}
               .value=${props.draft}
               dir=${detectTextDirection(props.draft)}
               ?disabled=${!props.connected}
@@ -540,6 +555,10 @@ export function renderChat(props: ChatProps) {
                   return;
                 }
                 if (canCompose) {
+                  // Sync DOM -> draft right before sending: the draft state may
+                  // have diverged from the textarea (e.g. newlines inserted via
+                  // Shift+Enter between lit re-renders). Send what the user sees.
+                  syncDraftFromDom();
                   props.onSend();
                 }
               }}
@@ -575,7 +594,11 @@ export function renderChat(props: ChatProps) {
             <button
               class="btn primary"
               ?disabled=${!props.connected}
-              @click=${props.onSend}
+              @click=${() => {
+                // Send button: same DOM -> draft sync as the Enter path.
+                syncDraftFromDom();
+                props.onSend();
+              }}
             >
               ${isBusy ? t("chat.queue") : t("chat.send")}<kbd class="btn-kbd">↵</kbd>
             </button>

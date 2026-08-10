@@ -501,15 +501,12 @@ export function renderChat(props: ChatProps) {
                 if (e.key !== "Enter") {
                   return;
                 }
-                if (e.isComposing || e.keyCode === 229) {
-                  return;
-                }
-                if (!props.connected) {
-                  return;
-                }
-                e.preventDefault();
                 if (e.shiftKey) {
-                  // Shift+Enter = newline (do not send).
+                  // Shift+Enter = newline (do not send). Handle this BEFORE the
+                  // IME composition guard: an active IME only consumes plain
+                  // Enter (confirm candidate), so Shift+Enter must still insert
+                  // a newline while composing, otherwise the newline is swallowed.
+                  e.preventDefault();
                   if (props.draft != null) {
                     const el = e.target as HTMLTextAreaElement;
                     const start = el.selectionStart ?? props.draft.length;
@@ -523,6 +520,14 @@ export function renderChat(props: ChatProps) {
                   }
                   return;
                 }
+                if (e.isComposing || e.keyCode === 229) {
+                  // IME composition active: plain Enter confirms the candidate.
+                  return;
+                }
+                if (!props.connected) {
+                  return;
+                }
+                e.preventDefault();
                 if (e.altKey && props.onInterrupt) {
                   // Alt+Enter = insert/interrupt: inject into the running AI turn
                   // (steer) instead of queueing.

@@ -3,6 +3,37 @@ import { stripEnvelope, stripMessageIdHints } from "../shared/chat-envelope.js";
 
 export { stripEnvelope };
 
+/**
+ * Strips the leading `System: [timestamp] ...` event block that
+ * `prependSystemEvents` (auto-reply/reply/session-updates.ts) prepends to the
+ * next stored user message so the agent can see exec completion / cron /
+ * maintenance notifications. Those events are AI-facing only and must never
+ * surface in user-visible chat history.
+ *
+ * Block shape (one event per line, followed by a blank line before the actual
+ * user message):
+ *   System: [2026-08-10 14:32:35 GMT+8] Exec failed (abc12345, code 1) :: ...
+ *   System: [2026-08-10 14:36:58 GMT+8] Exec failed (def67890, code 1) :: ...
+ *
+ *   [Mon 2026-08-10 15:05 GMT+8] 如何了
+ */
+const SYSTEM_EVENT_PREFIX_RE = /^(?:System: \[[^\]]*\][^\n]*\n?)+\n*/;
+
+/**
+ * Strips the `[Mon 2026-08-10 15:05 GMT+8] ` timestamp prefix injected by
+ * `injectTimestamp` (gateway/server-methods/agent-timestamp.ts) into the agent
+ * body of user messages for date/time awareness. AI-facing only.
+ */
+const INJECTED_TIMESTAMP_PREFIX_RE = /^\[[A-Za-z]{3} \d{4}-\d{2}-\d{2} \d{2}:\d{2} [^\]]+\]\s*/;
+
+export function stripSystemEventPrefix(text: string): string {
+  return text.replace(SYSTEM_EVENT_PREFIX_RE, "");
+}
+
+export function stripInjectedTimestamp(text: string): string {
+  return text.replace(INJECTED_TIMESTAMP_PREFIX_RE, "");
+}
+
 function stripEnvelopeFromContentWithRole(
   content: unknown[],
   stripUserEnvelope: boolean,
@@ -18,7 +49,9 @@ function stripEnvelopeFromContentWithRole(
     }
     const inboundStripped = stripInboundMetadata(entry.text);
     const stripped = stripUserEnvelope
-      ? stripMessageIdHints(stripEnvelope(inboundStripped))
+      ? stripMessageIdHints(
+          stripInjectedTimestamp(stripSystemEventPrefix(stripEnvelope(inboundStripped))),
+        )
       : inboundStripped;
     if (stripped === entry.text) {
       return item;
@@ -46,7 +79,9 @@ export function stripEnvelopeFromMessage(message: unknown): unknown {
   if (typeof entry.content === "string") {
     const inboundStripped = stripInboundMetadata(entry.content);
     const stripped = stripUserEnvelope
-      ? stripMessageIdHints(stripEnvelope(inboundStripped))
+      ? stripMessageIdHints(
+          stripInjectedTimestamp(stripSystemEventPrefix(stripEnvelope(inboundStripped))),
+        )
       : inboundStripped;
     if (stripped !== entry.content) {
       next.content = stripped;
@@ -61,7 +96,9 @@ export function stripEnvelopeFromMessage(message: unknown): unknown {
   } else if (typeof entry.text === "string") {
     const inboundStripped = stripInboundMetadata(entry.text);
     const stripped = stripUserEnvelope
-      ? stripMessageIdHints(stripEnvelope(inboundStripped))
+      ? stripMessageIdHints(
+          stripInjectedTimestamp(stripSystemEventPrefix(stripEnvelope(inboundStripped))),
+        )
       : inboundStripped;
     if (stripped !== entry.text) {
       next.text = stripped;

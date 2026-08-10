@@ -89,4 +89,49 @@ describe("stripEnvelopeFromMessage", () => {
     const result = stripEnvelopeFromMessage(input) as { content?: string };
     expect(result.content).toBe("hello");
   });
+
+  test("strips System event prefix block and injected timestamp from user messages", () => {
+    const input = {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: "System: [2026-08-10 14:32:35 GMT+8] Exec failed (rapid-cr, code 1) :: output\nSystem: [2026-08-10 14:36:58 GMT+8] Exec failed (crisp-sh, code 1) :: more\n\n[Mon 2026-08-10 15:05 GMT+8] 如何了",
+        },
+      ],
+    };
+    const result = stripEnvelopeFromMessage(input) as {
+      content?: Array<{ type: string; text?: string }>;
+    };
+    expect(result.content?.[0]?.text).toBe("如何了");
+  });
+
+  test("strips injected timestamp from plain user messages", () => {
+    const input = {
+      role: "user",
+      content: "[Mon 2026-08-10 08:58 GMT+8] 好，都推送了吧",
+    };
+    const result = stripEnvelopeFromMessage(input) as { content?: string };
+    expect(result.content).toBe("好，都推送了吧");
+  });
+
+  test("keeps user text that only looks like a timestamp", () => {
+    const input = {
+      role: "user",
+      content: "见 [Mon 2026-08-10 08:58 GMT+8] 不是前缀",
+    };
+    const result = stripEnvelopeFromMessage(input) as { content?: string };
+    expect(result.content).toBe("见 [Mon 2026-08-10 08:58 GMT+8] 不是前缀");
+  });
+
+  test("does not strip System blocks from assistant messages", () => {
+    const input = {
+      role: "assistant",
+      content: "System: [2026-08-10 14:32:35 GMT+8] Exec failed (rapid-cr, code 1) :: output",
+    };
+    const result = stripEnvelopeFromMessage(input) as { content?: string };
+    expect(result.content).toBe(
+      "System: [2026-08-10 14:32:35 GMT+8] Exec failed (rapid-cr, code 1) :: output",
+    );
+  });
 });

@@ -269,7 +269,10 @@ const NOTICE_KIND_PATTERNS: Array<[RunFailureNoticeKind, RegExp]> = [
   ["billing", /billing|insufficient|402|payment/i],
   ["auth", /unauthorized|authentication|401|403|invalid api key|api key/i],
   ["rate_limit", /rate\s*limit|429|too many requests/i],
-  ["network", /network|fetch failed|econnreset|ehostunreach|socket hang up/i],
+  [
+    "network",
+    /network|connection|fetch failed|econnreset|econnrefused|ehostunreach|enetunreach|socket hang up|getaddrinfo|enotfound|unreachable/i,
+  ],
 ];
 
 export function resolveRunFailureNoticeKind(text: string): RunFailureNoticeKind | undefined {
@@ -403,12 +406,14 @@ export function createAgentEventHandler({
       nodeSendToSession(sessionKey, "chat", payload);
       return;
     }
+    const errorText = error ? formatForLog(error) : "";
     const payload = {
       runId: clientRunId,
       sessionKey,
       seq,
       state: "error" as const,
-      errorMessage: error ? formatForLog(error) : undefined,
+      errorMessage: errorText || undefined,
+      kind: errorText ? resolveRunFailureNoticeKind(errorText) : undefined,
     };
     broadcast("chat", payload);
     nodeSendToSession(sessionKey, "chat", payload);

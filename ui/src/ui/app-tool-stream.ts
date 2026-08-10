@@ -244,7 +244,7 @@ export type CompactionStatus = {
 };
 
 export type FallbackStatus = {
-  phase?: "active" | "cleared";
+  phase?: "active" | "cleared" | "retrying";
   selected: string;
   active: string;
   previous?: string;
@@ -342,7 +342,12 @@ function resolveAcceptedSession(
 function handleLifecycleFallbackEvent(host: CompactionHost, payload: AgentEventPayload) {
   const data = payload.data ?? {};
   const phase = payload.stream === "fallback" ? "fallback" : toTrimmedString(data.phase);
-  if (payload.stream === "lifecycle" && phase !== "fallback" && phase !== "fallback_cleared") {
+  if (
+    payload.stream === "lifecycle" &&
+    phase !== "fallback" &&
+    phase !== "fallback_cleared" &&
+    phase !== "willRetry"
+  ) {
     return;
   }
 
@@ -360,6 +365,32 @@ function handleLifecycleFallbackEvent(host: CompactionHost, payload: AgentEventP
   const previous =
     resolveModelLabel(data.previousActiveProvider, data.previousActiveModel) ??
     toTrimmedString(data.previousActiveModel);
+
+  // Auth-profile rotation retry (model timed out / failed, switching account):
+  // show a short "retrying" indicator instead of silence.
+  if (phase === "willRetry") {
+    if (!selected) {
+      return;
+    }
+    if (host.fallbackClearTimer != null) {
+      window.clearTimeout(host.fallbackClearTimer);
+      host.fallbackClearTimer = null;
+    }
+    host.fallbackStatus = {
+      phase: "retrying",
+      selected,
+      active: selected,
+      reason: toTrimmedString(data.reasonSummary) || undefined,
+      attempts: [],
+      occurredAt: Date.now(),
+    };
+    host.fallbackClearTimer = window.setTimeout(() => {
+      host.fallbackStatus = null;
+      host.fallbackClearTimer = null;
+    }, FALLBACK_TOAST_DURATION_MS);
+    return;
+  }
+
   if (!selected || !active) {
     return;
   }

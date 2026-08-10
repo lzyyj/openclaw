@@ -144,6 +144,7 @@ export const pt_BR: TranslationMap = {
     compacted: "Contexto compactado",
     compactionDivider: "Compactação",
     fallbackActive: "Fallback ativo: {model}",
+    retrying: "Tempo esgotado, tentando novamente: {model}",
     fallbackCleared: "Fallback limpo: {model}",
     showingLastMessages: "Mostrando as últimas {count} mensagens ({hidden} ocultas).",
     imageAttachment: "Imagem ({count})",

@@ -165,7 +165,9 @@ function renderFallbackIndicator(status: FallbackIndicatorStatus | null | undefi
   const message =
     phase === "cleared"
       ? t("chat.fallbackCleared", { model: status.selected })
-      : t("chat.fallbackActive", { model: status.active });
+      : phase === "retrying"
+        ? t("chat.retrying", { model: status.active })
+        : t("chat.fallbackActive", { model: status.active });
   const className =
     phase === "cleared"
       ? "compaction-indicator compaction-indicator--fallback-cleared"

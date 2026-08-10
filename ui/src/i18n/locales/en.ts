@@ -155,6 +155,7 @@ export const en: TranslationMap = {
     compacted: "Context compacted",
     compactionDivider: "Compaction",
     fallbackActive: "Fallback active: {model}",
+    retrying: "Timed out, retrying: {model}",
     fallbackCleared: "Fallback cleared: {model}",
     showingLastMessages: "Showing last {count} messages ({hidden} hidden).",
     imageAttachment: "Image ({count})",

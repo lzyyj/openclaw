@@ -1014,6 +1014,23 @@ export async function runEmbeddedPiAgent(
 
             const rotated = await advanceAuthProfile();
             if (rotated) {
+              // Notify the UI so the user sees retry feedback instead of
+              // silence while the run rotates to another auth profile.
+              try {
+                params.onAgentEvent?.({
+                  stream: "lifecycle",
+                  data: {
+                    phase: "willRetry",
+                    fromProvider: activeErrorContext.provider,
+                    fromModel: activeErrorContext.model,
+                    reasonSummary: timedOut
+                      ? "Model request timed out. Switching account and retrying."
+                      : "Model call failed. Switching account and retrying.",
+                  },
+                });
+              } catch {
+                // Best-effort: never let event dispatch break the retry loop.
+              }
               continue;
             }
 

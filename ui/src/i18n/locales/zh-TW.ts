@@ -141,6 +141,7 @@ export const zh_TW: TranslationMap = {
     compacted: "上下文已壓縮",
     compactionDivider: "壓縮記錄",
     fallbackActive: "備用模型活躍：{model}",
+    retrying: "模型回應逾時，正在重試：{model}",
     fallbackCleared: "備用模型已清除：{model}",
     showingLastMessages: "僅顯示最近 {count} 條訊息（已隱藏 {hidden} 條）。",
     imageAttachment: "圖片（{count}）",

@@ -154,6 +154,7 @@ export const zh_CN: TranslationMap = {
     compacted: "上下文已压缩",
     compactionDivider: "压缩记录",
     fallbackActive: "备用模型活跃：{model}",
+    retrying: "模型响应超时，正在重试：{model}",
     fallbackCleared: "备用模型已清除：{model}",
     showingLastMessages: "仅显示最近 {count} 条消息（已隐藏 {hidden} 条）。",
     imageAttachment: "图片（{count}）",

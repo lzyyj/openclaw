@@ -1,30 +1,40 @@
 import { html, nothing } from "lit";
+import { ref } from "lit/directives/ref.js";
 import { t } from "../../i18n/index.ts";
-import { icons } from "../icons.ts";
 import type { ChatItem, MessageGroup } from "../types/chat-types.ts";
 import { extractText } from "./message-extract.ts";
 
 export type NavEntry = {
   key: string;
-  role: "user" | "assistant" | "system" | "tool" | "divider";
+  role: "user" | "assistant" | "tool" | "divider";
   label: string;
   excerpt: string;
   timestamp: number;
 };
 
 /**
- * Build navigation entries — only real user speech, with a clean excerpt.
+ * Build scroll-mark entries covering all meaningful message types
+ * (user / assistant / tool / divider), with a clean excerpt for hover preview.
  *
  * Messages injected by the system (exec result echoes beginning with
- * "System: [...]") are excluded entirely. Concatenated messages
- * (user copied exec output then typed their own words) have the noise
- * stripped from the excerpt.
+ * "System: [...]") are excluded entirely as pure noise.
  */
 export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry[] {
   const entries: NavEntry[] = [];
 
   for (const item of items) {
     if (item.kind === "reading-indicator" || item.kind === "stream") {
+      continue;
+    }
+
+    if (item.kind === "divider") {
+      entries.push({
+        key: item.key,
+        role: "divider",
+        label: item.label || t("chat.compacted"),
+        excerpt: item.label || t("chat.compacted"),
+        timestamp: item.timestamp,
+      });
       continue;
     }
 
@@ -41,9 +51,8 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
         continue;
       }
 
-      const role = (m.role as string) ?? "";
-      // Only user messages
-      if (role.toLowerCase() !== "user") {
+      const role = ((m.role as string) ?? "").toLowerCase();
+      if (role !== "user" && role !== "assistant" && role !== "tool") {
         continue;
       }
 
@@ -62,8 +71,10 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
         continue;
       }
 
-      // Clean the excerpt — strip leading System: noise while keeping user words
       const excerpt = cleanExcerpt(trimmed);
+      if (!excerpt) {
+        continue;
+      }
 
       const key = item.key;
       const timestamp =
@@ -71,8 +82,13 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
 
       entries.push({
         key,
-        role: "user",
-        label: t("chat.you"),
+        role: role as NavEntry["role"],
+        label:
+          role === "user"
+            ? t("chat.you")
+            : role === "assistant"
+              ? t("chat.assistant")
+              : t("chat.tool"),
         excerpt,
         timestamp,
       });
@@ -112,7 +128,12 @@ function cleanExcerpt(text: string): string {
   return clean.slice(0, 60);
 }
 
-export function renderChatNav(
+/**
+ * Render a scrollbar position-mark track (VS Code overview-ruler style).
+ * Each mark sits at the message's proportional position in the thread and
+ * jumps to that message on click; hovering shows the excerpt tooltip.
+ */
+export function renderScrollMarks(
   entries: NavEntry[],
   activeKey: string | null,
   onJump: (key: string) => void,
@@ -122,36 +143,67 @@ export function renderChatNav(
   }
 
   return html`
-    <nav class="chat-nav" aria-label=${t("chat.navigation")}>
-      <div class="chat-nav__header">${t("chat.navigation")}</div>
-      <div class="chat-nav__list">
-        ${entries.map((entry) => {
-          const isActive = entry.key === activeKey;
-          return html`
-            <button
-              class="chat-nav__item ${isActive ? "chat-nav__item--active" : ""} ${entry.role === "divider" ? "chat-nav__item--divider" : ""}"
-              data-nav-key=${entry.key}
-              @click=${() => onJump(entry.key)}
-              title=${entry.excerpt || entry.label}
-            >
-              <span class="chat-nav__role chat-nav__role--${entry.role}">
-                ${
-                  entry.role === "divider"
-                    ? "📦"
-                    : entry.role === "user" || entry.role === "assistant"
-                      ? (icons.brain ?? "💬")
-                      : entry.role === "tool"
-                        ? "🔧"
-                        : "⚙"
-                }
-              </span>
-              <span class="chat-nav__excerpt">${entry.role === "divider" ? t("chat.compacted") : entry.excerpt || entry.label}</span>
-            </button>
-          `;
-        })}
-      </div>
-    </nav>
+    <div
+      class="chat-scrollmarks"
+      role="navigation"
+      aria-label=${t("chat.navigation")}
+      ${ref((el) => {
+        if (el) {
+          positionScrollMarks(el as HTMLElement, entries);
+        }
+      })}
+    >
+      ${entries.map((entry) => {
+        const isActive = entry.key === activeKey;
+        return html`
+          <button
+            class="chat-scrollmarks__mark chat-scrollmarks__mark--${entry.role} ${isActive ? "chat-scrollmarks__mark--active" : ""}"
+            data-mark-key=${entry.key}
+            data-excerpt=${entry.excerpt || entry.label}
+            @click=${() => onJump(entry.key)}
+            aria-label=${entry.excerpt || entry.label}
+          ></button>
+        `;
+      })}
+    </div>
   `;
+}
+
+/**
+ * Position each mark at the message's proportional offset within the
+ * scrollable thread (content-relative, so it behaves like a scrollbar track).
+ * Re-runs on every render via the ref callback.
+ */
+function positionScrollMarks(marksEl: HTMLElement, entries: NavEntry[]): void {
+  const threadEl = marksEl
+    .closest<HTMLElement>(".chat-thread-container")
+    ?.querySelector<HTMLElement>(".chat-thread");
+  if (!threadEl) {
+    return;
+  }
+  const scrollHeight = threadEl.scrollHeight;
+  if (scrollHeight <= 0) {
+    return;
+  }
+
+  const threadRect = threadEl.getBoundingClientRect();
+  const markEls = marksEl.querySelectorAll<HTMLElement>("[data-mark-key]");
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const markEl = markEls[i];
+    if (!markEl) {
+      continue;
+    }
+    const msgEl = threadEl.querySelector<HTMLElement>(`[data-key="${CSS.escape(entry.key)}"]`);
+    if (!msgEl) {
+      continue;
+    }
+    const msgRect = msgEl.getBoundingClientRect();
+    // Content-relative position: scrollTop + viewport offset, normalized.
+    const top = ((threadEl.scrollTop + msgRect.top - threadRect.top) / scrollHeight) * 100;
+    markEl.style.top = `${Math.max(0, Math.min(100, top))}%`;
+  }
 }
 
 /**

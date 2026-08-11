@@ -479,112 +479,92 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative; /* anchor for scrollbar position marks */
 }
 
-.chat-nav {
-  width: 220px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  border-left: 1px solid var(--border, #e0e0e0);
-  background: var(--bg-secondary, #f8f8f8);
-  padding: 8px 0;
+/* Scrollbar position marks (replaces the old chat-nav sidebar).
+   Marks sit on the right edge over the scrollbar area, positioned by
+   content-relative offset; click to jump, hover to preview excerpt. */
+.chat-scrollmarks {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  pointer-events: none; /* track never blocks the scrollbar */
+  z-index: 5;
 }
 
-.chat-nav__header {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 8px 12px;
-  color: var(--text-muted, #888);
-  font-weight: 600;
-}
-
-.chat-nav__list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.chat-nav__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+.chat-scrollmarks__mark {
+  position: absolute;
+  right: 1px;
+  left: 1px;
+  min-height: 3px;
   border: none;
-  background: transparent;
+  border-radius: 2px;
+  padding: 0;
   cursor: pointer;
+  pointer-events: auto; /* marks are clickable */
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.chat-scrollmarks__mark--user {
+  background: #4a9eff;
+}
+
+.chat-scrollmarks__mark--assistant {
+  background: #22c55e;
+}
+
+.chat-scrollmarks__mark--tool {
+  background: #f59e0b;
+}
+
+.chat-scrollmarks__mark--divider {
+  background: var(--text-muted, #888);
+}
+
+.chat-scrollmarks__mark:hover,
+.chat-scrollmarks__mark--active {
+  opacity: 1;
+}
+
+/* Hover tooltip with the message excerpt */
+.chat-scrollmarks__mark::after {
+  content: attr(data-excerpt);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 280px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--bg-elevated, #1e1e1e);
+  color: var(--text, #eee);
   font-size: 12px;
-  color: var(--text, #333);
-  text-align: left;
-  width: 100%;
-  transition: background 0.15s;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s;
+  pointer-events: none;
+  z-index: 10;
   font-family: var(--font-body);
 }
 
-.chat-nav__item:hover {
-  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+.chat-scrollmarks__mark:hover::after {
+  opacity: 1;
+  visibility: visible;
 }
 
-.chat-nav__item--active {
-  background: var(--accent-bg, rgba(0, 120, 255, 0.1));
-  color: var(--accent, #0078ff);
-  font-weight: 500;
-}
-
-.chat-nav__role {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.chat-nav__role--user {
-  color: #4a9eff;
-}
-
-.chat-nav__role--assistant {
-  color: #22c55e;
-}
-
-.chat-nav__role--system {
-  color: #a855f7;
-}
-
-.chat-nav__role--tool {
-  color: #f59e0b;
-}
-
-.chat-nav__role--divider {
-  color: var(--text-muted, #888);
-}
-
-.chat-nav__excerpt {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-/* Light theme overrides for chat nav */
-:root[data-theme="light"] .chat-nav {
-  border-left-color: rgba(16, 24, 40, 0.12);
-  background: #f9fafb;
-}
-
-:root[data-theme="light"] .chat-nav__item {
-  color: #475569;
-}
-
-:root[data-theme="light"] .chat-nav__item:hover {
-  background: rgba(16, 24, 40, 0.05);
-}
-
-:root[data-theme="light"] .chat-nav__item--active {
-  background: rgba(0, 120, 255, 0.08);
-  color: #0066cc;
+/* Light theme overrides */
+:root[data-theme="light"] .chat-scrollmarks__mark::after {
+  background: #ffffff;
+  color: #1f2937;
+  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.18);
+  border: 1px solid rgba(16, 24, 40, 0.08);
 }

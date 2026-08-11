@@ -4,7 +4,7 @@ import { repeat } from "lit/directives/repeat.js";
 import { t } from "../../i18n/index.ts";
 import {
   buildNavEntries,
-  renderChatNav,
+  renderScrollMarks,
   findVisibleKey,
   scrollToKey,
 } from "../chat/chat-navigation.ts";
@@ -395,6 +395,14 @@ export function renderChat(props: ChatProps) {
           >
             <div class="chat-thread-container">
               ${thread}
+              ${
+                hasNav
+                  ? renderScrollMarks(navEntries, props.navActiveKey ?? null, (key) => {
+                      const threadEl = document.querySelector(".chat-thread");
+                      scrollToKey(threadEl, key);
+                    })
+                  : nothing
+              }
             </div>
           </div>
 
@@ -422,15 +430,6 @@ export function renderChat(props: ChatProps) {
               : nothing
           }
         </div>
-
-        ${
-          hasNav
-            ? renderChatNav(navEntries, props.navActiveKey ?? null, (key) => {
-                const threadEl = document.querySelector(".chat-thread");
-                scrollToKey(threadEl, key);
-              })
-            : nothing
-        }
       </div>
 
       ${

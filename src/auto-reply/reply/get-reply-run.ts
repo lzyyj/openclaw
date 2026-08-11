@@ -358,11 +358,16 @@ export async function runPreparedReply(
     ? [mediaNote, mediaReplyHint, prefixedBody ?? ""].filter(Boolean).join("\n").trim()
     : prefixedBody;
   if (!resolvedThinkLevel && prefixedCommandBody) {
-    const parts = prefixedCommandBody.split(/\s+/);
+    const firstLineEnd = prefixedCommandBody.indexOf("\n");
+    const firstLine =
+      firstLineEnd >= 0 ? prefixedCommandBody.slice(0, firstLineEnd) : prefixedCommandBody;
+    const rest = firstLineEnd >= 0 ? prefixedCommandBody.slice(firstLineEnd + 1) : "";
+    const parts = firstLine.split(/\s+/);
     const maybeLevel = normalizeThinkLevel(parts[0]);
     if (maybeLevel && (maybeLevel !== "xhigh" || supportsXHighThinking(provider, model))) {
       resolvedThinkLevel = maybeLevel;
-      prefixedCommandBody = parts.slice(1).join(" ").trim();
+      const remainingFirstLine = parts.slice(1).join(" ").trim();
+      prefixedCommandBody = [remainingFirstLine, rest].filter(Boolean).join("\n").trim();
     }
   }
   if (!resolvedThinkLevel) {

@@ -36,6 +36,10 @@ export function stripInlineStatus(body: string): {
   if (!trimmed) {
     return { cleaned: "", didStrip: false };
   }
-  const cleaned = trimmed.replace(INLINE_STATUS_RE, " ").replace(/\s+/g, " ").trim();
+  const afterStrip = trimmed.replace(INLINE_STATUS_RE, " ");
+  if (afterStrip === trimmed) {
+    return { cleaned: trimmed, didStrip: false };
+  }
+  const cleaned = afterStrip.replace(/\s+/g, " ").trim();
   return { cleaned, didStrip: cleaned !== trimmed };
 }

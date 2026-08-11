@@ -51,8 +51,16 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
         continue;
       }
 
+      // Normalize tool-related roles the same way the renderer does
+      // (raw storage uses "toolResult"; UI grouping uses "tool").
       const role = ((m.role as string) ?? "").toLowerCase();
-      if (role !== "user" && role !== "assistant" && role !== "tool") {
+      const normalizedRole =
+        role === "toolresult" || role === "tool_result" || role === "function" ? "tool" : role;
+      if (
+        normalizedRole !== "user" &&
+        normalizedRole !== "assistant" &&
+        normalizedRole !== "tool"
+      ) {
         continue;
       }
 
@@ -71,9 +79,16 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
         continue;
       }
 
-      const excerpt = cleanExcerpt(trimmed);
+      let excerpt = cleanExcerpt(trimmed);
       if (!excerpt) {
         continue;
+      }
+      // Prefix tool excerpts with the tool name for a useful hover preview.
+      if (normalizedRole === "tool") {
+        const toolName = typeof m.toolName === "string" && m.toolName ? m.toolName : null;
+        if (toolName && !excerpt.startsWith(toolName)) {
+          excerpt = `${toolName}: ${excerpt}`;
+        }
       }
 
       const key = item.key;
@@ -82,11 +97,11 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
 
       entries.push({
         key,
-        role: role as NavEntry["role"],
+        role: normalizedRole as NavEntry["role"],
         label:
-          role === "user"
+          normalizedRole === "user"
             ? t("chat.you")
-            : role === "assistant"
+            : normalizedRole === "assistant"
               ? t("chat.assistant")
               : t("chat.tool"),
         excerpt,

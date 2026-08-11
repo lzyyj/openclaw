@@ -13,28 +13,18 @@ export type NavEntry = {
 };
 
 /**
- * Build scroll-mark entries covering all meaningful message types
- * (user / assistant / tool / divider), with a clean excerpt for hover preview.
+ * Build scroll-mark entries for USER messages only — the user's own turns
+ * act as position anchors in the thread. Assistant / tool / system messages
+ * are deliberately excluded (they follow user turns anyway).
  *
  * Messages injected by the system (exec result echoes beginning with
- * "System: [...]") are excluded entirely as pure noise.
+ * "System: [...]") are excluded as pure noise.
  */
 export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry[] {
   const entries: NavEntry[] = [];
 
   for (const item of items) {
-    if (item.kind === "reading-indicator" || item.kind === "stream") {
-      continue;
-    }
-
-    if (item.kind === "divider") {
-      entries.push({
-        key: item.key,
-        role: "divider",
-        label: item.label || t("chat.compacted"),
-        excerpt: item.label || t("chat.compacted"),
-        timestamp: item.timestamp,
-      });
+    if (item.kind === "reading-indicator" || item.kind === "stream" || item.kind === "divider") {
       continue;
     }
 
@@ -51,16 +41,8 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
         continue;
       }
 
-      // Normalize tool-related roles the same way the renderer does
-      // (raw storage uses "toolResult"; UI grouping uses "tool").
       const role = ((m.role as string) ?? "").toLowerCase();
-      const normalizedRole =
-        role === "toolresult" || role === "tool_result" || role === "function" ? "tool" : role;
-      if (
-        normalizedRole !== "user" &&
-        normalizedRole !== "assistant" &&
-        normalizedRole !== "tool"
-      ) {
+      if (role !== "user") {
         continue;
       }
 
@@ -79,16 +61,9 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
         continue;
       }
 
-      let excerpt = cleanExcerpt(trimmed);
+      const excerpt = cleanExcerpt(trimmed);
       if (!excerpt) {
         continue;
-      }
-      // Prefix tool excerpts with the tool name for a useful hover preview.
-      if (normalizedRole === "tool") {
-        const toolName = typeof m.toolName === "string" && m.toolName ? m.toolName : null;
-        if (toolName && !excerpt.startsWith(toolName)) {
-          excerpt = `${toolName}: ${excerpt}`;
-        }
       }
 
       const key = item.key;
@@ -97,13 +72,8 @@ export function buildNavEntries(items: Array<ChatItem | MessageGroup>): NavEntry
 
       entries.push({
         key,
-        role: normalizedRole as NavEntry["role"],
-        label:
-          normalizedRole === "user"
-            ? t("chat.you")
-            : normalizedRole === "assistant"
-              ? t("chat.assistant")
-              : t("chat.tool"),
+        role: "user",
+        label: t("chat.you"),
         excerpt,
         timestamp,
       });

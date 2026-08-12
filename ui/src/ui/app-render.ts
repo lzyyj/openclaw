@@ -71,6 +71,7 @@ import {
 } from "./controllers/skills.ts";
 import { icons } from "./icons.ts";
 import { normalizeBasePath, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
+import { isLastErrorCoveredByNotice, noticeText } from "./notice-text.ts";
 import { renderAgents } from "./views/agents.ts";
 import { renderChannels } from "./views/channels.ts";
 import { renderChat } from "./views/chat.ts";
@@ -328,7 +329,7 @@ export function renderApp(state: AppViewState) {
               state.notice
                 ? html`<div class="pill pill--notice" role="alert">
                   <span class="pill__label">${noticeLabel(state.notice.kind)}</span>
-                  <span class="pill__text">${state.notice.text}</span>
+                  <span class="pill__text">${noticeText(state.notice)}</span>
                   <button
                     class="pill__close"
                     title=${t("notice.dismiss")}
@@ -338,7 +339,12 @@ export function renderApp(state: AppViewState) {
                 </div>`
                 : nothing
             }
-            ${state.lastError ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
+            ${
+              state.lastError &&
+              !isLastErrorCoveredByNotice(state.lastError, state.lastErrorKind, state.notice)
+                ? html`<div class="pill danger">${state.lastError}</div>`
+                : nothing
+            }
             ${isChat ? renderChatControls(state) : nothing}
           </div>
         </section>

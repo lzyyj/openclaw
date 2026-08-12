@@ -61,8 +61,6 @@ export type AppViewState = {
   lastErrorKind: string | null;
   /** Global run-failure notice shown in the page header (timeout / billing / auth / ...). */
   notice: RunFailureNotice | null;
-  /** Structured chat run error classification ("billing" | "rate_limit" | "auth" | ...). */
-  lastErrorKind: string | null;
   eventLog: EventLogEntry[];
   assistantName: string;
   assistantAvatar: string | null;

@@ -919,5 +919,14 @@ export const en: TranslationMap = {
     network: "Network error",
     other: "Run failed",
     dismiss: "Dismiss",
+    billingText:
+      "⚠️ {label} returned a billing error — your API key has run out of credits or has an insufficient balance. Check your {provider} billing dashboard and top up or switch to a different API key.",
+    billingTextGeneric:
+      "⚠️ API provider returned a billing error — your API key has run out of credits or has an insufficient balance. Check your provider's billing dashboard and top up or switch to a different API key.",
+    timeoutText: "The request timed out. Please try again later.",
+    rateLimitText: "API rate limit reached. Please try again later.",
+    authText:
+      "Authentication failed: your API key is invalid or expired. Run `openclaw configure` (or `/auth`) to re-configure authentication.",
+    networkText: "Network connection failed. Please check your network and try again.",
   },
 };

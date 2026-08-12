@@ -941,5 +941,14 @@ export const zh_CN: TranslationMap = {
     network: "网络错误",
     other: "运行失败",
     dismiss: "关闭",
+    billingText:
+      "⚠️ {label} 返回计费错误——API Key 余额不足或已用完。请前往 {provider} 的计费控制台充值，或更换 API Key。",
+    billingTextGeneric:
+      "⚠️ API 提供商返回计费错误——API Key 余额不足或已用完。请前往提供商的计费控制台充值，或更换 API Key。",
+    timeoutText: "请求超时，请稍后重试。",
+    rateLimitText: "请求频率受限（触发限流），请稍后重试。",
+    authText:
+      "认证失败：API Key 无效或已过期，请运行 `openclaw configure`（或 `/auth`）重新配置认证。",
+    networkText: "网络连接失败，请检查网络后重试。",
   },
 };

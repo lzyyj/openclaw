@@ -119,3 +119,5 @@ dist/protocol.schema.json
 dist.bak/
 *.tgz
 sync-global.bat
+# gitee release packages
+releases/

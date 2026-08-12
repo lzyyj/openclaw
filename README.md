@@ -5,7 +5,7 @@
     <b> 🦞 你的私人 AI 助手 (Personal AI Assistant)</b>
   </p>
   <p>
-    <code>Based on OpenClaw v2026.2.23</code>
+    <code>Based on OpenClaw v2026.8.12</code>
   </p>
   <p>
     更安全 · 更懂中文 · 适配 DeepSeek 的 Local Agent 基础设施
@@ -35,6 +35,33 @@
 这里探索了极速的一键安装方式，网站内提供了针对 Windows 原生环境、Linux、WSL 与 macOS 的保姆级图文部署指南。
 
 👉 **[https://open-claw.org.cn/guide/getting-started](https://open-claw.org.cn/guide/getting-started)**
+
+---
+
+## ⚡️ 在线安装（推荐 · 普通用户）
+
+无需克隆仓库、无需手动配置镜像源。**一条命令**自动完成：环境检测 → 安装 Node.js/pnpm（如缺失）→ 拉取最新源码（Gitee 国内镜像）→ 构建 → 启动初始化向导。
+
+### 🪟 Windows（PowerShell 一行命令）
+
+```powershell
+iwr -useb https://open-claw.org.cn/install-cn.ps1 | iex
+```
+
+### 🐧 Linux / macOS / WSL（终端一行命令）
+
+```bash
+curl -fsSL https://open-claw.org.cn/install-cn.sh | bash
+```
+
+> **说明**
+>
+> - 源码默认安装在 `~/openclaw-cn`（Windows 为 `%USERPROFILE%\openclaw-cn`），升级时进入目录执行 `git pull` 后重新构建即可。
+> - 安装完成后使用 `openclaw` 命令与你的 AI 助手对话；`openclaw dashboard` 打开管理页面。
+> - 想跳过初始化向导（稍后手动执行 `openclaw onboard`）：
+>   - Windows：先设环境变量再执行 `$env:OPENCLAW_NO_ONBOARD=1; iwr -useb https://open-claw.org.cn/install-cn.ps1 | iex`
+>   - Linux/macOS：`OPENCLAW_NO_ONBOARD=1 curl -fsSL https://open-claw.org.cn/install-cn.sh | bash`
+> - 在线安装走国内 Gitee 镜像与 pnpm 镜像源，下载依赖速度快；安装脚本源码见 [`scripts/install-cn.ps1`](./scripts/install-cn.ps1) 与 [`scripts/install-cn.sh`](./scripts/install-cn.sh)。
 
 ---
 

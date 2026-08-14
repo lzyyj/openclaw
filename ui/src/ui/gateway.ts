@@ -241,7 +241,9 @@ export class GatewayBrowserClient {
       role,
       scopes,
       device,
-      caps: [],
+      // Advertise gateway capabilities so the backend streams agent tool
+      // events to this client (rendered as tool cards in the chat thread).
+      caps: ["tool-events"],
       auth,
       userAgent: navigator.userAgent,
       locale: navigator.language,

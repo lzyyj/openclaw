@@ -56,7 +56,7 @@ function extractImages(message: unknown): ImageBlock[] {
   return images;
 }
 
-export function renderReadingIndicatorGroup(assistant?: AssistantIdentity) {
+export function renderReadingIndicatorGroup(assistant?: AssistantIdentity, label?: string) {
   return html`
     <div class="chat-group assistant">
       ${renderAvatar("assistant", assistant)}
@@ -65,6 +65,7 @@ export function renderReadingIndicatorGroup(assistant?: AssistantIdentity) {
           <span class="chat-reading-indicator__dots">
             <span></span><span></span><span></span>
           </span>
+          ${label ? html`<span class="chat-reading-indicator__label">${label}</span>` : nothing}
         </div>
       </div>
     </div>

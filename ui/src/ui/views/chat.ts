@@ -338,7 +338,7 @@ export function renderChat(props: ChatProps) {
           }
 
           if (item.kind === "reading-indicator") {
-            return html`<div data-key=${item.key}>${renderReadingIndicatorGroup(assistantIdentity)}</div>`;
+            return html`<div data-key=${item.key}>${renderReadingIndicatorGroup(assistantIdentity, item.label)}</div>`;
           }
 
           if (item.kind === "stream") {
@@ -718,8 +718,22 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
         startedAt: props.streamStartedAt ?? Date.now(),
       });
     } else {
-      items.push({ kind: "reading-indicator", key });
+      items.push({
+        kind: "reading-indicator",
+        key,
+        label: t("chat.thinking"),
+      });
     }
+  } else if (props.sending || props.canAbort) {
+    // Agent run is in flight but no streamed tokens have arrived yet
+    // (LLM thinking, slow first token, or long tool calls before any
+    // output). Show a visible working indicator so the UI never looks
+    // frozen while waiting for the first delta.
+    items.push({
+      kind: "reading-indicator",
+      key: `waiting:${props.sessionKey}:${props.canAbort ? "run" : "send"}`,
+      label: t("chat.thinking"),
+    });
   }
 
   return groupMessages(items);

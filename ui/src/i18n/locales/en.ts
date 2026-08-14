@@ -128,6 +128,7 @@ export const en: TranslationMap = {
     focusToggle: "Toggle focus mode (hide sidebar + page header)",
     onboardingDisabled: "Disabled during onboarding",
     loadingChat: "Loading chat…",
+    thinking: "Thinking…",
     messageLabel: "Message",
     placeholderDefault: "Message (↩ to send, Shift+↩ for line breaks, paste images)",
     placeholderWithAttachments: "Add a message or paste more images...",

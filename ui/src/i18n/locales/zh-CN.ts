@@ -127,6 +127,7 @@ export const zh_CN: TranslationMap = {
     focusToggle: "切换专注模式 (隐藏侧边栏 + 页面页眉)",
     onboardingDisabled: "引导期间禁用",
     loadingChat: "加载聊天记录…",
+    thinking: "正在思考…",
     messageLabel: "消息",
     placeholderDefault: "输入消息（↩ 发送，Shift+↩ 换行，可粘贴图片）",
     placeholderWithAttachments: "添加消息说明或继续粘贴图片…",

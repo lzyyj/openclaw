@@ -504,6 +504,17 @@
   width: 220px;
 }
 
+/* Pinned-session indicator dot shown next to the row title */
+.session-pin-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--ring, var(--accent, #4a9eff));
+  vertical-align: middle;
+}
+
 .field span {
   color: var(--muted);
   font-size: 13px;

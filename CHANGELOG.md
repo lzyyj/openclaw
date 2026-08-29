@@ -15,6 +15,9 @@ Docs: https://docs.openclaw.ai
 - Web UI/Compaction: transcript compaction entries now render as summary cards showing the recorded summary text (instead of a bare divider) when the backend stored one.
 - Sessions/Archival: new `sessions.archive` / `sessions.restore` RPCs and UI actions let you hide a session from the default list while keeping its transcript recoverable; `sessions.list` gained `includeArchived`.
 - Sessions/Stats: `sessions.list` gained an opt-in `includeStats` (turns / message count / tool calls / wall time derived from the transcript) shown in the sessions table, plus an on-demand `sessions.stats` RPC.
+- Sessions/Pin: `sessions.patch` gained `pinned` — pinned sessions sort to the top of the list with a pin indicator and Pin/Unpin actions in the sessions page.
+- Sessions/Lineage: `sessions.list` rows now expose `spawnedBy`/`spawnDepth`, and the sessions page shows the subagent parent key in the row subtitle.
+- Sessions/Export: `/export` (and `/export-session`) now supports `json` and `jsonl` formats (`/export json`, `/export jsonl`, `/export --format=json [path]`) in addition to the default HTML export.
 - Sessions/Robustness: transcript reads now refuse formats written by a newer runtime with a clear error instead of silently misreading them, and session-file repair skips newer-format files untouched.
 - Subagents/Sessions: add `agents.defaults.subagents.runTimeoutSeconds` so `sessions_spawn` can inherit a configurable default timeout when the tool call omits `runTimeoutSeconds` (unset remains `0`, meaning no timeout). (#24594) Thanks @mitchmcalister.
 - Config/Kilo Gateway: Kilo provider flow now surfaces an updated list of models. (#24921) thanks @gumadeiras.

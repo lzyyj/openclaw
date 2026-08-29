@@ -423,6 +423,9 @@ export type GatewaySessionRow = {
   updatedAt: number | null;
   sessionId?: string;
   archivedAt?: number;
+  pinnedAt?: number;
+  spawnedBy?: string;
+  spawnDepth?: number;
   systemSent?: boolean;
   abortedLastRun?: boolean;
   thinkingLevel?: string;

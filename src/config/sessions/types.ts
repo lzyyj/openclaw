@@ -35,6 +35,8 @@ export type SessionEntry = {
   sessionFile?: string;
   /** Set when the session was archived: hidden from the default list, transcript kept, restorable. */
   archivedAt?: number;
+  /** Set when the user pinned the session: pinned sessions sort to the top of the list. */
+  pinnedAt?: number;
   /** Parent session key that spawned this session (used for sandbox session-tool scoping). */
   spawnedBy?: string;
   /** True after a thread/topic session has been forked from its parent transcript once. */

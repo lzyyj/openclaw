@@ -787,6 +787,59 @@ describe("gateway server sessions", () => {
     ws.close();
   });
 
+  test("sessions.patch pinned sorts the session to the top of the list", async () => {
+    const { dir } = await createSessionStoreDir();
+    await writeSingleLineSession(dir, "sess-a", "a");
+    await writeSingleLineSession(dir, "sess-b", "b");
+    await writeSessionStore({
+      entries: {
+        "discord:group:a": { sessionId: "sess-a", updatedAt: 100 },
+        "discord:group:b": { sessionId: "sess-b", updatedAt: 200 },
+      },
+    });
+
+    const { ws } = await openClient();
+
+    const before = await rpcReq<{ sessions: Array<{ key: string; pinnedAt?: number }> }>(
+      ws,
+      "sessions.list",
+      { includeGlobal: false, includeUnknown: false },
+    );
+    expect(before.payload?.sessions[0]?.key).toBe("agent:main:discord:group:b");
+
+    const patched = await rpcReq<{ ok: true }>(ws, "sessions.patch", {
+      key: "discord:group:a",
+      pinned: true,
+    });
+    expect(patched.ok).toBe(true);
+
+    const after = await rpcReq<{ sessions: Array<{ key: string; pinnedAt?: number }> }>(
+      ws,
+      "sessions.list",
+      { includeGlobal: false, includeUnknown: false },
+    );
+    expect(after.payload?.sessions[0]?.key).toBe("agent:main:discord:group:a");
+    expect(typeof after.payload?.sessions[0]?.pinnedAt).toBe("number");
+
+    const unpinned = await rpcReq<{ ok: true }>(ws, "sessions.patch", {
+      key: "discord:group:a",
+      pinned: false,
+    });
+    expect(unpinned.ok).toBe(true);
+
+    // After unpin the flag is cleared; ordering falls back to recency (the
+    // patch bumped `a`'s updatedAt, so it may still lead).
+    const afterUnpin = await rpcReq<{ sessions: Array<{ key: string; pinnedAt?: number }> }>(
+      ws,
+      "sessions.list",
+      { includeGlobal: false, includeUnknown: false },
+    );
+    const rowA = afterUnpin.payload?.sessions.find((s) => s.key === "agent:main:discord:group:a");
+    expect(rowA?.pinnedAt).toBeUndefined();
+
+    ws.close();
+  });
+
   test("sessions.delete does not emit lifecycle events when nothing was deleted", async () => {
     const { dir } = await createSessionStoreDir();
     await writeSingleLineSession(dir, "sess-main", "hello");

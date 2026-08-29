@@ -359,6 +359,14 @@ export async function applySessionsPatchToStore(params: {
     }
   }
 
+  if ("pinned" in patch) {
+    if (patch.pinned === true) {
+      next.pinnedAt = next.pinnedAt ?? now;
+    } else if (patch.pinned === false) {
+      delete next.pinnedAt;
+    }
+  }
+
   store[storeKey] = next;
   return { ok: true, entry: next };
 }

@@ -5,6 +5,7 @@ import {
   deleteSession,
   deleteSessionAndRefresh,
   loadSessions,
+  patchSession,
   restoreSession,
   restoreSessionAndRefresh,
   type SessionsState,
@@ -238,5 +239,31 @@ describe("restoreSessionAndRefresh", () => {
     expect(request).toHaveBeenNthCalledWith(1, "sessions.restore", { key: "agent:main:old" });
     expect(request).toHaveBeenNthCalledWith(2, "sessions.list", expect.any(Object));
     expect(state.sessionsLoading).toBe(false);
+  });
+});
+
+describe("patchSession", () => {
+  it("sends the pinned flag when provided", async () => {
+    const request = vi.fn(async () => undefined);
+    const state = createState(request);
+
+    await patchSession(state, "agent:main:main", { pinned: true });
+
+    expect(request).toHaveBeenCalledWith("sessions.patch", {
+      key: "agent:main:main",
+      pinned: true,
+    });
+  });
+
+  it("sends pinned:false to unpin", async () => {
+    const request = vi.fn(async () => undefined);
+    const state = createState(request);
+
+    await patchSession(state, "agent:main:main", { pinned: false });
+
+    expect(request).toHaveBeenCalledWith("sessions.patch", {
+      key: "agent:main:main",
+      pinned: false,
+    });
   });
 });

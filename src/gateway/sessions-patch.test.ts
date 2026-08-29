@@ -378,4 +378,47 @@ describe("gateway sessions patch", () => {
     expect(entry.providerOverride).toBe("synthetic");
     expect(entry.modelOverride).toBe("hf:moonshotai/Kimi-K2.5");
   });
+
+  test("pins and unpins a session via the pinned flag", async () => {
+    const store: Record<string, SessionEntry> = {
+      "agent:main:main": { sessionId: "s1", updatedAt: 1 },
+    };
+
+    const pinned = await applySessionsPatchToStore({
+      cfg: {} as OpenClawConfig,
+      store,
+      storeKey: "agent:main:main",
+      patch: { key: "agent:main:main", pinned: true },
+    });
+    expect(pinned.ok).toBe(true);
+    if (!pinned.ok) {
+      throw new Error(pinned.error.message);
+    }
+    expect(typeof pinned.entry.pinnedAt).toBe("number");
+
+    const again = await applySessionsPatchToStore({
+      cfg: {} as OpenClawConfig,
+      store,
+      storeKey: "agent:main:main",
+      patch: { key: "agent:main:main", pinned: true },
+    });
+    expect(again.ok).toBe(true);
+    if (!again.ok) {
+      throw new Error(again.error.message);
+    }
+    // Re-pinning keeps the original pinnedAt (stable sort position).
+    expect(again.entry.pinnedAt).toBe(pinned.entry.pinnedAt);
+
+    const unpinned = await applySessionsPatchToStore({
+      cfg: {} as OpenClawConfig,
+      store,
+      storeKey: "agent:main:main",
+      patch: { key: "agent:main:main", pinned: false },
+    });
+    expect(unpinned.ok).toBe(true);
+    if (!unpinned.ok) {
+      throw new Error(unpinned.error.message);
+    }
+    expect(unpinned.entry.pinnedAt).toBeUndefined();
+  });
 });

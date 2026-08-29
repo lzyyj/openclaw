@@ -202,3 +202,77 @@ describe("sessions view stats", () => {
     expect(cell?.textContent).not.toContain("turns");
   });
 });
+
+describe("sessions view pin and lineage", () => {
+  function actionButtonTexts(container: HTMLElement): string[] {
+    return Array.from(container.querySelectorAll("button")).map(
+      (button) => button.textContent?.trim() ?? "",
+    );
+  }
+
+  it("shows a pin dot and Unpin action for pinned sessions", async () => {
+    const container = document.createElement("div");
+    render(
+      renderSessions(
+        buildProps(
+          buildResult({
+            key: "agent:main:main",
+            kind: "direct",
+            updatedAt: Date.now(),
+            pinnedAt: Date.now(),
+          }),
+        ),
+      ),
+      container,
+    );
+    await Promise.resolve();
+
+    expect(container.querySelector(".session-pin-dot")).not.toBeNull();
+    const texts = actionButtonTexts(container);
+    expect(texts.some((text) => text === "Unpin" || text === "取消置顶")).toBe(true);
+    expect(texts.some((text) => text === "Pin" || text === "置顶")).toBe(false);
+  });
+
+  it("shows a Pin action for unpinned sessions", async () => {
+    const container = document.createElement("div");
+    render(
+      renderSessions(
+        buildProps(
+          buildResult({
+            key: "agent:main:main",
+            kind: "direct",
+            updatedAt: Date.now(),
+          }),
+        ),
+      ),
+      container,
+    );
+    await Promise.resolve();
+
+    expect(container.querySelector(".session-pin-dot")).toBeNull();
+    const texts = actionButtonTexts(container);
+    expect(texts.some((text) => text === "Pin" || text === "置顶")).toBe(true);
+  });
+
+  it("renders the subagent parent key in the lineage subtitle", async () => {
+    const container = document.createElement("div");
+    render(
+      renderSessions(
+        buildProps(
+          buildResult({
+            key: "agent:main:subagent:child",
+            kind: "direct",
+            updatedAt: Date.now(),
+            spawnedBy: "agent:main:main",
+            spawnDepth: 1,
+          }),
+        ),
+      ),
+      container,
+    );
+    await Promise.resolve();
+
+    const cell = container.querySelector(".session-key-cell");
+    expect(cell?.textContent).toContain("agent:main:main");
+  });
+});

@@ -820,6 +820,9 @@ export function listSessionsFromStore(params: {
         updatedAt,
         sessionId: entry?.sessionId,
         archivedAt: entry?.archivedAt,
+        pinnedAt: entry?.pinnedAt,
+        spawnedBy: entry?.spawnedBy,
+        spawnDepth: entry?.spawnDepth,
         systemSent: entry?.systemSent,
         abortedLastRun: entry?.abortedLastRun,
         thinkingLevel: entry?.thinkingLevel,
@@ -841,7 +844,10 @@ export function listSessionsFromStore(params: {
         lastAccountId: deliveryFields.lastAccountId ?? entry?.lastAccountId,
       };
     })
-    .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    // Pinned sessions float to the top (most recently pinned first), then by recency.
+    .toSorted(
+      (a, b) => (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0) || (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
+    );
 
   if (search) {
     sessions = sessions.filter((s) => {

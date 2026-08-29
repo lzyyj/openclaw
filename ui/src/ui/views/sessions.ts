@@ -32,6 +32,7 @@ export type SessionsProps = {
       thinkingLevel?: string | null;
       verboseLevel?: string | null;
       reasoningLevel?: string | null;
+      pinned?: boolean;
     },
   ) => void;
   onDelete: (key: string) => void;
@@ -305,6 +306,7 @@ export function renderSessions(props: SessionsProps) {
             : rows.map((row) =>
                 renderRow(row, props.basePath, props.onPatch, props.onDelete, props.loading, {
                   archived: Boolean(row.archivedAt),
+                  pinned: Boolean(row.pinnedAt),
                   onArchive: props.onArchive,
                   onRestore: props.onRestore,
                 }),
@@ -323,6 +325,7 @@ function renderRow(
   disabled: boolean,
   actions: {
     archived: boolean;
+    pinned: boolean;
     onArchive?: (key: string) => void;
     onRestore?: (key: string) => void;
   },
@@ -350,17 +353,29 @@ function renderRow(
           messages: String(stats.messages),
         })
       : null;
+  const lineageLabel =
+    typeof row.spawnedBy === "string" && row.spawnedBy.trim()
+      ? t("sessionsPage.spawnedByLabel", { parent: row.spawnedBy.trim() })
+      : null;
+  const subtitleParts = [showKeyMeta ? row.key : "", statsLabel ?? "", lineageLabel ?? ""].filter(
+    (part) => part.length > 0,
+  );
 
   return html`
     <div class="table-row">
       <div class="session-key-cell">
         <div class="session-title">
-          ${canLink ? html`<a href=${chatUrl} class="session-link">${title}</a>` : title}
+          <span class="session-title__name">
+            ${
+              actions.pinned
+                ? html`<span class="session-pin-dot" title=${t("sessionsPage.pinned")} aria-label=${t("sessionsPage.pinned")}></span>`
+                : nothing
+            }
+            ${canLink ? html`<a href=${chatUrl} class="session-link">${title}</a>` : title}
+          </span>
           ${
-            showKeyMeta || statsLabel
-              ? html`<span class="muted session-key-display-name">
-                  ${showKeyMeta ? row.key : ""}${showKeyMeta && statsLabel ? " · " : ""}${statsLabel ?? ""}
-                </span>`
+            subtitleParts.length > 0
+              ? html`<span class="muted session-key-display-name">${subtitleParts.join(" · ")}</span>`
               : nothing
           }
         </div>
@@ -428,6 +443,21 @@ function renderRow(
               </option>`,
           )}
         </select>
+      </div>
+      <div>
+        ${
+          actions.pinned
+            ? html`
+                <button class="btn" ?disabled=${disabled} @click=${() => onPatch(row.key, { pinned: false })}>
+                  ${t("sessionsPage.unpin")}
+                </button>
+              `
+            : html`
+                <button class="btn" ?disabled=${disabled} @click=${() => onPatch(row.key, { pinned: true })}>
+                  ${t("sessionsPage.pin")}
+                </button>
+              `
+        }
       </div>
       <div>
         ${

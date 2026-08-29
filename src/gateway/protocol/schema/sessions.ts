@@ -88,6 +88,8 @@ export const SessionsPatchParamsSchema = Type.Object(
     groupActivation: Type.Optional(
       Type.Union([Type.Literal("mention"), Type.Literal("always"), Type.Null()]),
     ),
+    /** Pin (true) or unpin (false) the session at the top of the list. */
+    pinned: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );

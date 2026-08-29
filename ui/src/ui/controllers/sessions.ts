@@ -138,6 +138,7 @@ export async function patchSession(
     thinkingLevel?: string | null;
     verboseLevel?: string | null;
     reasoningLevel?: string | null;
+    pinned?: boolean;
   },
 ) {
   if (!state.client || !state.connected) {
@@ -155,6 +156,9 @@ export async function patchSession(
   }
   if ("reasoningLevel" in patch) {
     params.reasoningLevel = patch.reasoningLevel;
+  }
+  if ("pinned" in patch) {
+    params.pinned = patch.pinned;
   }
   try {
     await state.client.request("sessions.patch", params);

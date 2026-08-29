@@ -98,19 +98,45 @@ function generateHtml(sessionData: SessionData): string {
     .replace("{{HIGHLIGHT_JS}}", hljsJs);
 }
 
-function parseExportArgs(commandBodyNormalized: string): { outputPath?: string } {
+type ExportFormat = "html" | "json" | "jsonl";
+
+export function parseExportArgs(commandBodyNormalized: string): {
+  outputPath?: string;
+  format?: ExportFormat;
+} {
   const normalized = commandBodyNormalized.trim();
   if (normalized === "/export-session" || normalized === "/export") {
     return {};
   }
   const args = normalized.replace(/^\/(export-session|export)\s*/, "").trim();
-  // First non-flag argument is the output path
-  const outputPath = args.split(/\s+/).find((part) => !part.startsWith("-"));
-  return { outputPath };
+  const parts = args.split(/\s+/);
+  let format: ExportFormat | undefined;
+  const positional: string[] = [];
+  for (const part of parts) {
+    const match = /^--format=(.+)$/.exec(part);
+    if (match) {
+      const value = match[1]?.toLowerCase() ?? "";
+      if (value === "json" || value === "jsonl" || value === "html") {
+        format = value;
+      }
+      continue;
+    }
+    if (part === "--format") {
+      format = undefined; // value follows as next positional; handled below
+      continue;
+    }
+    if (format === undefined && (part === "json" || part === "jsonl" || part === "html")) {
+      format = part;
+      continue;
+    }
+    positional.push(part);
+  }
+  return { outputPath: positional[0], format };
 }
 
 export async function buildExportSessionReply(params: HandleCommandsParams): Promise<ReplyPayload> {
   const args = parseExportArgs(params.command.commandBodyNormalized);
+  const format: ExportFormat = args.format ?? "html";
 
   // 1. Resolve session file
   const sessionEntry = params.sessionEntry;
@@ -164,12 +190,10 @@ export async function buildExportSessionReply(params: HandleCommandsParams): Pro
     })),
   };
 
-  // 5. Generate HTML
-  const html = generateHtml(sessionData);
-
-  // 6. Determine output path
+  // 5. Determine output path (format decides the default extension)
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const defaultFileName = `openclaw-session-${entry.sessionId.slice(0, 8)}-${timestamp}.html`;
+  const ext = format === "html" ? "html" : format;
+  const defaultFileName = `openclaw-session-${entry.sessionId.slice(0, 8)}-${timestamp}.${ext}`;
   const outputPath = args.outputPath
     ? path.resolve(
         args.outputPath.startsWith("~")
@@ -184,8 +208,22 @@ export async function buildExportSessionReply(params: HandleCommandsParams): Pro
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  // 7. Write file
-  fs.writeFileSync(outputPath, html, "utf-8");
+  // 6. Write file
+  if (format === "html") {
+    fs.writeFileSync(outputPath, generateHtml(sessionData), "utf-8");
+  } else if (format === "jsonl") {
+    // The transcript itself is JSONL — export the raw session log verbatim.
+    fs.copyFileSync(sessionFile, outputPath);
+  } else {
+    const structured = {
+      header,
+      leafId,
+      entries,
+      systemPrompt,
+      tools: sessionData.tools,
+    };
+    fs.writeFileSync(outputPath, `${JSON.stringify(structured, null, 2)}\n`, "utf-8");
+  }
 
   const relativePath = path.relative(params.workspaceDir, outputPath);
   const displayPath = relativePath.startsWith("..") ? outputPath : relativePath;
@@ -195,6 +233,7 @@ export async function buildExportSessionReply(params: HandleCommandsParams): Pro
       "✅ Session exported!",
       "",
       `📄 File: ${displayPath}`,
+      `📦 Format: ${format}`,
       `📊 Entries: ${entries.length}`,
       `🧠 System prompt: ${systemPrompt.length.toLocaleString()} chars`,
       `🔧 Tools: ${tools.length}`,

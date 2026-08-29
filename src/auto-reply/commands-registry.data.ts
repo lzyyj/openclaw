@@ -199,7 +199,8 @@ function buildChatCommands(): ChatCommandDefinition[] {
     defineChatCommand({
       key: "export-session",
       nativeName: "export-session",
-      description: "Export current session to HTML file with full system prompt.",
+      description:
+        "Export current session (html/json/jsonl) with full system prompt. Formats: /export, /export json, /export jsonl, /export --format=json [path].",
       textAliases: ["/export-session", "/export"],
       acceptsArgs: true,
       category: "status",
@@ -207,6 +208,12 @@ function buildChatCommands(): ChatCommandDefinition[] {
         {
           name: "path",
           description: "Output path (default: workspace)",
+          type: "string",
+          required: false,
+        },
+        {
+          name: "format",
+          description: "Export format: html (default), json, or jsonl",
           type: "string",
           required: false,
         },

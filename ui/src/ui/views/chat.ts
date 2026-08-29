@@ -347,6 +347,22 @@ export function renderChat(props: ChatProps) {
         chatItems,
         (item) => item.key,
         (item) => {
+          if (item.kind === "compaction") {
+            return html`
+              <div class="chat-compaction" role="note" data-key=${item.key} data-ts=${String(item.timestamp)}>
+                <div class="chat-compaction__label">
+                  <span class="chat-compaction__dot" aria-hidden="true"></span>
+                  ${item.label}
+                </div>
+                ${
+                  item.summary
+                    ? html`<div class="chat-compaction__summary">${item.summary}</div>`
+                    : nothing
+                }
+              </div>
+            `;
+          }
+
           if (item.kind === "divider") {
             return html`
               <div class="chat-divider" role="separator" data-key=${item.key} data-ts=${String(item.timestamp)}>
@@ -681,13 +697,15 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
     const raw = msg as Record<string, unknown>;
     const marker = raw.__openclaw as Record<string, unknown> | undefined;
     if (marker && marker.kind === "compaction") {
+      const summary = typeof marker.summary === "string" ? marker.summary.trim() : "";
       items.push({
-        kind: "divider",
+        kind: "compaction",
         key:
           typeof marker.id === "string"
-            ? `divider:compaction:${marker.id}`
-            : `divider:compaction:${normalized.timestamp}:${i}`,
+            ? `compaction:${marker.id}`
+            : `compaction:${normalized.timestamp}:${i}`,
         label: t("chat.compactionDivider"),
+        summary: summary || undefined,
         timestamp: normalized.timestamp ?? Date.now(),
       });
       continue;

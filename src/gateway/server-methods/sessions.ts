@@ -24,6 +24,7 @@ import {
 import {
   ErrorCodes,
   errorShape,
+  validateSessionsArchiveParams,
   validateSessionsCompactParams,
   validateSessionsDeleteParams,
   validateSessionsListParams,
@@ -31,6 +32,8 @@ import {
   validateSessionsPreviewParams,
   validateSessionsResetParams,
   validateSessionsResolveParams,
+  validateSessionsRestoreParams,
+  validateSessionsStatsParams,
 } from "../protocol/index.js";
 import {
   archiveFileOnDisk,
@@ -39,6 +42,7 @@ import {
   loadCombinedSessionStoreForGateway,
   loadSessionEntry,
   pruneLegacyStoreKeys,
+  readSessionConversationStats,
   readSessionPreviewItemsFromTranscript,
   resolveGatewaySessionStoreTarget,
   resolveSessionModelRef,
@@ -76,7 +80,7 @@ function resolveGatewaySessionTargetFromKey(key: string) {
 }
 
 function rejectWebchatSessionMutation(params: {
-  action: "patch" | "delete";
+  action: "patch" | "delete" | "archive" | "restore";
   client: GatewayClient | null;
   isWebchatConnect: (params: GatewayClient["connect"] | null | undefined) => boolean;
   respond: RespondFn;
@@ -481,6 +485,97 @@ export const sessionsHandlers: GatewayRequestHandlers = {
     }
 
     respond(true, { ok: true, key: target.canonicalKey, deleted, archived }, undefined);
+  },
+  "sessions.archive": async ({ params, respond, client, isWebchatConnect }) => {
+    if (!assertValidParams(params, validateSessionsArchiveParams, "sessions.archive", respond)) {
+      return;
+    }
+    const key = requireSessionKey((params as { key: unknown }).key, respond);
+    if (!key) {
+      return;
+    }
+    if (rejectWebchatSessionMutation({ action: "archive", client, isWebchatConnect, respond })) {
+      return;
+    }
+
+    const { cfg, target, storePath } = resolveGatewaySessionTargetFromKey(key);
+    const mainKey = resolveMainSessionKey(cfg);
+    if (target.canonicalKey === mainKey) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, `Cannot archive the main session (${mainKey}).`),
+      );
+      return;
+    }
+
+    const archivedAt = Date.now();
+    const entry = await updateSessionStore(storePath, (store) => {
+      const { primaryKey } = migrateAndPruneSessionStoreKey({ cfg, key, store });
+      const current = store[primaryKey];
+      if (!current) {
+        return null;
+      }
+      current.archivedAt = archivedAt;
+      return current;
+    });
+    if (!entry) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, `Session not found: ${key}`),
+      );
+      return;
+    }
+    respond(true, { ok: true, key: target.canonicalKey, archivedAt }, undefined);
+  },
+  "sessions.restore": async ({ params, respond, client, isWebchatConnect }) => {
+    if (!assertValidParams(params, validateSessionsRestoreParams, "sessions.restore", respond)) {
+      return;
+    }
+    const key = requireSessionKey((params as { key: unknown }).key, respond);
+    if (!key) {
+      return;
+    }
+    if (rejectWebchatSessionMutation({ action: "restore", client, isWebchatConnect, respond })) {
+      return;
+    }
+
+    const { cfg, target, storePath } = resolveGatewaySessionTargetFromKey(key);
+    const entry = await updateSessionStore(storePath, (store) => {
+      const { primaryKey } = migrateAndPruneSessionStoreKey({ cfg, key, store });
+      const current = store[primaryKey];
+      if (!current) {
+        return null;
+      }
+      delete current.archivedAt;
+      return current;
+    });
+    if (!entry) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, `Session not found: ${key}`),
+      );
+      return;
+    }
+    respond(true, { ok: true, key: target.canonicalKey }, undefined);
+  },
+  "sessions.stats": ({ params, respond }) => {
+    if (!assertValidParams(params, validateSessionsStatsParams, "sessions.stats", respond)) {
+      return;
+    }
+    const key = requireSessionKey((params as { key: unknown }).key, respond);
+    if (!key) {
+      return;
+    }
+    const { entry, storePath } = loadSessionEntry(key);
+    if (!entry?.sessionId) {
+      respond(true, { ok: true, key, stats: null }, undefined);
+      return;
+    }
+    const stats = readSessionConversationStats(entry.sessionId, storePath, entry.sessionFile);
+    respond(true, { ok: true, key, stats }, undefined);
   },
   "sessions.compact": async ({ params, respond }) => {
     if (!assertValidParams(params, validateSessionsCompactParams, "sessions.compact", respond)) {

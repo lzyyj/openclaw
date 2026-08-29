@@ -15,6 +15,8 @@ export type GatewaySessionRow = {
   displayName?: string;
   derivedTitle?: string;
   lastMessagePreview?: string;
+  /** Conversation stats derived from the transcript when includeStats was requested. */
+  stats?: { turns: number; messages: number; toolCalls: number; wallMs: number };
   channel?: string;
   subject?: string;
   groupChannel?: string;
@@ -23,6 +25,7 @@ export type GatewaySessionRow = {
   origin?: SessionEntry["origin"];
   updatedAt: number | null;
   sessionId?: string;
+  archivedAt?: number;
   systemSent?: boolean;
   abortedLastRun?: boolean;
   thinkingLevel?: string;

@@ -27,6 +27,7 @@ function buildProps(result: SessionsListResult): SessionsProps {
     limit: "120",
     includeGlobal: false,
     includeUnknown: false,
+    includeArchived: false,
     basePath: "",
     onFiltersChange: () => undefined,
     onRefresh: () => undefined,
@@ -154,5 +155,50 @@ describe("filterSessionRows", () => {
 
   it("returns no rows when nothing matches", () => {
     expect(filterSessionRows(rows, "zzz-nothing")).toHaveLength(0);
+  });
+});
+
+describe("sessions view stats", () => {
+  it("renders turn and message counts in the row subtitle", async () => {
+    const container = document.createElement("div");
+    render(
+      renderSessions(
+        buildProps(
+          buildResult({
+            key: "agent:main:main",
+            kind: "direct",
+            updatedAt: Date.now(),
+            derivedTitle: "Fix login",
+            stats: { turns: 3, messages: 12, toolCalls: 4, wallMs: 60_000 },
+          }),
+        ),
+      ),
+      container,
+    );
+    await Promise.resolve();
+
+    const cell = container.querySelector(".session-key-cell");
+    expect(cell?.textContent).toContain("3 turns");
+    expect(cell?.textContent).toContain("12 messages");
+  });
+
+  it("omits the stats line when stats are absent", async () => {
+    const container = document.createElement("div");
+    render(
+      renderSessions(
+        buildProps(
+          buildResult({
+            key: "agent:main:main",
+            kind: "direct",
+            updatedAt: Date.now(),
+          }),
+        ),
+      ),
+      container,
+    );
+    await Promise.resolve();
+
+    const cell = container.querySelector(".session-key-cell");
+    expect(cell?.textContent).not.toContain("turns");
   });
 });

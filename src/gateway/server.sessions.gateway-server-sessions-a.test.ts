@@ -665,6 +665,128 @@ describe("gateway server sessions", () => {
     ws.close();
   });
 
+  test("sessions.archive hides a session and sessions.restore brings it back", async () => {
+    const { dir } = await createSessionStoreDir();
+    await writeSingleLineSession(dir, "sess-main", "hello");
+    await writeSingleLineSession(dir, "sess-dev", "dev");
+    await writeSessionStore({
+      entries: {
+        main: { sessionId: "sess-main", updatedAt: Date.now() },
+        "discord:group:dev": { sessionId: "sess-dev", updatedAt: Date.now() },
+      },
+    });
+
+    const { ws } = await openClient();
+
+    const mainArchive = await rpcReq(ws, "sessions.archive", { key: "main" });
+    expect(mainArchive.ok).toBe(false);
+
+    const archived = await rpcReq<{ ok: true; archivedAt: number }>(ws, "sessions.archive", {
+      key: "discord:group:dev",
+    });
+    expect(archived.ok).toBe(true);
+    expect(typeof archived.payload?.archivedAt).toBe("number");
+
+    const hidden = await rpcReq<{ sessions: Array<{ key: string; archivedAt?: number }> }>(
+      ws,
+      "sessions.list",
+      { includeGlobal: false, includeUnknown: false },
+    );
+    expect(hidden.ok).toBe(true);
+    expect(hidden.payload?.sessions.some((s) => s.key === "agent:main:discord:group:dev")).toBe(
+      false,
+    );
+    expect(hidden.payload?.sessions.some((s) => s.key === "agent:main:main")).toBe(true);
+
+    const shown = await rpcReq<{ sessions: Array<{ key: string; archivedAt?: number }> }>(
+      ws,
+      "sessions.list",
+      { includeGlobal: false, includeUnknown: false, includeArchived: true },
+    );
+    expect(shown.ok).toBe(true);
+    const dev = shown.payload?.sessions.find((s) => s.key === "agent:main:discord:group:dev");
+    expect(dev?.archivedAt).toEqual(archived.payload?.archivedAt);
+
+    const restored = await rpcReq<{ ok: true }>(ws, "sessions.restore", {
+      key: "discord:group:dev",
+    });
+    expect(restored.ok).toBe(true);
+
+    const back = await rpcReq<{ sessions: Array<{ key: string; archivedAt?: number }> }>(
+      ws,
+      "sessions.list",
+      { includeGlobal: false, includeUnknown: false },
+    );
+    expect(back.ok).toBe(true);
+    expect(back.payload?.sessions.some((s) => s.key === "agent:main:discord:group:dev")).toBe(true);
+
+    ws.close();
+  });
+
+  test("sessions.stats returns conversation stats and sessions.list can include them", async () => {
+    const { dir } = await createSessionStoreDir();
+    await writeSingleLineSession(dir, "sess-main", "hello");
+    const base = Date.now() - 60_000;
+    await fs.writeFile(
+      path.join(dir, "sess-dev.jsonl"),
+      [
+        JSON.stringify({ type: "session", version: 3, id: "sess-dev" }),
+        JSON.stringify({ message: { role: "user", content: "Hi", timestamp: base } }),
+        JSON.stringify({
+          message: {
+            role: "assistant",
+            content: [
+              { type: "tool_use", name: "read" },
+              { type: "text", text: "done" },
+            ],
+            timestamp: base + 10_000,
+          },
+        }),
+      ].join("\n"),
+      "utf-8",
+    );
+    await writeSessionStore({
+      entries: {
+        main: { sessionId: "sess-main", updatedAt: Date.now() },
+        "discord:group:dev": { sessionId: "sess-dev", updatedAt: Date.now() },
+      },
+    });
+
+    const { ws } = await openClient();
+
+    const stats = await rpcReq<{ ok: true; stats: { turns: number; messages: number } | null }>(
+      ws,
+      "sessions.stats",
+      { key: "discord:group:dev" },
+    );
+    expect(stats.ok).toBe(true);
+    expect(stats.payload?.stats?.turns).toBe(1);
+    expect(stats.payload?.stats?.messages).toBe(2);
+
+    const listed = await rpcReq<{
+      sessions: Array<{ key: string; stats?: { turns: number } }>;
+    }>(ws, "sessions.list", {
+      includeGlobal: false,
+      includeUnknown: false,
+      includeStats: true,
+    });
+    expect(listed.ok).toBe(true);
+    const dev = listed.payload?.sessions.find((s) => s.key === "agent:main:discord:group:dev");
+    expect(dev?.stats?.turns).toBe(1);
+
+    // Without includeStats, no stats payload is attached.
+    const plain = await rpcReq<{ sessions: Array<{ stats?: unknown }> }>(ws, "sessions.list", {
+      includeGlobal: false,
+      includeUnknown: false,
+    });
+    const plainDev = plain.payload?.sessions.find(
+      (s) => (s as { key: string }).key === "agent:main:discord:group:dev",
+    );
+    expect(plainDev?.stats).toBeUndefined();
+
+    ws.close();
+  });
+
   test("sessions.delete does not emit lifecycle events when nothing was deleted", async () => {
     const { dir } = await createSessionStoreDir();
     await writeSingleLineSession(dir, "sess-main", "hello");

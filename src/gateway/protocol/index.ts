@@ -168,6 +168,8 @@ import {
   type ResponseFrame,
   ResponseFrameSchema,
   SendParamsSchema,
+  type SessionsArchiveParams,
+  SessionsArchiveParamsSchema,
   type SessionsCompactParams,
   SessionsCompactParamsSchema,
   type SessionsDeleteParams,
@@ -182,6 +184,10 @@ import {
   SessionsResetParamsSchema,
   type SessionsResolveParams,
   SessionsResolveParamsSchema,
+  type SessionsRestoreParams,
+  SessionsRestoreParamsSchema,
+  type SessionsStatsParams,
+  SessionsStatsParamsSchema,
   type SessionsUsageParams,
   SessionsUsageParamsSchema,
   type ShutdownEvent,
@@ -298,6 +304,14 @@ export const validateSessionsResetParams =
 export const validateSessionsDeleteParams = ajv.compile<SessionsDeleteParams>(
   SessionsDeleteParamsSchema,
 );
+export const validateSessionsArchiveParams = ajv.compile<SessionsArchiveParams>(
+  SessionsArchiveParamsSchema,
+);
+export const validateSessionsRestoreParams = ajv.compile<SessionsRestoreParams>(
+  SessionsRestoreParamsSchema,
+);
+export const validateSessionsStatsParams =
+  ajv.compile<SessionsStatsParams>(SessionsStatsParamsSchema);
 export const validateSessionsCompactParams = ajv.compile<SessionsCompactParams>(
   SessionsCompactParamsSchema,
 );

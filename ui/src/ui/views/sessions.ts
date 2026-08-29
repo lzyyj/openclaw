@@ -13,6 +13,7 @@ export type SessionsProps = {
   limit: string;
   includeGlobal: boolean;
   includeUnknown: boolean;
+  includeArchived: boolean;
   basePath: string;
   search?: string;
   onSearchChange?: (query: string) => void;
@@ -21,6 +22,7 @@ export type SessionsProps = {
     limit: string;
     includeGlobal: boolean;
     includeUnknown: boolean;
+    includeArchived: boolean;
   }) => void;
   onRefresh: () => void;
   onPatch: (
@@ -33,6 +35,8 @@ export type SessionsProps = {
     },
   ) => void;
   onDelete: (key: string) => void;
+  onArchive?: (key: string) => void;
+  onRestore?: (key: string) => void;
 };
 
 const THINK_LEVELS = ["", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
@@ -206,6 +210,7 @@ export function renderSessions(props: SessionsProps) {
                 limit: props.limit,
                 includeGlobal: props.includeGlobal,
                 includeUnknown: props.includeUnknown,
+                includeArchived: props.includeArchived,
               })}
           />
         </label>
@@ -219,6 +224,7 @@ export function renderSessions(props: SessionsProps) {
                 limit: (e.target as HTMLInputElement).value,
                 includeGlobal: props.includeGlobal,
                 includeUnknown: props.includeUnknown,
+                includeArchived: props.includeArchived,
               })}
           />
         </label>
@@ -233,6 +239,7 @@ export function renderSessions(props: SessionsProps) {
                 limit: props.limit,
                 includeGlobal: (e.target as HTMLInputElement).checked,
                 includeUnknown: props.includeUnknown,
+                includeArchived: props.includeArchived,
               })}
           />
         </label>
@@ -247,6 +254,22 @@ export function renderSessions(props: SessionsProps) {
                 limit: props.limit,
                 includeGlobal: props.includeGlobal,
                 includeUnknown: (e.target as HTMLInputElement).checked,
+                includeArchived: props.includeArchived,
+              })}
+          />
+        </label>
+        <label class="field checkbox">
+          <span>${t("sessionsPage.includeArchived")}</span>
+          <input
+            type="checkbox"
+            .checked=${props.includeArchived}
+            @change=${(e: Event) =>
+              props.onFiltersChange({
+                activeMinutes: props.activeMinutes,
+                limit: props.limit,
+                includeGlobal: props.includeGlobal,
+                includeUnknown: props.includeUnknown,
+                includeArchived: (e.target as HTMLInputElement).checked,
               })}
           />
         </label>
@@ -280,7 +303,11 @@ export function renderSessions(props: SessionsProps) {
                 <div class="muted">${t("sessionsPage.noSessions")}</div>
               `
             : rows.map((row) =>
-                renderRow(row, props.basePath, props.onPatch, props.onDelete, props.loading),
+                renderRow(row, props.basePath, props.onPatch, props.onDelete, props.loading, {
+                  archived: Boolean(row.archivedAt),
+                  onArchive: props.onArchive,
+                  onRestore: props.onRestore,
+                }),
               )
         }
       </div>
@@ -294,6 +321,11 @@ function renderRow(
   onPatch: SessionsProps["onPatch"],
   onDelete: SessionsProps["onDelete"],
   disabled: boolean,
+  actions: {
+    archived: boolean;
+    onArchive?: (key: string) => void;
+    onRestore?: (key: string) => void;
+  },
 ) {
   const updated = row.updatedAt ? formatRelativeTimestamp(row.updatedAt) : t("common.na");
   const rawThinking = row.thinkingLevel ?? "";
@@ -310,6 +342,14 @@ function renderRow(
     ? `${pathForTab("chat", basePath)}?session=${encodeURIComponent(row.key)}`
     : null;
   const showKeyMeta = title !== row.key;
+  const stats = row.stats;
+  const statsLabel =
+    stats && stats.messages > 0
+      ? t("sessionsPage.turnsLabel", {
+          turns: String(stats.turns),
+          messages: String(stats.messages),
+        })
+      : null;
 
   return html`
     <div class="table-row">
@@ -317,8 +357,10 @@ function renderRow(
         <div class="session-title">
           ${canLink ? html`<a href=${chatUrl} class="session-link">${title}</a>` : title}
           ${
-            showKeyMeta
-              ? html`<span class="muted session-key-display-name">${row.key}</span>`
+            showKeyMeta || statsLabel
+              ? html`<span class="muted session-key-display-name">
+                  ${showKeyMeta ? row.key : ""}${showKeyMeta && statsLabel ? " · " : ""}${statsLabel ?? ""}
+                </span>`
               : nothing
           }
         </div>
@@ -386,6 +428,29 @@ function renderRow(
               </option>`,
           )}
         </select>
+      </div>
+      <div>
+        ${
+          actions.archived
+            ? html`
+                <button
+                  class="btn"
+                  ?disabled=${disabled}
+                  @click=${() => actions.onRestore?.(row.key)}
+                >
+                  ${t("sessionsPage.restore")}
+                </button>
+              `
+            : html`
+                <button
+                  class="btn"
+                  ?disabled=${disabled}
+                  @click=${() => actions.onArchive?.(row.key)}
+                >
+                  ${t("sessionsPage.archive")}
+                </button>
+              `
+        }
       </div>
       <div>
         <button class="btn danger" ?disabled=${disabled} @click=${() => onDelete(row.key)}>

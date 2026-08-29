@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { CURRENT_SESSION_VERSION } from "@mariozechner/pi-coding-agent";
 
 type RepairReport = {
   repaired: boolean;
@@ -63,6 +64,22 @@ export async function repairSessionFileIfNeeded(params: {
       `session file repair skipped: invalid session header (${path.basename(sessionFile)})`,
     );
     return { repaired: false, droppedLines, reason: "invalid session header" };
+  }
+
+  // Never "repair" a transcript written by a newer runtime: the format may be
+  // structurally incompatible, and rewriting it would silently corrupt history.
+  const headerVersion = (entries[0] as { version?: unknown }).version;
+  if (typeof headerVersion === "number" && headerVersion > CURRENT_SESSION_VERSION) {
+    params.warn?.(
+      `session file repair skipped: newer format v${headerVersion} (supported v${CURRENT_SESSION_VERSION}) (${path.basename(
+        sessionFile,
+      )})`,
+    );
+    return {
+      repaired: false,
+      droppedLines,
+      reason: `newer session format v${headerVersion}`,
+    };
   }
 
   if (droppedLines === 0) {

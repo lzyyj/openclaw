@@ -168,6 +168,7 @@ export type AppViewState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  sessionsIncludeArchived: boolean;
   sessionsFilterQuery: string;
   chatHistoryHasMore: boolean;
   chatHistoryOldestTimestamp: number | null;

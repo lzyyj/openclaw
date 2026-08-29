@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { CURRENT_SESSION_VERSION } from "@mariozechner/pi-coding-agent";
 import {
   formatSessionArchiveTimestamp,
   parseSessionArchiveTimestamp,
@@ -70,6 +71,153 @@ function setCachedSessionTitleFields(cacheKey: string, stat: fs.Stats, value: Se
   }
 }
 
+/**
+ * Read-side session transcript format guard. Refuses a transcript written by a
+ * NEWER runtime (format version higher than this build supports) instead of
+ * silently misreading it; older-version and headerless (legacy/unstructured)
+ * files stay readable, and a missing file reports `missing`.
+ */
+export type SessionTranscriptCompatibility =
+  | { ok: true; kind: "current" | "legacy" | "missing" }
+  | { ok: false; kind: "newer"; version: number; supportedVersion: number };
+
+export function checkSessionTranscriptCompatibility(
+  sessionId: string,
+  storePath: string | undefined,
+  sessionFile?: string,
+): SessionTranscriptCompatibility {
+  const candidates = resolveSessionTranscriptCandidates(sessionId, storePath, sessionFile);
+  const filePath = candidates.find((p) => fs.existsSync(p));
+  if (!filePath) {
+    return { ok: true, kind: "missing" };
+  }
+  const lines = fs.readFileSync(filePath, "utf-8").split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.trim()) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(line);
+      if (parsed && typeof parsed === "object") {
+        const entry = parsed as { type?: unknown; version?: unknown };
+        if (entry.type === "session") {
+          const version = entry.version;
+          if (
+            typeof version === "number" &&
+            Number.isInteger(version) &&
+            version > CURRENT_SESSION_VERSION
+          ) {
+            return { ok: false, kind: "newer", version, supportedVersion: CURRENT_SESSION_VERSION };
+          }
+          return { ok: true, kind: version === CURRENT_SESSION_VERSION ? "current" : "legacy" };
+        }
+      }
+      // First record is not a session header — legacy/unstructured file.
+      return { ok: true, kind: "legacy" };
+    } catch {
+      // Unparseable first line — treat as legacy rather than failing the read.
+      return { ok: true, kind: "legacy" };
+    }
+  }
+  return { ok: true, kind: "missing" };
+}
+
+/**
+ * Lightweight per-session conversation statistics derived from the transcript
+ * (turn = one user prompt followed by the assistant work until the next user
+ * prompt; consecutive user messages collapse into one turn). Streams the file
+ * and counts only — never materializes the full message list.
+ */
+export type SessionConversationStats = {
+  turns: number;
+  messages: number;
+  toolCalls: number;
+  /** Epoch ms of the first message; null when the transcript has none. */
+  firstMessageAt: number | null;
+  /** Epoch ms of the last message; null when the transcript has none. */
+  lastMessageAt: number | null;
+  /** Wall time between first and last message, ms; 0 when fewer than two messages. */
+  wallMs: number;
+};
+
+export function readSessionConversationStats(
+  sessionId: string,
+  storePath: string | undefined,
+  sessionFile?: string,
+): SessionConversationStats | null {
+  const candidates = resolveSessionTranscriptCandidates(sessionId, storePath, sessionFile);
+  const filePath = candidates.find((p) => fs.existsSync(p));
+  if (!filePath) {
+    return null;
+  }
+  const stats: SessionConversationStats = {
+    turns: 0,
+    messages: 0,
+    toolCalls: 0,
+    firstMessageAt: null,
+    lastMessageAt: null,
+    wallMs: 0,
+  };
+  let lastRole: string | null = null;
+  const lines = fs.readFileSync(filePath, "utf-8").split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.trim()) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(line) as {
+        type?: unknown;
+        message?: {
+          role?: unknown;
+          timestamp?: unknown;
+          content?: Array<{ type?: unknown }>;
+        };
+        timestamp?: unknown;
+      };
+      const role = typeof parsed.message?.role === "string" ? parsed.message.role : "";
+      if (!role) {
+        continue;
+      }
+      stats.messages += 1;
+      const ts =
+        typeof parsed.message?.timestamp === "number"
+          ? parsed.message.timestamp
+          : typeof parsed.timestamp === "string"
+            ? Date.parse(parsed.timestamp)
+            : Number.NaN;
+      if (Number.isFinite(ts)) {
+        if (stats.firstMessageAt === null || ts < stats.firstMessageAt) {
+          stats.firstMessageAt = ts;
+        }
+        if (stats.lastMessageAt === null || ts > stats.lastMessageAt) {
+          stats.lastMessageAt = ts;
+        }
+      }
+      const lower = role.toLowerCase();
+      if (lower === "user") {
+        if (lastRole !== "user") {
+          stats.turns += 1;
+        }
+      } else if (lower === "assistant") {
+        const toolBlocks = Array.isArray(parsed.message?.content)
+          ? parsed.message.content.filter((block) => {
+              const type = block?.type;
+              return type === "tool_use" || type === "tool_call" || type === "toolCall";
+            }).length
+          : 0;
+        stats.toolCalls += toolBlocks;
+      }
+      lastRole = lower;
+    } catch {
+      // ignore malformed lines
+    }
+  }
+  if (stats.firstMessageAt !== null && stats.lastMessageAt !== null) {
+    stats.wallMs = Math.max(0, stats.lastMessageAt - stats.firstMessageAt);
+  }
+  return stats;
+}
+
 export function readSessionMessages(
   sessionId: string,
   storePath: string | undefined,
@@ -96,17 +244,21 @@ export function readSessionMessages(
       }
 
       // Compaction entries are not "message" records, but they're useful context for debugging.
-      // Emit a lightweight synthetic message that the Web UI can render as a divider.
+      // Emit a synthetic message that the Web UI renders as a summary card carrying
+      // the compaction's own summary text (when the backend recorded one).
       if (parsed?.type === "compaction") {
         const ts = typeof parsed.timestamp === "string" ? Date.parse(parsed.timestamp) : Number.NaN;
         const timestamp = Number.isFinite(ts) ? ts : Date.now();
+        const summary = typeof parsed.summary === "string" ? parsed.summary.trim() : "";
         messages.push({
           role: "system",
-          content: [{ type: "text", text: "Compaction" }],
+          content: [{ type: "text", text: summary || "Compaction" }],
           timestamp,
           __openclaw: {
             kind: "compaction",
             id: typeof parsed.id === "string" ? parsed.id : undefined,
+            summary: summary || undefined,
+            tokensBefore: typeof parsed.tokensBefore === "number" ? parsed.tokensBefore : undefined,
           },
         });
       }

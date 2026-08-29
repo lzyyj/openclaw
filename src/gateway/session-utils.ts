@@ -37,7 +37,10 @@ import {
   resolveAvatarMime,
 } from "../shared/avatar-policy.js";
 import { normalizeSessionDeliveryFields } from "../utils/delivery-context.js";
-import { readSessionTitleFieldsFromTranscript } from "./session-utils.fs.js";
+import {
+  readSessionConversationStats,
+  readSessionTitleFieldsFromTranscript,
+} from "./session-utils.fs.js";
 import type {
   GatewayAgentRow,
   GatewaySessionRow,
@@ -49,11 +52,13 @@ export {
   archiveFileOnDisk,
   archiveSessionTranscripts,
   capArrayByJsonBytes,
+  checkSessionTranscriptCompatibility,
   readFirstUserMessageFromTranscript,
   readLastMessagePreviewFromTranscript,
   readSessionTitleFieldsFromTranscript,
   readSessionPreviewItemsFromTranscript,
   readSessionMessages,
+  readSessionConversationStats,
   resolveSessionTranscriptCandidates,
 } from "./session-utils.fs.js";
 export type {
@@ -703,8 +708,10 @@ export function listSessionsFromStore(params: {
 
   const includeGlobal = opts.includeGlobal === true;
   const includeUnknown = opts.includeUnknown === true;
+  const includeArchived = opts.includeArchived === true;
   const includeDerivedTitles = opts.includeDerivedTitles === true;
   const includeLastMessage = opts.includeLastMessage === true;
+  const includeStats = opts.includeStats === true;
   const spawnedBy = typeof opts.spawnedBy === "string" ? opts.spawnedBy : "";
   const label = typeof opts.label === "string" ? opts.label.trim() : "";
   const agentId = typeof opts.agentId === "string" ? normalizeAgentId(opts.agentId) : "";
@@ -741,6 +748,14 @@ export function listSessionsFromStore(params: {
         return normalizeAgentId(parsed.agentId) === agentId;
       }
       return true;
+    })
+    .filter(([, entry]) => {
+      // Archived sessions are hidden from the default list and only shown
+      // when explicitly requested (restore flow).
+      if (includeArchived) {
+        return true;
+      }
+      return !entry?.archivedAt;
     })
     .filter(([key, entry]) => {
       if (!spawnedBy) {
@@ -804,6 +819,7 @@ export function listSessionsFromStore(params: {
         origin,
         updatedAt,
         sessionId: entry?.sessionId,
+        archivedAt: entry?.archivedAt,
         systemSent: entry?.systemSent,
         abortedLastRun: entry?.abortedLastRun,
         thinkingLevel: entry?.thinkingLevel,
@@ -848,6 +864,7 @@ export function listSessionsFromStore(params: {
     const { entry, ...rest } = s;
     let derivedTitle: string | undefined;
     let lastMessagePreview: string | undefined;
+    let stats: GatewaySessionRow["stats"];
     if (entry?.sessionId) {
       if (includeDerivedTitles || includeLastMessage) {
         const parsed = parseAgentSessionKey(s.key);
@@ -866,8 +883,19 @@ export function listSessionsFromStore(params: {
           lastMessagePreview = fields.lastMessagePreview;
         }
       }
+      if (includeStats) {
+        const scanned = readSessionConversationStats(entry.sessionId, storePath, entry.sessionFile);
+        if (scanned) {
+          stats = {
+            turns: scanned.turns,
+            messages: scanned.messages,
+            toolCalls: scanned.toolCalls,
+            wallMs: scanned.wallMs,
+          };
+        }
+      }
     }
-    return { ...rest, derivedTitle, lastMessagePreview } satisfies GatewaySessionRow;
+    return { ...rest, derivedTitle, lastMessagePreview, stats } satisfies GatewaySessionRow;
   });
 
   return {

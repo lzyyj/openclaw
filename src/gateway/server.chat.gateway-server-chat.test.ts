@@ -444,6 +444,38 @@ describe("gateway server chat", () => {
     }
   });
 
+  test("chat.history refuses a transcript written by a newer runtime", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gw-"));
+    try {
+      testState.sessionStorePath = path.join(dir, "sessions.json");
+      await writeSessionStore({
+        entries: {
+          main: {
+            sessionId: "sess-newer",
+            updatedAt: Date.now(),
+          },
+        },
+      });
+      await fs.writeFile(
+        path.join(dir, "sess-newer.jsonl"),
+        [
+          JSON.stringify({ type: "session", version: 999, id: "sess-newer" }),
+          JSON.stringify({ message: { role: "user", content: "Hi" } }),
+        ].join("\n"),
+        "utf-8",
+      );
+
+      const res = await rpcReq(ws, "chat.history", { sessionKey: "main" });
+      expect(res.ok).toBe(false);
+      const message = (res.error as { message?: string } | undefined)?.message ?? "";
+      expect(message).toContain("newer OpenClaw");
+      expect(message).toContain("v999");
+    } finally {
+      testState.sessionStorePath = undefined;
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("agent events include sessionKey and agent.wait covers lifecycle flows", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gw-"));
     testState.sessionStorePath = path.join(dir, "sessions.json");

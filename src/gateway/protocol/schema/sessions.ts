@@ -8,10 +8,20 @@ export const SessionsListParamsSchema = Type.Object(
     includeGlobal: Type.Optional(Type.Boolean()),
     includeUnknown: Type.Optional(Type.Boolean()),
     /**
+     * Include archived sessions (hidden from the default list). Defaults to false.
+     */
+    includeArchived: Type.Optional(Type.Boolean()),
+    /**
      * Read first 8KB of each session transcript to derive title from first user message.
      * Performs a file read per session - use `limit` to bound result set on large stores.
      */
     includeDerivedTitles: Type.Optional(Type.Boolean()),
+    /**
+     * Read the whole transcript per session to derive conversation stats
+     * (turns / message count / wall time). Expensive — use `limit` to bound
+     * the result set on large stores.
+     */
+    includeStats: Type.Optional(Type.Boolean()),
     /**
      * Read last 16KB of each session transcript to extract most recent message preview.
      * Performs a file read per session - use `limit` to bound result set on large stores.
@@ -96,6 +106,27 @@ export const SessionsDeleteParamsSchema = Type.Object(
     deleteTranscript: Type.Optional(Type.Boolean()),
     // Internal control: when false, still unbind thread bindings but skip hook emission.
     emitLifecycleHooks: Type.Optional(Type.Boolean()),
+  },
+  { additionalProperties: false },
+);
+
+export const SessionsArchiveParamsSchema = Type.Object(
+  {
+    key: NonEmptyString,
+  },
+  { additionalProperties: false },
+);
+
+export const SessionsRestoreParamsSchema = Type.Object(
+  {
+    key: NonEmptyString,
+  },
+  { additionalProperties: false },
+);
+
+export const SessionsStatsParamsSchema = Type.Object(
+  {
+    key: NonEmptyString,
   },
   { additionalProperties: false },
 );

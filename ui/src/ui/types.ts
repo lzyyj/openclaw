@@ -415,12 +415,14 @@ export type GatewaySessionRow = {
   label?: string;
   displayName?: string;
   derivedTitle?: string;
+  stats?: { turns: number; messages: number; toolCalls: number; wallMs: number };
   surface?: string;
   subject?: string;
   room?: string;
   space?: string;
   updatedAt: number | null;
   sessionId?: string;
+  archivedAt?: number;
   systemSent?: boolean;
   abortedLastRun?: boolean;
   thinkingLevel?: string;

@@ -5,8 +5,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "vite
 import { createToolSummaryPreviewTranscriptLines } from "./session-preview.test-helpers.js";
 import {
   archiveSessionTranscripts,
+  checkSessionTranscriptCompatibility,
   readFirstUserMessageFromTranscript,
   readLastMessagePreviewFromTranscript,
+  readSessionConversationStats,
   readSessionMessages,
   readSessionTitleFieldsFromTranscript,
   readSessionPreviewItemsFromTranscript,
@@ -495,13 +497,15 @@ describe("readSessionMessages", () => {
     const marker = out[1] as {
       role: string;
       content?: Array<{ text?: string }>;
-      __openclaw?: { kind?: string; id?: string };
+      __openclaw?: { kind?: string; id?: string; summary?: string; tokensBefore?: number };
       timestamp?: number;
     };
     expect(marker.role).toBe("system");
-    expect(marker.content?.[0]?.text).toBe("Compaction");
+    expect(marker.content?.[0]?.text).toBe("Compacted history");
     expect(marker.__openclaw?.kind).toBe("compaction");
     expect(marker.__openclaw?.id).toBe("comp-1");
+    expect(marker.__openclaw?.summary).toBe("Compacted history");
+    expect(marker.__openclaw?.tokensBefore).toBe(123);
     expect(typeof marker.timestamp).toBe("number");
   });
 
@@ -590,6 +594,133 @@ describe("readSessionMessages", () => {
     const third = out[2] as { timestamp?: number; __openclaw?: unknown };
     expect(third.timestamp).toBeUndefined();
     expect(third.__openclaw).toBeUndefined();
+  });
+});
+
+describe("checkSessionTranscriptCompatibility", () => {
+  let tmpDir: string;
+  let storePath: string;
+
+  registerTempSessionStore("openclaw-session-compat-test-", (nextTmpDir, nextStorePath) => {
+    tmpDir = nextTmpDir;
+    storePath = nextStorePath;
+  });
+
+  function writeTranscript(sessionId: string, lines: string[]) {
+    const transcriptPath = path.join(tmpDir, `${sessionId}.jsonl`);
+    fs.writeFileSync(transcriptPath, lines.join("\n"), "utf-8");
+  }
+
+  test("accepts a current-version header", () => {
+    const sessionId = "compat-current";
+    writeTranscript(sessionId, [
+      JSON.stringify({ type: "session", version: 3, id: sessionId }),
+      JSON.stringify({ message: { role: "user", content: "Hi" } }),
+    ]);
+    expect(checkSessionTranscriptCompatibility(sessionId, storePath)).toEqual({
+      ok: true,
+      kind: "current",
+    });
+  });
+
+  test("accepts an older-version header as legacy", () => {
+    const sessionId = "compat-legacy-version";
+    writeTranscript(sessionId, [
+      JSON.stringify({ type: "session", version: 1, id: sessionId }),
+      JSON.stringify({ message: { role: "user", content: "Hi" } }),
+    ]);
+    expect(checkSessionTranscriptCompatibility(sessionId, storePath)).toEqual({
+      ok: true,
+      kind: "legacy",
+    });
+  });
+
+  test("accepts a headerless transcript as legacy", () => {
+    const sessionId = "compat-headerless";
+    writeTranscript(sessionId, [JSON.stringify({ message: { role: "user", content: "Hi" } })]);
+    expect(checkSessionTranscriptCompatibility(sessionId, storePath)).toEqual({
+      ok: true,
+      kind: "legacy",
+    });
+  });
+
+  test("refuses a newer-version header instead of misreading it", () => {
+    const sessionId = "compat-newer";
+    writeTranscript(sessionId, [
+      JSON.stringify({ type: "session", version: 99, id: sessionId }),
+      JSON.stringify({ message: { role: "user", content: "Hi" } }),
+    ]);
+    expect(checkSessionTranscriptCompatibility(sessionId, storePath)).toEqual({
+      ok: false,
+      kind: "newer",
+      version: 99,
+      supportedVersion: 3,
+    });
+  });
+
+  test("reports missing transcripts as readable/missing", () => {
+    expect(checkSessionTranscriptCompatibility("compat-missing", storePath)).toEqual({
+      ok: true,
+      kind: "missing",
+    });
+  });
+});
+
+describe("readSessionConversationStats", () => {
+  let tmpDir: string;
+  let storePath: string;
+
+  registerTempSessionStore("openclaw-session-stats-test-", (nextTmpDir, nextStorePath) => {
+    tmpDir = nextTmpDir;
+    storePath = nextStorePath;
+  });
+
+  function writeTranscript(sessionId: string, lines: string[]) {
+    const transcriptPath = path.join(tmpDir, `${sessionId}.jsonl`);
+    fs.writeFileSync(transcriptPath, lines.join("\n"), "utf-8");
+  }
+
+  test("counts turns, messages, tool calls and wall time", () => {
+    const sessionId = "stats-session";
+    const base = Date.parse("2026-02-07T00:00:00.000Z");
+    const lines = [
+      JSON.stringify({ type: "session", version: 3, id: sessionId }),
+      JSON.stringify({
+        message: { role: "user", content: "Hi", timestamp: base },
+      }),
+      JSON.stringify({
+        message: {
+          role: "assistant",
+          content: [
+            { type: "tool_use", name: "read" },
+            { type: "text", text: "done" },
+          ],
+          timestamp: base + 10_000,
+        },
+      }),
+      // Consecutive user messages collapse into one turn.
+      JSON.stringify({
+        message: { role: "user", content: "follow-up", timestamp: base + 20_000 },
+      }),
+      JSON.stringify({
+        message: { role: "assistant", content: "final", timestamp: base + 30_000 },
+      }),
+    ];
+    writeTranscript(sessionId, lines);
+
+    const stats = readSessionConversationStats(sessionId, storePath);
+    expect(stats).toEqual({
+      turns: 2,
+      messages: 4,
+      toolCalls: 1,
+      firstMessageAt: base,
+      lastMessageAt: base + 30_000,
+      wallMs: 30_000,
+    });
+  });
+
+  test("returns null for a missing transcript", () => {
+    expect(readSessionConversationStats("stats-missing", storePath)).toBeNull();
   });
 });
 

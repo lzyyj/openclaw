@@ -223,4 +223,58 @@ describe("chat view", () => {
     expect(onNewSession).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain("Stop");
   });
+
+  it("renders a compaction card with the recorded summary", async () => {
+    const container = document.createElement("div");
+    render(
+      renderChat(
+        createProps({
+          messages: [
+            {
+              role: "system",
+              content: [{ type: "text", text: "Summarized earlier context" }],
+              timestamp: 100,
+              __openclaw: {
+                kind: "compaction",
+                id: "comp-9",
+                summary: "Summarized earlier context",
+              },
+            },
+          ],
+        }),
+      ),
+      container,
+    );
+    await Promise.resolve();
+
+    const card = container.querySelector(".chat-compaction");
+    expect(card).not.toBeNull();
+    expect(card?.querySelector(".chat-compaction__summary")?.textContent).toContain(
+      "Summarized earlier context",
+    );
+  });
+
+  it("renders a bare compaction card when the record has no summary", async () => {
+    const container = document.createElement("div");
+    render(
+      renderChat(
+        createProps({
+          messages: [
+            {
+              role: "system",
+              content: [{ type: "text", text: "Compaction" }],
+              timestamp: 100,
+              __openclaw: { kind: "compaction", id: "comp-0" },
+            },
+          ],
+        }),
+      ),
+      container,
+    );
+    await Promise.resolve();
+
+    const card = container.querySelector(".chat-compaction");
+    expect(card).not.toBeNull();
+    expect(card?.querySelector(".chat-compaction__summary")).toBeNull();
+  });
 });

@@ -39,6 +39,7 @@ import {
 import { getMaxChatHistoryMessagesBytes } from "../server-constants.js";
 import {
   capArrayByJsonBytes,
+  checkSessionTranscriptCompatibility,
   loadSessionEntry,
   readSessionMessages,
   resolveSessionModelRef,
@@ -553,6 +554,20 @@ export const chatHandlers: GatewayRequestHandlers = {
     };
     const { cfg, storePath, entry } = loadSessionEntry(sessionKey);
     const sessionId = entry?.sessionId;
+    if (sessionId && storePath) {
+      const compat = checkSessionTranscriptCompatibility(sessionId, storePath, entry?.sessionFile);
+      if (!compat.ok) {
+        respond(
+          false,
+          undefined,
+          errorShape(
+            ErrorCodes.UNAVAILABLE,
+            `session transcript uses format v${compat.version}, but this build supports only v${compat.supportedVersion}: the transcript was written by a newer OpenClaw — upgrade OpenClaw to read this session`,
+          ),
+        );
+        return;
+      }
+    }
     const rawMessages =
       sessionId && storePath ? readSessionMessages(sessionId, storePath, entry?.sessionFile) : [];
     const hardMax = 1000;

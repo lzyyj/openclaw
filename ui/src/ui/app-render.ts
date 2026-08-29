@@ -61,7 +61,13 @@ import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPlugins, updatePluginEnabled } from "./controllers/plugins.ts";
 import { loadPresence } from "./controllers/presence.ts";
-import { deleteSessionAndRefresh, loadSessions, patchSession } from "./controllers/sessions.ts";
+import {
+  archiveSessionAndRefresh,
+  deleteSessionAndRefresh,
+  loadSessions,
+  patchSession,
+  restoreSessionAndRefresh,
+} from "./controllers/sessions.ts";
 import {
   installSkill,
   loadSkills,
@@ -443,20 +449,30 @@ export function renderApp(state: AppViewState) {
                 limit: state.sessionsFilterLimit,
                 includeGlobal: state.sessionsIncludeGlobal,
                 includeUnknown: state.sessionsIncludeUnknown,
+                includeArchived: state.sessionsIncludeArchived,
                 search: state.sessionsFilterQuery,
                 onSearchChange: (query) => {
                   state.sessionsFilterQuery = query;
                 },
                 basePath: state.basePath,
                 onFiltersChange: (next) => {
+                  const archivedChanged = next.includeArchived !== state.sessionsIncludeArchived;
                   state.sessionsFilterActive = next.activeMinutes;
                   state.sessionsFilterLimit = next.limit;
                   state.sessionsIncludeGlobal = next.includeGlobal;
                   state.sessionsIncludeUnknown = next.includeUnknown;
+                  state.sessionsIncludeArchived = next.includeArchived;
+                  // Archived visibility is a server-side filter: reload only
+                  // when that toggle flips, not on every keystroke.
+                  if (archivedChanged) {
+                    void loadSessions(state, { includeStats: true });
+                  }
                 },
-                onRefresh: () => loadSessions(state),
+                onRefresh: () => loadSessions(state, { includeStats: true }),
                 onPatch: (key, patch) => patchSession(state, key, patch),
                 onDelete: (key) => deleteSessionAndRefresh(state, key),
+                onArchive: (key) => archiveSessionAndRefresh(state, key),
+                onRestore: (key) => restoreSessionAndRefresh(state, key),
               })
             : nothing
         }

@@ -1,13 +1,14 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { CURRENT_SESSION_VERSION } from "@mariozechner/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { repairSessionFileIfNeeded } from "./session-file-repair.js";
 
 function buildSessionHeaderAndMessage() {
   const header = {
     type: "session",
-    version: 7,
+    version: CURRENT_SESSION_VERSION,
     id: "session-1",
     timestamp: new Date().toISOString(),
     cwd: "/tmp",
@@ -96,5 +97,31 @@ describe("repairSessionFileIfNeeded", () => {
     expect(result.repaired).toBe(false);
     expect(result.reason).toContain("failed to read session file");
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns and skips repair for transcripts written by a newer runtime", async () => {
+    const { file } = await createTempSessionPath();
+    const { message } = buildSessionHeaderAndMessage();
+    const newerHeader = {
+      type: "session",
+      version: CURRENT_SESSION_VERSION + 1,
+      id: "session-newer",
+      timestamp: new Date().toISOString(),
+      cwd: "/tmp",
+    };
+    const content = `${JSON.stringify(newerHeader)}\n${JSON.stringify(message)}\n{"type":"message"`;
+    await fs.writeFile(file, content, "utf-8");
+
+    const warn = vi.fn();
+    const result = await repairSessionFileIfNeeded({ sessionFile: file, warn });
+
+    expect(result.repaired).toBe(false);
+    expect(result.reason).toContain("newer session format");
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain("newer format");
+
+    // The newer-format file must be left byte-identical.
+    const untouched = await fs.readFile(file, "utf-8");
+    expect(untouched).toBe(content);
   });
 });

@@ -118,6 +118,7 @@ import type {
 } from "./nodes.js";
 import type { PushTestParamsSchema, PushTestResultSchema } from "./push.js";
 import type {
+  SessionsArchiveParamsSchema,
   SessionsCompactParamsSchema,
   SessionsDeleteParamsSchema,
   SessionsListParamsSchema,
@@ -125,6 +126,8 @@ import type {
   SessionsPreviewParamsSchema,
   SessionsResetParamsSchema,
   SessionsResolveParamsSchema,
+  SessionsRestoreParamsSchema,
+  SessionsStatsParamsSchema,
   SessionsUsageParamsSchema,
 } from "./sessions.js";
 import type { PresenceEntrySchema, SnapshotSchema, StateVersionSchema } from "./snapshot.js";
@@ -174,6 +177,9 @@ export type SessionsResolveParams = Static<typeof SessionsResolveParamsSchema>;
 export type SessionsPatchParams = Static<typeof SessionsPatchParamsSchema>;
 export type SessionsResetParams = Static<typeof SessionsResetParamsSchema>;
 export type SessionsDeleteParams = Static<typeof SessionsDeleteParamsSchema>;
+export type SessionsArchiveParams = Static<typeof SessionsArchiveParamsSchema>;
+export type SessionsRestoreParams = Static<typeof SessionsRestoreParamsSchema>;
+export type SessionsStatsParams = Static<typeof SessionsStatsParamsSchema>;
 export type SessionsCompactParams = Static<typeof SessionsCompactParamsSchema>;
 export type SessionsUsageParams = Static<typeof SessionsUsageParamsSchema>;
 export type ConfigGetParams = Static<typeof ConfigGetParamsSchema>;

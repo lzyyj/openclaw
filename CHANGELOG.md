@@ -12,6 +12,10 @@ Docs: https://docs.openclaw.ai
 ### Changes
 
 - Web UI/Sessions: the sessions page now shows auto-derived session titles (label > first user message > group name), adds a search box that filters loaded sessions by title/label/key, and the chat view gains older-history pagination ("Load older messages") with scroll-position preservation via a new `chat.history` `before` cursor.
+- Web UI/Compaction: transcript compaction entries now render as summary cards showing the recorded summary text (instead of a bare divider) when the backend stored one.
+- Sessions/Archival: new `sessions.archive` / `sessions.restore` RPCs and UI actions let you hide a session from the default list while keeping its transcript recoverable; `sessions.list` gained `includeArchived`.
+- Sessions/Stats: `sessions.list` gained an opt-in `includeStats` (turns / message count / tool calls / wall time derived from the transcript) shown in the sessions table, plus an on-demand `sessions.stats` RPC.
+- Sessions/Robustness: transcript reads now refuse formats written by a newer runtime with a clear error instead of silently misreading them, and session-file repair skips newer-format files untouched.
 - Subagents/Sessions: add `agents.defaults.subagents.runTimeoutSeconds` so `sessions_spawn` can inherit a configurable default timeout when the tool call omits `runTimeoutSeconds` (unset remains `0`, meaning no timeout). (#24594) Thanks @mitchmcalister.
 - Config/Kilo Gateway: Kilo provider flow now surfaces an updated list of models. (#24921) thanks @gumadeiras.
 - Auto-reply/Abort shortcuts: expand standalone stop phrases (`stop openclaw`, `stop action`, `stop run`, `stop agent`, `please stop`, and related variants) and accept trailing punctuation (for example `STOP OPENCLAW!!!`) so emergency stop messages are caught more reliably.

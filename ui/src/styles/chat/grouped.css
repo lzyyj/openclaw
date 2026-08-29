@@ -81,6 +81,50 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+/* Compaction summary card (replaces the bare divider when the transcript
+   carries a summary: a compact, muted block that preserves the boundary
+   affordance while surfacing the summarized context). */
+.chat-compaction {
+  margin: 14px 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent, var(--border));
+  border-radius: var(--radius-md, 10px);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+}
+
+.chat-compaction__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.chat-compaction__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.6;
+}
+
+.chat-compaction__summary {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Avatar Styles */
 .chat-avatar {
   width: 40px;

@@ -17,6 +17,7 @@ import {
 import {
   handleAbortChat as handleAbortChatInternal,
   handleInterruptChat as handleInterruptChatInternal,
+  handleLoadOlderChat as handleLoadOlderChatInternal,
   handleQueueInterrupt as handleQueueInterruptInternal,
   handleSendChat as handleSendChatInternal,
   removeQueuedMessage as removeQueuedMessageInternal,
@@ -161,6 +162,9 @@ export class OpenClawApp extends LitElement {
   @state() chatQueue: ChatQueueItem[] = [];
   @state() chatAttachments: ChatAttachment[] = [];
   @state() chatManualRefreshInFlight = false;
+  @state() chatHistoryHasMore = false;
+  @state() chatHistoryOldestTimestamp: number | null = null;
+  @state() chatLoadingMore = false;
   // Sidebar state for tool output viewing
   @state() sidebarOpen = false;
   @state() sidebarContent: string | null = null;
@@ -254,6 +258,7 @@ export class OpenClawApp extends LitElement {
   @state() sessionsFilterLimit = "120";
   @state() sessionsIncludeGlobal = true;
   @state() sessionsIncludeUnknown = false;
+  @state() sessionsFilterQuery = "";
 
   @state() usageLoading = false;
   @state() usageResult: import("./types.js").SessionsUsageResult | null = null;
@@ -435,6 +440,12 @@ export class OpenClawApp extends LitElement {
     handleChatScrollInternal(
       this as unknown as Parameters<typeof handleChatScrollInternal>[0],
       event,
+    );
+  }
+
+  handleLoadOlderChat() {
+    return handleLoadOlderChatInternal(
+      this as unknown as Parameters<typeof handleLoadOlderChatInternal>[0],
     );
   }
 

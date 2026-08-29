@@ -140,6 +140,8 @@ export const zh_TW: TranslationMap = {
     compacting: "正在壓縮上下文…",
     compacted: "上下文已壓縮",
     compactionDivider: "壓縮記錄",
+    loadOlder: "載入更早的訊息",
+    loadingOlder: "正在載入更早的訊息…",
     fallbackActive: "備用模型活躍：{model}",
     retrying: "模型回應逾時，正在重試：{model}",
     fallbackCleared: "備用模型已清除：{model}",

@@ -143,6 +143,8 @@ export const pt_BR: TranslationMap = {
     compacting: "Compactando contexto...",
     compacted: "Contexto compactado",
     compactionDivider: "Compactação",
+    loadOlder: "Carregar mensagens mais antigas",
+    loadingOlder: "Carregando mensagens mais antigas…",
     fallbackActive: "Fallback ativo: {model}",
     retrying: "Tempo esgotado, tentando novamente: {model}",
     fallbackCleared: "Fallback limpo: {model}",

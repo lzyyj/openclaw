@@ -12,6 +12,7 @@ export type SessionsState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  sessionsFilterQuery: string;
 };
 
 export async function loadSessions(
@@ -39,6 +40,10 @@ export async function loadSessions(
     const params: Record<string, unknown> = {
       includeGlobal,
       includeUnknown,
+      // The gateway derives per-session titles from the first user message
+      // (displayName > subject > first message > session id); the UI shows
+      // them in the sessions table.
+      includeDerivedTitles: true,
     };
     if (activeMinutes > 0) {
       params.activeMinutes = activeMinutes;

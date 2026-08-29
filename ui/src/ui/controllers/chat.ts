@@ -19,6 +19,12 @@ export type ChatState = {
   lastError: string | null;
   /** Structured error classification ("billing" | "rate_limit" | "auth" | "timeout" | ...). */
   lastErrorKind: string | null;
+  /** Whether older transcript messages exist beyond the currently loaded window. */
+  chatHistoryHasMore: boolean;
+  /** Oldest loaded message timestamp (ms) — the next `before` cursor. */
+  chatHistoryOldestTimestamp: number | null;
+  /** True while an older-page request is in flight. */
+  chatLoadingMore: boolean;
 };
 
 export type ChatEventPayload = {
@@ -38,21 +44,97 @@ export async function loadChatHistory(state: ChatState) {
   state.lastError = null;
   state.lastErrorKind = null;
   try {
-    const res = await state.client.request<{ messages?: Array<unknown>; thinkingLevel?: string }>(
-      "chat.history",
-      {
-        sessionKey: state.sessionKey,
-        limit: 200,
-      },
-    );
+    const res = await state.client.request<{
+      messages?: Array<unknown>;
+      thinkingLevel?: string;
+      hasMore?: boolean;
+      oldestTimestamp?: number | null;
+    }>("chat.history", {
+      sessionKey: state.sessionKey,
+      limit: 200,
+    });
     state.chatMessages = Array.isArray(res.messages) ? res.messages : [];
     state.chatThinkingLevel = res.thinkingLevel ?? null;
+    state.chatHistoryHasMore = res.hasMore === true;
+    state.chatHistoryOldestTimestamp =
+      typeof res.oldestTimestamp === "number" ? res.oldestTimestamp : null;
   } catch (err) {
     state.lastError = String(err);
     state.lastErrorKind = null;
   } finally {
     state.chatLoading = false;
   }
+}
+
+/**
+ * Load the next older page of transcript messages and prepend it to the
+ * loaded window. Uses the oldest loaded timestamp as the `before` cursor, so
+ * pages never overlap by construction; a defensive key-based dedupe keeps a
+ * budget-truncated page from re-adding messages the UI already holds.
+ */
+export async function loadOlderChatHistory(state: ChatState) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  if (state.chatLoadingMore) {
+    return;
+  }
+  if (!state.chatHistoryHasMore) {
+    return;
+  }
+  const before = state.chatHistoryOldestTimestamp;
+  if (before === null) {
+    return;
+  }
+  state.chatLoadingMore = true;
+  try {
+    const res = await state.client.request<{
+      messages?: Array<unknown>;
+      hasMore?: boolean;
+      oldestTimestamp?: number | null;
+    }>("chat.history", {
+      sessionKey: state.sessionKey,
+      limit: 200,
+      before,
+    });
+    const older = Array.isArray(res.messages) ? res.messages : [];
+    if (older.length > 0) {
+      const held = new Set(state.chatMessages.map(messageIdentityKey));
+      const fresh = older.filter((message) => !held.has(messageIdentityKey(message)));
+      if (fresh.length > 0) {
+        state.chatMessages = [...fresh, ...state.chatMessages];
+      }
+    }
+    state.chatHistoryHasMore = res.hasMore === true;
+    state.chatHistoryOldestTimestamp =
+      typeof res.oldestTimestamp === "number" ? res.oldestTimestamp : null;
+  } catch (err) {
+    state.lastError = String(err);
+    state.lastErrorKind = null;
+  } finally {
+    state.chatLoadingMore = false;
+  }
+}
+
+/** Stable identity for one chat message (transcript messageId when present). */
+function messageIdentityKey(message: unknown): string {
+  const m = message as Record<string, unknown>;
+  const marker =
+    m.__openclaw && typeof m.__openclaw === "object"
+      ? (m.__openclaw as Record<string, unknown>)
+      : undefined;
+  const id = typeof marker?.messageId === "string" ? marker.messageId : "";
+  if (id) {
+    return `id:${id}`;
+  }
+  const toolCallId = typeof m.toolCallId === "string" ? m.toolCallId : "";
+  if (toolCallId) {
+    return `tool:${toolCallId}`;
+  }
+  const role = typeof m.role === "string" ? m.role : "unknown";
+  const timestamp = typeof m.timestamp === "number" ? m.timestamp : 0;
+  const text = extractText(message) ?? "";
+  return `msg:${role}:${timestamp}:${text.length}:${text.slice(0, 40)}`;
 }
 
 function dataUrlToBase64(dataUrl: string): { content: string; mimeType: string } | null {

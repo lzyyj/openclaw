@@ -443,6 +443,10 @@ export function renderApp(state: AppViewState) {
                 limit: state.sessionsFilterLimit,
                 includeGlobal: state.sessionsIncludeGlobal,
                 includeUnknown: state.sessionsIncludeUnknown,
+                search: state.sessionsFilterQuery,
+                onSearchChange: (query) => {
+                  state.sessionsFilterQuery = query;
+                },
                 basePath: state.basePath,
                 onFiltersChange: (next) => {
                   state.sessionsFilterActive = next.activeMinutes;
@@ -1078,6 +1082,9 @@ export function renderApp(state: AppViewState) {
                 onNewSession: () => state.handleSendChat("/new", { restoreDraft: true }),
                 showNewMessages: state.chatNewMessagesBelow && !state.chatManualRefreshInFlight,
                 onScrollToBottom: () => state.scrollToBottom(),
+                hasMore: state.chatHistoryHasMore,
+                loadingMore: state.chatLoadingMore,
+                onLoadOlder: () => void state.handleLoadOlderChat(),
                 // Sidebar props for tool output viewing
                 sidebarOpen: state.sidebarOpen,
                 sidebarContent: state.sidebarContent,

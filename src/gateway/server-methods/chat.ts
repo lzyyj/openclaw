@@ -546,9 +546,10 @@ export const chatHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    const { sessionKey, limit } = params as {
+    const { sessionKey, limit, before } = params as {
       sessionKey: string;
       limit?: number;
+      before?: number;
     };
     const { cfg, storePath, entry } = loadSessionEntry(sessionKey);
     const sessionId = entry?.sessionId;
@@ -558,7 +559,21 @@ export const chatHandlers: GatewayRequestHandlers = {
     const defaultLimit = 200;
     const requested = typeof limit === "number" ? limit : defaultLimit;
     const max = Math.min(hardMax, requested);
-    const sliced = rawMessages.length > max ? rawMessages.slice(-max) : rawMessages;
+    // Older-page pagination: when a `before` cursor is present, restrict the
+    // candidate window to messages strictly older than it (timestamp-ordered
+    // transcript records). Messages without a numeric timestamp stay on the
+    // newest page and never appear in an older page.
+    const hasValidCursor = typeof before === "number" && Number.isFinite(before) && before > 0;
+    const candidates = hasValidCursor
+      ? rawMessages.filter((message) => {
+          const ts = (message as { timestamp?: unknown }).timestamp;
+          return typeof ts === "number" && ts < before;
+        })
+      : rawMessages;
+    const sliced = candidates.length > max ? candidates.slice(-max) : candidates;
+    // Older messages remain beyond the returned window whenever the candidate
+    // set is larger than the page we are about to serve.
+    const hasMore = candidates.length > sliced.length;
     const sanitized = stripEnvelopeFromMessages(sliced);
     const normalized = sanitizeChatHistoryMessages(sanitized);
     const maxHistoryBytes = getMaxChatHistoryMessagesBytes();
@@ -575,6 +590,17 @@ export const chatHandlers: GatewayRequestHandlers = {
       context.logGateway.debug(
         `chat.history omitted oversized payloads placeholders=${placeholderCount} total=${chatHistoryPlaceholderEmitCount}`,
       );
+    }
+    // Oldest timestamp of the served page — the next `before` cursor. The
+    // byte budget may have dropped old messages, so this is derived from the
+    // final bounded window, keeping the cursor consistent with what the UI
+    // actually holds (no skipped or re-fetched messages).
+    let oldestTimestamp: number | null = null;
+    for (const message of bounded.messages) {
+      const ts = (message as { timestamp?: unknown }).timestamp;
+      if (typeof ts === "number" && (oldestTimestamp === null || ts < oldestTimestamp)) {
+        oldestTimestamp = ts;
+      }
     }
     let thinkingLevel = entry?.thinkingLevel;
     if (!thinkingLevel) {
@@ -600,6 +626,8 @@ export const chatHandlers: GatewayRequestHandlers = {
       messages: bounded.messages,
       thinkingLevel,
       verboseLevel,
+      hasMore,
+      oldestTimestamp,
     });
   },
   "chat.abort": ({ params, respond, context }) => {

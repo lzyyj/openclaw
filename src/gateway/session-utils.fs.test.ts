@@ -553,6 +553,44 @@ describe("readSessionMessages", () => {
       expect(out).toEqual([testCase.message]);
     }
   });
+
+  test("attaches record timestamp and messageId for paging consumers", () => {
+    const sessionId = "test-session-record-meta";
+    const transcriptPath = path.join(tmpDir, `${sessionId}.jsonl`);
+    const lines = [
+      JSON.stringify({ type: "session", version: 1, id: sessionId }),
+      JSON.stringify({
+        id: "rec-1",
+        timestamp: "2026-02-07T10:00:00.000Z",
+        message: { role: "user", content: "First" },
+      }),
+      // A message with its own timestamp is not overwritten by the record.
+      JSON.stringify({
+        id: "rec-2",
+        timestamp: "2026-02-07T11:00:00.000Z",
+        message: { role: "user", content: "Second", timestamp: 123 },
+      }),
+      // Records without metadata stay untouched.
+      JSON.stringify({ message: { role: "assistant", content: "Third" } }),
+    ];
+    fs.writeFileSync(transcriptPath, lines.join("\n"), "utf-8");
+
+    const out = readSessionMessages(sessionId, storePath);
+    expect(out).toHaveLength(3);
+    const first = out[0] as {
+      role: string;
+      timestamp?: number;
+      __openclaw?: { messageId?: string };
+    };
+    expect(first.role).toBe("user");
+    expect(first.timestamp).toBe(Date.parse("2026-02-07T10:00:00.000Z"));
+    expect(first.__openclaw?.messageId).toBe("rec-1");
+    const second = out[1] as { timestamp?: number };
+    expect(second.timestamp).toBe(123);
+    const third = out[2] as { timestamp?: number; __openclaw?: unknown };
+    expect(third.timestamp).toBeUndefined();
+    expect(third.__openclaw).toBeUndefined();
+  });
 });
 
 describe("readSessionPreviewItemsFromTranscript", () => {

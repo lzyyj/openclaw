@@ -91,7 +91,7 @@ export function readSessionMessages(
     try {
       const parsed = JSON.parse(line);
       if (parsed?.message) {
-        messages.push(parsed.message);
+        messages.push(attachRecordMetadata(parsed, parsed.message));
         continue;
       }
 
@@ -115,6 +115,37 @@ export function readSessionMessages(
     }
   }
   return messages;
+}
+
+/**
+ * Fold the transcript record's own timestamp and id into the extracted message
+ * so consumers get a monotonic page cursor (`timestamp`) and a stable identity
+ * (`__openclaw.messageId`) for deduplication across pages. Never overwrites a
+ * timestamp the message already carries, and returns the message untouched
+ * when the record exposes no metadata.
+ */
+function attachRecordMetadata(record: unknown, message: unknown): unknown {
+  if (!message || typeof message !== "object") {
+    return message;
+  }
+  const rec = record as Record<string, unknown>;
+  const rawTs = typeof rec.timestamp === "string" ? Date.parse(rec.timestamp) : Number.NaN;
+  const recordId = typeof rec.id === "string" ? rec.id : "";
+  if (!Number.isFinite(rawTs) && !recordId) {
+    return message;
+  }
+  const msg = { ...(message as Record<string, unknown>) };
+  if (Number.isFinite(rawTs) && typeof msg.timestamp !== "number") {
+    msg.timestamp = rawTs;
+  }
+  if (recordId) {
+    const existing =
+      msg.__openclaw && typeof msg.__openclaw === "object"
+        ? (msg.__openclaw as Record<string, unknown>)
+        : undefined;
+    msg.__openclaw = { ...existing, messageId: recordId };
+  }
+  return msg;
 }
 
 export function resolveSessionTranscriptCandidates(

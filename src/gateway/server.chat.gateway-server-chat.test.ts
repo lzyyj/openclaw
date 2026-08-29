@@ -356,6 +356,94 @@ describe("gateway server chat", () => {
     }
   });
 
+  test("chat.history pages older messages with a before cursor", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gw-"));
+    try {
+      testState.sessionStorePath = path.join(dir, "sessions.json");
+      await writeSessionStore({
+        entries: {
+          main: {
+            sessionId: "sess-page",
+            updatedAt: Date.now(),
+          },
+        },
+      });
+
+      const base = Date.now() - 100_000;
+      const lines: string[] = [];
+      for (let i = 0; i < 50; i += 1) {
+        lines.push(
+          JSON.stringify({
+            id: `page-${i}`,
+            timestamp: new Date(base + i * 1000).toISOString(),
+            message: {
+              role: "user",
+              content: [{ type: "text", text: `m${i}` }],
+            },
+          }),
+        );
+      }
+      await fs.writeFile(path.join(dir, "sess-page.jsonl"), lines.join("\n"), "utf-8");
+
+      const textOf = (messages: unknown[], index: number): string | undefined => {
+        const content = (messages[index] as { content?: unknown } | undefined)?.content;
+        if (!Array.isArray(content) || content.length === 0) {
+          return undefined;
+        }
+        const text = (content[0] as { text?: unknown } | undefined)?.text;
+        return typeof text === "string" ? text : undefined;
+      };
+
+      const newest = await rpcReq<{
+        messages?: unknown[];
+        hasMore?: boolean;
+        oldestTimestamp?: number | null;
+      }>(ws, "chat.history", { sessionKey: "main", limit: 10 });
+      expect(newest.ok).toBe(true);
+      expect(newest.payload?.messages?.length).toBe(10);
+      expect(textOf(newest.payload?.messages ?? [], 0)).toBe("m40");
+      expect(newest.payload?.hasMore).toBe(true);
+      expect(newest.payload?.oldestTimestamp).toBe(base + 40 * 1000);
+
+      const older = await rpcReq<{
+        messages?: unknown[];
+        hasMore?: boolean;
+        oldestTimestamp?: number | null;
+      }>(ws, "chat.history", {
+        sessionKey: "main",
+        limit: 10,
+        before: newest.payload?.oldestTimestamp ?? 0,
+      });
+      expect(older.ok).toBe(true);
+      expect(older.payload?.messages?.length).toBe(10);
+      expect(textOf(older.payload?.messages ?? [], 0)).toBe("m30");
+      expect(older.payload?.hasMore).toBe(true);
+      expect(older.payload?.oldestTimestamp).toBe(base + 30 * 1000);
+
+      const first = await rpcReq<{ messages?: unknown[]; hasMore?: boolean }>(ws, "chat.history", {
+        sessionKey: "main",
+        limit: 10,
+        before: base + 1 * 1000,
+      });
+      expect(first.ok).toBe(true);
+      expect(first.payload?.messages?.length).toBe(1);
+      expect(textOf(first.payload?.messages ?? [], 0)).toBe("m0");
+      expect(first.payload?.hasMore).toBe(false);
+
+      const none = await rpcReq<{ messages?: unknown[]; hasMore?: boolean }>(ws, "chat.history", {
+        sessionKey: "main",
+        limit: 10,
+        before: base,
+      });
+      expect(none.ok).toBe(true);
+      expect(none.payload?.messages?.length).toBe(0);
+      expect(none.payload?.hasMore).toBe(false);
+    } finally {
+      testState.sessionStorePath = undefined;
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("agent events include sessionKey and agent.wait covers lifecycle flows", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gw-"));
     testState.sessionStorePath = path.join(dir, "sessions.json");

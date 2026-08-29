@@ -14,6 +14,8 @@ export type SessionsProps = {
   includeGlobal: boolean;
   includeUnknown: boolean;
   basePath: string;
+  search?: string;
+  onSearchChange?: (query: string) => void;
   onFiltersChange: (next: {
     activeMinutes: string;
     limit: string;
@@ -44,10 +46,18 @@ const VERBOSE_LEVELS = [
 const REASONING_LEVELS = ["", "off", "on", "stream"] as const;
 
 function getVerboseLabel(value: string): string {
-  if (value === "") return t("sessionsPage.inherit");
-  if (value === "off") return t("sessionsPage.verboseOff");
-  if (value === "on") return t("sessionsPage.verboseOn");
-  if (value === "full") return t("sessionsPage.verboseFull");
+  if (value === "") {
+    return t("sessionsPage.inherit");
+  }
+  if (value === "off") {
+    return t("sessionsPage.verboseOff");
+  }
+  if (value === "on") {
+    return t("sessionsPage.verboseOn");
+  }
+  if (value === "full") {
+    return t("sessionsPage.verboseFull");
+  }
   return value;
 }
 
@@ -116,8 +126,54 @@ function resolveThinkLevelPatchValue(value: string, isBinary: boolean): string |
   return value;
 }
 
+/**
+ * Client-side session filter over the already-loaded rows. Searches the
+ * human-facing title plus the raw identity fields, so a query matches both
+ * derived titles (first user message) and routing keys. Case-insensitive.
+ */
+export function filterSessionRows(
+  rows: readonly GatewaySessionRow[],
+  query: string,
+): GatewaySessionRow[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) {
+    return [...rows];
+  }
+  return rows.filter((row) => {
+    const fields = [
+      sessionRowTitle(row),
+      row.label,
+      row.displayName,
+      row.subject,
+      row.sessionId,
+      row.key,
+    ];
+    return fields.some(
+      (field) => typeof field === "string" && field.toLowerCase().includes(needle),
+    );
+  });
+}
+
+/** Human-facing title for one session row: label > derived title > group name > key. */
+export function sessionRowTitle(row: GatewaySessionRow): string {
+  const label = typeof row.label === "string" ? row.label.trim() : "";
+  if (label) {
+    return label;
+  }
+  const derived = typeof row.derivedTitle === "string" ? row.derivedTitle.trim() : "";
+  if (derived) {
+    return derived;
+  }
+  const displayName = typeof row.displayName === "string" ? row.displayName.trim() : "";
+  if (displayName) {
+    return displayName;
+  }
+  return row.key;
+}
+
 export function renderSessions(props: SessionsProps) {
-  const rows = props.result?.sessions ?? [];
+  const allRows = props.result?.sessions ?? [];
+  const rows = filterSessionRows(allRows, props.search ?? "");
   return html`
     <section class="card">
       <div class="row" style="justify-content: space-between;">
@@ -131,6 +187,15 @@ export function renderSessions(props: SessionsProps) {
       </div>
 
       <div class="filters" style="margin-top: 14px;">
+        <label class="field sessions-search">
+          <span>${t("sessionsPage.search")}</span>
+          <input
+            type="search"
+            .value=${props.search ?? ""}
+            placeholder=${t("sessionsPage.searchPlaceholder")}
+            @input=${(e: Event) => props.onSearchChange?.((e.target as HTMLInputElement).value)}
+          />
+        </label>
         <label class="field">
           <span>${t("sessionsPage.activeWithin")}</span>
           <input
@@ -239,22 +304,24 @@ function renderRow(
   const verboseLevels = withCurrentLabeledOption(VERBOSE_LEVELS, verbose);
   const reasoning = row.reasoningLevel ?? "";
   const reasoningLevels = withCurrentOption(REASONING_LEVELS, reasoning);
-  const displayName =
-    typeof row.displayName === "string" && row.displayName.trim().length > 0
-      ? row.displayName.trim()
-      : null;
-  const label = typeof row.label === "string" ? row.label.trim() : "";
-  const showDisplayName = Boolean(displayName && displayName !== row.key && displayName !== label);
+  const title = sessionRowTitle(row);
   const canLink = row.kind !== "global";
   const chatUrl = canLink
     ? `${pathForTab("chat", basePath)}?session=${encodeURIComponent(row.key)}`
     : null;
+  const showKeyMeta = title !== row.key;
 
   return html`
     <div class="table-row">
-      <div class="mono session-key-cell">
-        ${canLink ? html`<a href=${chatUrl} class="session-link">${row.key}</a>` : row.key}
-        ${showDisplayName ? html`<span class="muted session-key-display-name">${displayName}</span>` : nothing}
+      <div class="session-key-cell">
+        <div class="session-title">
+          ${canLink ? html`<a href=${chatUrl} class="session-link">${title}</a>` : title}
+          ${
+            showKeyMeta
+              ? html`<span class="muted session-key-display-name">${row.key}</span>`
+              : nothing
+          }
+        </div>
       </div>
       <div>
         <input

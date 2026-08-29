@@ -59,6 +59,17 @@
   background: transparent;
 }
 
+/* Load-older pagination control pinned at the top of the thread */
+.chat-load-older {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 10px;
+}
+
+.chat-load-older .btn {
+  min-width: 180px;
+}
+
 /* Focus mode exit button */
 .chat-focus-exit {
   position: absolute;

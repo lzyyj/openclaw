@@ -14,6 +14,7 @@ function createState(request: RequestFn, overrides: Partial<SessionsState> = {})
     sessionsFilterLimit: "0",
     sessionsIncludeGlobal: true,
     sessionsIncludeUnknown: true,
+    sessionsFilterQuery: "",
     ...overrides,
   };
 }
@@ -47,6 +48,7 @@ describe("deleteSessionAndRefresh", () => {
     expect(request).toHaveBeenNthCalledWith(2, "sessions.list", {
       includeGlobal: true,
       includeUnknown: true,
+      includeDerivedTitles: true,
     });
     expect(state.sessionsError).toBeNull();
     expect(state.sessionsLoading).toBe(false);

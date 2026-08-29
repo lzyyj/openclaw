@@ -3,7 +3,12 @@ import { scheduleChatScroll } from "./app-scroll.ts";
 import { setLastActiveSessionKey } from "./app-settings.ts";
 import { resetToolStream } from "./app-tool-stream.ts";
 import type { OpenClawApp } from "./app.ts";
-import { abortChatRun, loadChatHistory, sendChatMessage } from "./controllers/chat.ts";
+import {
+  abortChatRun,
+  loadChatHistory,
+  loadOlderChatHistory,
+  sendChatMessage,
+} from "./controllers/chat.ts";
 import { loadSessions } from "./controllers/sessions.ts";
 import type { GatewayHelloOk } from "./gateway.ts";
 import { normalizeBasePath } from "./navigation.ts";
@@ -280,6 +285,31 @@ export async function refreshChat(host: ChatHost, opts?: { scheduleScroll?: bool
   if (opts?.scheduleScroll !== false) {
     scheduleChatScroll(host as unknown as Parameters<typeof scheduleChatScroll>[0]);
   }
+}
+
+/**
+ * Load one older page of transcript messages, preserving the user's reading
+ * position: the scroll offset from the bottom is captured before the page is
+ * prepended and restored after the render settles, so older content slides in
+ * above instead of yanking the viewport.
+ */
+export async function handleLoadOlderChat(host: ChatHost) {
+  const app = host as unknown as OpenClawApp;
+  const thread = app.querySelector?.(".chat-thread") as HTMLElement | null;
+  const distanceFromBottom = thread ? thread.scrollHeight - thread.scrollTop : 0;
+  await loadOlderChatHistory(app);
+  if (!distanceFromBottom) {
+    return;
+  }
+  void app.updateComplete.then(() => {
+    requestAnimationFrame(() => {
+      const latest = app.querySelector?.(".chat-thread") as HTMLElement | null;
+      if (!latest) {
+        return;
+      }
+      latest.scrollTop = latest.scrollHeight - distanceFromBottom;
+    });
+  });
 }
 
 export const flushChatQueueForEvent = flushChatQueue;

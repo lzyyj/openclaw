@@ -78,6 +78,10 @@ export type ChatProps = {
   // Scroll control
   showNewMessages?: boolean;
   onScrollToBottom?: () => void;
+  // Older-history pagination
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadOlder?: () => void;
   // Event handlers
   onRefresh: () => void;
   onToggleFocusMode: () => void;
@@ -320,6 +324,22 @@ export function renderChat(props: ChatProps) {
         props.loading
           ? html`
               <div class="muted">${t("chat.loadingChat")}</div>
+            `
+          : nothing
+      }
+      ${
+        props.hasMore
+          ? html`
+              <div class="chat-load-older">
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  ?disabled=${props.loadingMore}
+                  @click=${props.onLoadOlder}
+                >
+                  ${props.loadingMore ? t("chat.loadingOlder") : t("chat.loadOlder")}
+                </button>
+              </div>
             `
           : nothing
       }
@@ -608,8 +628,6 @@ export function renderChat(props: ChatProps) {
   `;
 }
 
-const CHAT_HISTORY_RENDER_LIMIT = 200;
-
 function groupMessages(items: ChatItem[]): Array<ChatItem | MessageGroup> {
   const result: Array<ChatItem | MessageGroup> = [];
   let currentGroup: MessageGroup | null = null;
@@ -655,22 +673,9 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
   const items: ChatItem[] = [];
   const history = Array.isArray(props.messages) ? props.messages : [];
   const tools = Array.isArray(props.toolMessages) ? props.toolMessages : [];
-  const historyStart = Math.max(0, history.length - CHAT_HISTORY_RENDER_LIMIT);
-  if (historyStart > 0) {
-    items.push({
-      kind: "message",
-      key: "chat:history:notice",
-      message: {
-        role: "system",
-        content: t("chat.showingLastMessages", {
-          count: String(CHAT_HISTORY_RENDER_LIMIT),
-          hidden: String(historyStart),
-        }),
-        timestamp: Date.now(),
-      },
-    });
-  }
-  for (let i = historyStart; i < history.length; i++) {
+  // Pagination (chat.history `before` cursor) bounds the loaded window, so all
+  // loaded history renders; older pages arrive on demand above the thread.
+  for (let i = 0; i < history.length; i++) {
     const msg = history[i];
     const normalized = normalizeMessage(msg);
     const raw = msg as Record<string, unknown>;

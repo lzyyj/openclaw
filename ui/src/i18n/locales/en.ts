@@ -155,6 +155,8 @@ export const en: TranslationMap = {
     compacting: "Compacting context...",
     compacted: "Context compacted",
     compactionDivider: "Compaction",
+    loadOlder: "Load older messages",
+    loadingOlder: "Loading older messages…",
     fallbackActive: "Fallback active: {model}",
     retrying: "Timed out, retrying: {model}",
     fallbackCleared: "Fallback cleared: {model}",
@@ -553,6 +555,8 @@ export const en: TranslationMap = {
   sessionsPage: {
     cardTitle: "Sessions",
     cardSub: "Active session keys and per-session overrides.",
+    search: "Search",
+    searchPlaceholder: "Search by title, label or key…",
     activeWithin: "Active within (minutes)",
     limit: "Limit",
     includeGlobal: "Include global",

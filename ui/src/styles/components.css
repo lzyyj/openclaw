@@ -499,6 +499,11 @@
   grid-column: 1 / -1;
 }
 
+/* Session search box in the sessions page filter row */
+.sessions-search input {
+  width: 220px;
+}
+
 .field span {
   color: var(--muted);
   font-size: 13px;
@@ -1130,7 +1135,6 @@
   font-size: 11px;
   opacity: 0.8;
 }
-
 
 @keyframes compaction-spin {
   to {

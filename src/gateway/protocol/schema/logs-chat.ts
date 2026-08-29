@@ -27,6 +27,9 @@ export const ChatHistoryParamsSchema = Type.Object(
   {
     sessionKey: NonEmptyString,
     limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
+    // Epoch-ms cursor: return messages strictly older than this timestamp
+    // (older-page pagination). Absent = newest page.
+    before: Type.Optional(Type.Integer({ minimum: 0 })),
   },
   { additionalProperties: false },
 );

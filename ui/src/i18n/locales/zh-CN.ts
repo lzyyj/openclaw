@@ -154,6 +154,8 @@ export const zh_CN: TranslationMap = {
     compacting: "正在压缩上下文…",
     compacted: "上下文已压缩",
     compactionDivider: "压缩记录",
+    loadOlder: "加载更早的消息",
+    loadingOlder: "正在加载更早的消息…",
     fallbackActive: "备用模型活跃：{model}",
     retrying: "模型响应超时，正在重试：{model}",
     fallbackCleared: "备用模型已清除：{model}",
@@ -575,6 +577,8 @@ export const zh_CN: TranslationMap = {
   sessionsPage: {
     cardTitle: "会话",
     cardSub: "活动会话密钥及每会话覆盖。",
+    search: "搜索",
+    searchPlaceholder: "按标题、标签或密钥搜索…",
     activeWithin: "在以下时间内活跃（分钟）",
     limit: "数量上限",
     includeGlobal: "包含全局",

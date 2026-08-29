@@ -4,6 +4,7 @@ import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI, FileOperations } from "@mariozechner/pi-coding-agent";
 import { extractSections } from "../../auto-reply/reply/post-compaction-context.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
+import { resolveOpenClawAgentDir } from "../agent-paths.js";
 import {
   BASE_CHUNK_RATIO,
   MIN_CHUNK_RATIO,
@@ -17,6 +18,7 @@ import {
   summarizeInStages,
 } from "../compaction.js";
 import { collectTextContentBlocks } from "../content-blocks.js";
+import { formatSpillIndex, spillToolResultDetails } from "../tool-result-spill.js";
 import { getCompactionSafeguardRuntime } from "./compaction-safeguard-runtime.js";
 
 const log = createSubsystemLogger("compaction-safeguard");
@@ -231,6 +233,24 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
       const turnPrefixMessages = preparation.turnPrefixMessages ?? [];
       let messagesToSummarize = preparation.messagesToSummarize;
 
+      // Spill oversized toolResult.details to disk before any token estimation
+      // or summarization, so large tool output stays retrievable without ever
+      // entering the model context. The spill index is appended to the summary.
+      const spillDir = path.join(resolveOpenClawAgentDir(), "spill");
+      const spilledMain = spillToolResultDetails(messagesToSummarize, spillDir);
+      const spilledPrefix = spillToolResultDetails(turnPrefixMessages, spillDir);
+      messagesToSummarize = spilledMain.messages;
+      const spilledFiles = [...spilledMain.spilledFiles, ...spilledPrefix.spilledFiles];
+      if (spilledMain.skippedBytes + spilledPrefix.skippedBytes > 0) {
+        log.warn(
+          `Compaction spill: skipped ${
+            (spilledMain.skippedBytes + spilledPrefix.skippedBytes) / 1024
+          } KB of tool details (total budget exceeded); spilled ${
+            spilledMain.spilledCount + spilledPrefix.spilledCount
+          } file(s).`,
+        );
+      }
+
       const maxHistoryShare = runtime?.maxHistoryShare ?? 0.5;
 
       const tokensBefore =
@@ -350,6 +370,9 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
       if (workspaceContext) {
         summary += workspaceContext;
       }
+
+      // Append the spill index so full tool outputs remain discoverable on disk.
+      summary += formatSpillIndex(spilledFiles);
 
       return {
         compaction: {

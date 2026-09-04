@@ -57,6 +57,9 @@ import { materializePendingSupervisionBranch } from "./thread-supervision.js";
 export async function startOrResumeThread(
   params: CodexStartOrResumeThreadParams,
 ): Promise<CodexAppServerThreadLifecycleBinding> {
+  if (params.requireProtectedNativeContext && !params.appServerRuntimeFingerprint) {
+    throw new Error("Codex protected native context requires a runtime fingerprint");
+  }
   const incognito = isIncognitoSessionKey(params.params.sessionKey);
   const clientId = resolveCodexAppServerClientInstanceId(params.client);
   return await withCodexThreadLifecycleBinding(params, async (bindingIdentity, currentBinding) => {
@@ -146,6 +149,41 @@ export async function startOrResumeThread(
         throw createCodexSessionGenerationSupersededError(bindingIdentity.sessionId);
       }
     }
+    const clearCurrentBinding = async (operation: string) => {
+      const current = binding;
+      if (!current?.threadId) {
+        return;
+      }
+      assertCodexBindingMayBeReplaced(current, operation, expectedOwnership);
+      const cleared = await params.bindingStore.mutate(bindingIdentity, {
+        kind: "clear",
+        threadId: current.threadId,
+      });
+      if (!cleared) {
+        throw new CodexThreadBindingConflictError(current.threadId, operation);
+      }
+      binding = undefined;
+    };
+    if (
+      params.requireProtectedNativeContext &&
+      binding?.threadId &&
+      (binding.appServerRuntimeFingerprint !== params.appServerRuntimeFingerprint ||
+        binding.cwd !== params.cwd)
+    ) {
+      // Loaded Codex resumes may ignore cwd/config overrides. Legacy and pending
+      // bindings must pass the protected boundary before any resume shortcut.
+      await clearCurrentBinding("rotating an unprotected native thread binding");
+    }
+    if (
+      binding?.threadId &&
+      (!binding.pendingSupervisionBranch || binding.managedHooksFingerprint !== undefined) &&
+      binding.managedHooksFingerprint !== preflight.managedHooksFingerprint
+    ) {
+      // An initial pending source has no admitted policy: materialization creates
+      // fresh threads under current config. Existing policy must match before any
+      // pending, supervised, or retained-thread shortcut can reuse it.
+      await clearCurrentBinding("rotating changed managed hook policy");
+    }
     if (binding?.pendingSupervisionBranch) {
       await releaseRetainedThread(binding.threadId);
       const pendingBinding = binding as CodexAppServerThreadBinding & {
@@ -191,6 +229,7 @@ export async function startOrResumeThread(
         hostSystemAgentActive,
         restrictedToolSurface,
         restrictedToolSurfaceInheritedMcpServerNames,
+        managedHooksConfig: preflight.managedHooksConfig,
         shellEnvironment: params.shellEnvironment,
         disableLoginShell: params.disableLoginShell,
         environmentSelection: params.environmentSelection,
@@ -211,6 +250,7 @@ export async function startOrResumeThread(
           dynamicToolsContainDeferred,
           webSearchThreadConfigFingerprint,
           nativeSkillIsolationFingerprint,
+          managedHooksFingerprint: preflight.managedHooksFingerprint,
           userMcpServersFingerprint,
           mcpServersFingerprint:
             params.mcpServersFingerprintEvaluated === true
@@ -233,21 +273,6 @@ export async function startOrResumeThread(
         },
       });
     }
-    const clearCurrentBinding = async (operation: string) => {
-      const current = binding;
-      if (!current?.threadId) {
-        return;
-      }
-      assertCodexBindingMayBeReplaced(current, operation, expectedOwnership);
-      const cleared = await params.bindingStore.mutate(bindingIdentity, {
-        kind: "clear",
-        threadId: current.threadId,
-      });
-      if (!cleared) {
-        throw new CodexThreadBindingConflictError(current.threadId, operation);
-      }
-      binding = undefined;
-    };
     const resolveRequestContext = () => {
       const startModelSelection = resolveCodexAppServerThreadModelSelection({
         provider: params.params.provider,
@@ -333,7 +358,6 @@ export async function startOrResumeThread(
         connectionClass: params.appServer.connectionClass,
       });
       await clearCurrentBinding("rotating a stale thread binding");
-      binding = undefined;
     }
     if (
       binding?.threadId &&
@@ -353,7 +377,6 @@ export async function startOrResumeThread(
         },
       );
       await clearCurrentBinding("rotating a GPT-5.6 multi-agent thread binding");
-      binding = undefined;
     }
     const requestContext = resolveRequestContext();
     // Capability read failures use managed search for this turn but must not
@@ -546,7 +569,6 @@ export async function startOrResumeThread(
           },
         );
         await clearCurrentBinding("rotating a stale thread binding");
-        binding = undefined;
         rotatedContextEngineBinding = true;
       }
     }
@@ -562,7 +584,6 @@ export async function startOrResumeThread(
         threadId: binding.threadId,
       });
       await clearCurrentBinding("rotating a stale thread binding");
-      binding = undefined;
     }
     if (
       binding?.threadId &&
@@ -576,7 +597,6 @@ export async function startOrResumeThread(
         },
       );
       await clearCurrentBinding("rotating a stale thread binding");
-      binding = undefined;
     }
     if (binding?.threadId) {
       const pluginBindingStale = isCodexPluginThreadBindingStale({
@@ -594,7 +614,6 @@ export async function startOrResumeThread(
           },
         );
         await clearCurrentBinding("rotating a stale thread binding");
-        binding = undefined;
       }
     }
     if (binding?.threadId) {
@@ -611,7 +630,6 @@ export async function startOrResumeThread(
           },
         );
         await clearCurrentBinding("rotating a stale thread binding");
-        binding = undefined;
       }
     }
     if (binding?.threadId) {

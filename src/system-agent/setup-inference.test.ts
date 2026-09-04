@@ -60,7 +60,7 @@ import { WizardCancelledError, WizardNavigationError } from "../wizard/prompts.j
 import { cleanupSystemAgentSession, createSystemAgentSession } from "./agent-turn.js";
 import { runSystemAgentTurnWithDeps } from "./agent-turn.test-support.js";
 import { resolveSystemAgentConfiguredRouteFromConfig } from "./inference-route.js";
-import { setupInferenceLog } from "./setup-inference-core.js";
+import { setupInferenceLog, type ActivateSetupInferenceDeps } from "./setup-inference-core.js";
 import { resolveSetupInferenceProbeStreamParams } from "./setup-inference-probe.js";
 import { runSetupInferenceTest } from "./setup-inference-test.js";
 import {
@@ -471,6 +471,8 @@ type SuccessfulRunParams = {
   config?: OpenClawConfig;
   reportedModel?: string;
 };
+
+type SetupRunParams = Parameters<NonNullable<ActivateSetupInferenceDeps["runEmbeddedAgent"]>>[0];
 
 function successfulAgentHarnessBinding(params?: SuccessfulRunParams): AgentExecutionAuthBinding {
   const requestedHarnessId = params?.agentHarnessRuntimeOverride?.trim();
@@ -6202,7 +6204,7 @@ describe("verifySetupInference", () => {
         };
       },
     );
-    const runEmbeddedAgent = vi.fn(async (params: SuccessfulRunParams) => {
+    const runEmbeddedAgent = vi.fn(async (params: SetupRunParams) => {
       params.onSuccessfulAuthBinding?.({
         authProfileId: profileId,
         ...successfulAgentHarnessBinding(params),
@@ -6291,6 +6293,18 @@ describe("verifySetupInference", () => {
       });
       const systemAgentTurnParams = runEmbeddedAgent.mock.calls[2]?.[0];
       expect(systemAgentTurnParams).toBeDefined();
+      const verifiedRunParams = runEmbeddedAgent.mock.calls[1]?.[0];
+      expect(verifiedRunParams).toMatchObject({
+        workspaceDir: systemAgentTurnParams?.workspaceDir,
+        agentId: systemAgentTurnParams?.agentId,
+        sandboxAgentId: systemAgentTurnParams?.agentId,
+        sandboxSessionKey: systemAgentTurnParams?.sandboxSessionKey,
+        sessionPersistence: "detached",
+        disableTools: true,
+        modelRun: true,
+      });
+      expect(verifiedRunParams?.sessionKey).not.toBe(systemAgentTurnParams?.sessionKey);
+      expect(verifiedRunParams?.sessionFile).toMatch(/^in-memory:/u);
       expect((systemAgentTurnParams as { config?: OpenClawConfig }).config).toBe(
         verification.binding.execution.runConfig,
       );

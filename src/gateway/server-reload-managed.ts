@@ -160,6 +160,7 @@ export function startManagedGatewayConfigReloader(
     getPluginRegistry: params.getPluginRegistry,
     startChannel: params.startChannel,
     stopChannel: params.stopChannel,
+    releaseChannelRouteHandoffs: params.channelManager.releaseChannelRouteHandoffs,
     pruneInactiveChannelAccountState: params.channelManager.pruneInactiveChannelAccountState,
     getChannelAutostartSuppression: params.getChannelAutostartSuppression,
     stopPostReadySidecars: params.stopPostReadySidecars,

@@ -467,7 +467,6 @@ describe("buildGatewayReloadPlan", () => {
     "gateway.controlUi.environment.label",
     "gateway.controlUi.communityInvite",
     "gateway.controlUi.github.token",
-    "gateway.controlUi.toolTitles",
     "gateway.controlUi.sessionObserver",
     "gateway.controlUi.embedSandbox",
     "gateway.controlUi.allowExternalEmbedUrls",

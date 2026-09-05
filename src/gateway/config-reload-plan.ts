@@ -109,7 +109,6 @@ const CORE_RELOAD_POLICIES: ReloadPolicy[] = [
       "gateway.controlUi.environment",
       "gateway.controlUi.communityInvite",
       "gateway.controlUi.github",
-      "gateway.controlUi.toolTitles",
       "gateway.controlUi.sessionObserver",
       "gateway.controlUi.embedSandbox",
       "gateway.controlUi.allowExternalEmbedUrls",

@@ -777,14 +777,40 @@ describe("buildGatewayReloadPlan", () => {
     [{}, { messages: { ackReactionScope: "all" } }],
     [{ messages: { ackReactionScope: "all" } }, {}],
     [{ messages: { ackReactionScope: "off" } }, { messages: { ackReactionScope: "all" } }],
-  ])(
-    "keeps running channels connected when acknowledgement scope changes: %j → %j",
-    (prev, next) => {
-      const paths = diffGatewayReloadPaths(prev, next, listConfigReloadRefinementPrefixes());
-      const plan = buildGatewayReloadPlan(paths);
-      expect(isNoopGatewayReloadPlan(plan)).toBe(true);
-      expect(plan.restartChannels).toEqual(new Set());
-      expect(plan.restartChannelAccounts).toEqual(new Map());
+  ])("refreshes undeclared owners when acknowledgement scope changes: %j → %j", (prev, next) => {
+    setActivePluginRegistry(
+      createTestRegistry([
+        ...[telegramPlugin, whatsappPlugin].map((plugin) => ({
+          pluginId: plugin.id,
+          plugin: {
+            ...plugin,
+            reload: { ...plugin.reload, noopPrefixes: ["messages.ackReactionScope"] },
+          },
+          source: "test",
+        })),
+        { pluginId: "mattermost", plugin: mattermostPlugin, source: "test" },
+      ]),
+    );
+    const paths = diffGatewayReloadPaths(prev, next, listConfigReloadRefinementPrefixes());
+    const plan = buildGatewayReloadPlan(paths);
+    expect(plan.restartGateway).toBe(false);
+    expect(plan.restartChannels).toEqual(new Set(["mattermost"]));
+    expect(plan.restartChannelAccounts).toEqual(new Map());
+  });
+
+  it.each(["messages.inbound", "messages.ackReactionScope"])(
+    "keeps channels connected only when every loaded owner opts out of %s",
+    (prefix) => {
+      setActivePluginRegistry(
+        createTestRegistry(
+          [telegramPlugin, whatsappPlugin].map((plugin) => ({
+            pluginId: plugin.id,
+            plugin: { ...plugin, reload: { ...plugin.reload, noopPrefixes: [prefix] } },
+            source: "test",
+          })),
+        ),
+      );
+      expect(isNoopGatewayReloadPlan(buildGatewayReloadPlan([prefix]))).toBe(true);
     },
   );
 
@@ -915,20 +941,61 @@ describe("buildGatewayReloadPlan", () => {
 
   it.each(
     sharedChannelSettings.flatMap(({ path }) => [
-      { path, reload: { configPrefixes: [path] }, kind: "hot", channels: ["telegram"] },
-      { path, reload: { configPrefixes: [], noopPrefixes: [path] }, kind: "none", channels: [] },
+      { path, reload: { configPrefixes: [path] }, channels: ["telegram", "whatsapp"] },
+      { path, reload: { configPrefixes: [], noopPrefixes: [path] }, channels: ["whatsapp"] },
     ]),
-  )("preserves explicit channel $kind policy for $path", ({ path, reload, kind, channels }) => {
+  )("preserves sibling reloads with channel policy for $path", ({ path, reload, channels }) => {
     setActivePluginRegistry(
       createTestRegistry([
         { pluginId: "telegram", plugin: { ...telegramPlugin, reload }, source: "test" },
         { pluginId: "whatsapp", plugin: whatsappPlugin, source: "test" },
       ]),
     );
-    expect(resolveConfigReloadMetadata(path).kind).toBe(kind);
+    expect(resolveConfigReloadMetadata(path).kind).toBe("hot");
     const plan = buildGatewayReloadPlan([path]);
     expect(plan.restartGateway).toBe(false);
     expect(plan.restartChannels).toEqual(new Set(channels));
+  });
+
+  it("applies each channel's narrowest shared policy independently", () => {
+    setActivePluginRegistry(
+      createTestRegistry([
+        {
+          pluginId: "telegram",
+          plugin: {
+            ...telegramPlugin,
+            reload: {
+              configPrefixes: ["messages.inbound.byChannel.telegram"],
+              noopPrefixes: ["messages.inbound"],
+            },
+          },
+          source: "test",
+        },
+        {
+          pluginId: "whatsapp",
+          plugin: {
+            ...whatsappPlugin,
+            reload: { configPrefixes: [], noopPrefixes: ["messages"] },
+          },
+          source: "test",
+        },
+        { pluginId: "mattermost", plugin: mattermostPlugin, source: "test" },
+      ]),
+    );
+    expect(buildGatewayReloadPlan(["messages.inbound.debounceMs"]).restartChannels).toEqual(
+      new Set(["mattermost"]),
+    );
+    expect(buildGatewayReloadPlan(["messages.inbound.byChannel.telegram"]).restartChannels).toEqual(
+      new Set(["telegram", "mattermost"]),
+    );
+    const paths = diffGatewayReloadPaths(
+      {},
+      { messages: { inbound: { debounceMs: 20, byChannel: { telegram: 10 } } } },
+      listConfigReloadRefinementPrefixes(),
+    );
+    expect(buildGatewayReloadPlan(paths).restartChannels).toEqual(
+      new Set(["telegram", "mattermost"]),
+    );
   });
 
   const mattermostAccountConfig = {

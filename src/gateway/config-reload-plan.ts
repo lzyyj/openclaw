@@ -83,6 +83,29 @@ type GatewayReloadPlanOptions = {
 
 const PLUGIN_INSTALL_TIMESTAMP_KEYS = ["installedAt", "resolvedAt"] as const;
 const AUTH_CREDENTIAL_PATHS = ["gateway.auth.token", "gateway.auth.password"];
+const SHARED_CHANNEL_PREFIXES = [
+  "agents.defaults.mediaMaxMb",
+  "channels.defaults",
+  "channels.modelByChannel",
+  "messages.inbound",
+  "messages.ackReactionScope",
+  "commands",
+  "accessGroups",
+  "tts",
+  "surfaces",
+  "acp.stream",
+  "diagnostics.flags",
+];
+
+function matchesReloadPrefix(path: string, prefix: string): boolean {
+  return path === prefix || path.startsWith(`${prefix}.`);
+}
+
+function expandReloadPolicies(policies: ReloadPolicy[]): ReloadRule[] {
+  return policies
+    .flatMap(({ prefixes, ...policy }) => prefixes.map((prefix) => ({ ...policy, prefix })))
+    .toSorted((a, b) => b.prefix.length - a.prefix.length);
+}
 
 const CORE_RELOAD_POLICIES: ReloadPolicy[] = [
   { prefixes: ["gateway.remote", "gateway.reload"], kind: "none" },
@@ -248,6 +271,24 @@ function getReloadPolicyCatalog() {
     return cachedCatalog;
   }
   const channelPlugins = listChannelPlugins();
+  const channelPolicies = channelPlugins.flatMap((plugin): ReloadPolicy[] => [
+    {
+      prefixes: plugin.reload?.configPrefixes ?? [],
+      kind: "hot",
+      channels: [plugin],
+      accountScoped: plugin.reload?.accountScopedRestart,
+    },
+    { prefixes: plugin.reload?.noopPrefixes ?? [], kind: "none", channels: [plugin] },
+  ]);
+  const channelRules = expandReloadPolicies(channelPolicies);
+  const sharedPrefixes = new Set([
+    ...SHARED_CHANNEL_PREFIXES,
+    ...channelRules
+      .filter(({ prefix }) =>
+        SHARED_CHANNEL_PREFIXES.some((root) => matchesReloadPrefix(prefix, root)),
+      )
+      .map(({ prefix }) => prefix),
+  ]);
   const policies: ReloadPolicy[] = [
     ...CORE_RELOAD_POLICIES,
     ...(registry?.reloads ?? []).flatMap(({ registration }) =>
@@ -259,47 +300,29 @@ function getReloadPolicyCatalog() {
         ] as const
       ).map(([kind, prefixes]) => ({ kind, prefixes: prefixes ?? [] })),
     ),
-    ...channelPlugins.flatMap((plugin): ReloadPolicy[] => [
-      {
-        prefixes: plugin.reload?.configPrefixes ?? [],
-        kind: "hot",
-        channels: [plugin],
-        accountScoped: plugin.reload?.accountScopedRestart,
-      },
-      { prefixes: plugin.reload?.noopPrefixes ?? [], kind: "none" },
-    ]),
+    // Shared policy belongs to every loaded channel. One owner's opt-out must
+    // not suppress sibling refreshes; undeclared owners remain restart-bound.
+    ...Array.from(sharedPrefixes, (prefix): ReloadPolicy => {
+      const channels = channelPlugins.filter(
+        (plugin) =>
+          channelRules.find(
+            (rule) => rule.channels?.includes(plugin) && matchesReloadPrefix(prefix, rule.prefix),
+          )?.kind !== "none",
+      );
+      return { prefixes: [prefix], kind: channels.length ? "hot" : "none", channels };
+    }),
+    ...channelPolicies,
     ...channelPlugins.map((plugin): ReloadPolicy => ({
       prefixes: [`plugins.entries.${plugin.id}`],
       kind: "hot",
       actions: ["reloadPlugins", "disposeMcpRuntimes"],
       channels: [plugin],
     })),
-    // Channel snapshots capture shared policy. Fan out by default while
-    // preserving explicit plugin/channel policies above on equal-prefix ties.
-    {
-      prefixes: [
-        "agents.defaults.mediaMaxMb",
-        "channels.defaults",
-        "channels.modelByChannel",
-        "messages.inbound",
-        "commands",
-        "accessGroups",
-        "tts",
-        "surfaces",
-        "acp.stream",
-        "diagnostics.flags",
-      ],
-      kind: "hot",
-      channels: channelPlugins,
-    },
     ...DEFAULT_RELOAD_POLICIES,
   ];
-  const rules = policies.flatMap(({ prefixes, ...policy }) =>
-    prefixes.map((prefix) => ({ ...policy, prefix })),
-  );
   // Narrow config contracts must override broad owner fallbacks. Sort once per
   // registry snapshot so the hot path can retain first-match semantics.
-  rules.sort((a, b) => b.prefix.length - a.prefix.length);
+  const rules = expandReloadPolicies(policies);
   cachedCatalog = {
     registry,
     version,
@@ -314,9 +337,7 @@ export function listConfigReloadRefinementPrefixes(): string[] {
 }
 
 function matchRule(path: string): ReloadRule | undefined {
-  return getReloadPolicyCatalog().rules.find(
-    ({ prefix }) => path === prefix || path.startsWith(`${prefix}.`),
-  );
+  return getReloadPolicyCatalog().rules.find(({ prefix }) => matchesReloadPrefix(path, prefix));
 }
 
 export function resolveConfigReloadMetadata(path: string): ConfigReloadMetadata {

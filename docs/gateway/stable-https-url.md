@@ -28,11 +28,11 @@ OpenClaw locates the Tailscale CLI automatically. It checks `tailscale` on `PATH
 
 Serve changes how a client **reaches** the Gateway, not how it **authenticates**. Three independent checks can each block a client, and they fail with very different symptoms:
 
-| Layer | What it verifies | Typical failure symptom |
-| --- | --- | --- |
-| Browser / Control UI auth | The Gateway token, password, or trusted-proxy identity for HTTP and Control UI WebSocket sessions | The browser prompts for a token, or the page loads but the WebSocket is rejected |
-| Node pairing | Whether the connecting device (a `node`) is paired and approved on the Gateway | The client connects but stays unpaired or unapproved, or a pairing request waits for approval |
-| Android operator connection | The separate operator connection the Android app uses for chat and UI actions | The app shows `connected (operator offline)` even though the browser works |
+| Layer                       | What it verifies                                                                                  | Typical failure symptom                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Browser / Control UI auth   | The Gateway token, password, or trusted-proxy identity for HTTP and Control UI WebSocket sessions | The browser prompts for a token, or the page loads but the WebSocket is rejected              |
+| Node pairing                | Whether the connecting device (a `node`) is paired and approved on the Gateway                    | The client connects but stays unpaired or unapproved, or a pairing request waits for approval |
+| Android operator connection | The separate operator connection the Android app uses for chat and UI actions                     | The app shows `connected (operator offline)` even though the browser works                    |
 
 Passing one layer does not satisfy the others. In particular, Tailscale identity headers (below) cover only the Control UI WebSocket shared-secret check — they do not replace the Gateway token, node pairing, or the Android operator connection.
 

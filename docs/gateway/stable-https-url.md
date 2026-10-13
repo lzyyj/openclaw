@@ -24,6 +24,24 @@ You need:
 
 OpenClaw locates the Tailscale CLI automatically. It checks `tailscale` on `PATH`, the macOS app bundle at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`, other matching app installations under `/Applications`, and the system locate database. You do not need to add the macOS app-bundle binary to `PATH`.
 
+## Client authentication layers
+
+Serve changes how a client **reaches** the Gateway, not how it **authenticates**. Three independent checks can each block a client, and they fail with very different symptoms:
+
+| Layer | What it verifies | Typical failure symptom |
+| --- | --- | --- |
+| Browser / Control UI auth | The Gateway token, password, or trusted-proxy identity for HTTP and Control UI WebSocket sessions | The browser prompts for a token, or the page loads but the WebSocket is rejected |
+| Node pairing | Whether the connecting device (a `node`) is paired and approved on the Gateway | The client connects but stays unpaired or unapproved, or a pairing request waits for approval |
+| Android operator connection | The separate operator connection the Android app uses for chat and UI actions | The app shows `connected (operator offline)` even though the browser works |
+
+Passing one layer does not satisfy the others. In particular, Tailscale identity headers (below) cover only the Control UI WebSocket shared-secret check — they do not replace the Gateway token, node pairing, or the Android operator connection.
+
+- Browser and node device pairing: [Channel pairing](/channels/pairing)
+- Node capability approval: [Node pairing](/gateway/pairing)
+- Operator scopes and roles: [Operator scopes](/gateway/operator-scopes)
+- Android app pairing and recovery: [Android](/platforms/android)
+- Gateway token and password: [Gateway configuration](/gateway/configuration)
+
 ## 1. Enable Serve while keeping loopback bind
 
 Run these commands on the Gateway host:
@@ -162,6 +180,48 @@ Update Tailscale and confirm that your installed client build exposes the curren
 ### Tailscale identity headers are not accepted
 
 Confirm that `gateway.auth.allowTailscale` is `true` and that the request arrives through the Serve URL. Direct loopback, LAN, raw tailnet-IP, and custom reverse-proxy requests do not qualify for Tailscale identity-header auth.
+
+### Serve startup fails with a non-interactive sudo error
+
+`tailscale serve` manages the HTTPS listener as root. When Serve is configured from a non-interactive context (a service, a cron job, or a shell without a TTY), `sudo` cannot prompt for a password and the startup fails with a sudo error.
+
+Run the setup from an interactive shell where `sudo` can prompt, or grant the Gateway's user permission to manage Serve without root:
+
+```bash
+sudo tailscale set --operator="$USER"
+```
+
+After that, `tailscale serve status` should work without `sudo`. See the [Tailscale Serve command reference](https://tailscale.com/docs/reference/tailscale-cli/serve).
+
+### The phone shows `connected (operator offline)` but the browser works
+
+The Android app keeps two connections: a device (`node`) connection for capabilities, and a separate operator connection for chat and UI actions. Either can be down while the other is up.
+
+The most common cause on a phone is that **Tailscale DNS (MagicDNS) is disabled** in the Tailscale app, so the `wss://<host>.<tailnet>.ts.net` operator route cannot resolve. A browser on the same device may still work from a cached address. Re-enable Tailscale DNS in the app, then reconnect. See [Android](/platforms/android).
+
+If DNS is fine, the operator connection may be rejected because the operator token is missing or its scopes are too narrow; see [Operator scopes](/gateway/operator-scopes).
+
+### The Android app is missing the Gateway token or the device is not approved
+
+Two things can block the first successful app connection:
+
+1. **No Gateway token on the client.** The app needs the same token (or password) the Gateway requires. If the token is lost, generate a new one on the Gateway host and restart:
+
+   ```bash
+   openclaw doctor --generate-gateway-token
+   openclaw gateway restart
+   ```
+
+   `openclaw config get` output is redacted (including `--json`), so read the token from where you stored it — an environment file, a secret manager, or `openclaw.json` — rather than from `config get`. See [Invalid Gateway tokens](/cli/doctor/recovery#invalid-gateway-tokens).
+
+2. **The device is pending approval.** Pairing is manual by default, so an unapproved device connects but stays limited. List and approve pending requests on the Gateway host:
+
+   ```bash
+   openclaw devices list
+   openclaw devices approve <requestId>
+   ```
+
+   See [Channel pairing](/channels/pairing) for the full flow.
 
 ## Related
 

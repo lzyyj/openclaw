@@ -154,23 +154,31 @@ easy to miss and expensive to diagnose.
 
 ### Launch the second Gateway from a clean environment
 
-A Gateway launched from a shell that is itself inside another Gateway process
-inherits `OPENCLAW_PROFILE`, `OPENCLAW_STATE_DIR`, `OPENCLAW_CONFIG_PATH`,
-`OPENCLAW_GATEWAY_PORT`, and the `OPENCLAW_SERVICE_*` variables. The second
-instance then silently reads the first instance's config and state.
-
-Pin every isolation variable in the launcher instead of relying on inheritance:
+Prefer the named-profile workflow for the second instance:
 
 ```bat
-set "OPENCLAW_PROFILE="
-set "OPENCLAW_STATE_DIR=C:\Users\<you>\.openclaw"
-set "OPENCLAW_CONFIG_PATH=C:\Users\<you>\.openclaw\openclaw.json"
-set "OPENCLAW_GATEWAY_PORT="
+openclaw --profile ops gateway --port 19789
+```
+
+A launcher that starts from a shell inside the first Gateway's process inherits
+`OPENCLAW_PROFILE`, `OPENCLAW_STATE_DIR`, `OPENCLAW_CONFIG_PATH`,
+`OPENCLAW_GATEWAY_PORT`, and the `OPENCLAW_SERVICE_*` variables. Keeping them
+starts the first instance's config, state, and port a second time, and the child
+loses to state-directory ownership or the busy port.
+
+If one launcher must start both instances, pin separate paths and a separate
+base port for the second one:
+
+```bat
+set "OPENCLAW_STATE_DIR=C:\Users\<you>\.openclaw-ops"
+set "OPENCLAW_CONFIG_PATH=C:\Users\<you>\.openclaw-ops\openclaw.json"
+set "OPENCLAW_GATEWAY_PORT=19789"
 "<node.exe>" "<openclaw>\dist\index.js" gateway
 ```
 
 Symptom to recognize: the second instance's startup log names the first
-instance's state directory, or both Gateways appear to share sessions.
+instance's state directory, or it refuses to start because that directory is
+already owned.
 
 ### A copied config also copies `gateway.tailscale.mode`
 
